@@ -18,6 +18,7 @@ brew "go-task/tap/go-task"
 brew "direnv"
 brew "ipcalc"
 brew 'mas'
+brew "mackup"
 cask "visual-studio-code"
 cask "tabby"
 
