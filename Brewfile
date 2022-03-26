@@ -21,6 +21,7 @@ brew 'mas'
 brew "mackup"
 cask "visual-studio-code"
 cask "tabby"
+cask "microsoft-remote-desktop"
 
 # Git
 brew "git"
