@@ -1,0 +1,66 @@
+#!/bin/bash
+
+set -eufo pipefail
+
+{{ $taps := list
+    "homebrew/bundle"
+    "homebrew/cask"
+    "homebrew/cask-versions"
+    "homebrew/core"
+-}}
+
+{{ $brews := list
+     "node"
+     "docker"
+     "git"
+     "kubernetes-cli"
+     "kubectx"
+     "k9s"
+-}}
+
+{{ $casks := list
+     "visual-studio-code"
+     "lens"
+     "firefox"
+     "1password"
+-}}
+
+
+{{ if .personal -}}
+{{   $taps = concat $taps (list
+        "lencx/chatgpt") -}}
+{{   $brews = concat $brews (list
+       "mas"
+       "mackup"
+       "wireguard-tools") -}}
+{{   $casks = concat $casks (list
+       "notion"
+       "plex"
+       "plexamp"
+       "spotify"
+       "discord"
+       "messenger"
+       "anki"
+       "cron"
+       "protonvpn"
+       "protonmail-bridge"
+       "parallels"
+       "adobe-creative-cloud"
+       "rectangle"
+       "alt-tab"
+       "chatgpt --no-quarantine"
+       ) -}}
+{{ end -}}
+
+
+brew bundle --no-lock --file=/dev/stdin <<EOF || :
+{{ range ($taps | sortAlpha | uniq) -}}
+tap "{{ . }}"
+{{ end }}
+{{ range ($brews | sortAlpha | uniq) -}}
+brew "{{ . }}"
+{{ end }}
+{{ range ($casks | sortAlpha | uniq) -}}
+cask "{{ . }}"
+{{ end }}
+EOF

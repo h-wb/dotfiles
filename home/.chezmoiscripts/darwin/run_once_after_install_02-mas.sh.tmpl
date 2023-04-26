@@ -1,0 +1,19 @@
+{{ if .personal -}}
+#!/bin/bash
+
+set -ufo pipefail
+
+mas account &> /dev/null
+
+if [[ $? -ne 0 ]]; then
+  echo "Please login to Mac app store first, then run command again"
+  mas open
+  exit 0
+fi
+
+brew bundle --no-lock --file=/dev/stdin <<EOF
+
+mas "Habitify: Habit Tracker & Goal", id: 1111447047
+
+EOF
+{{ end -}}
