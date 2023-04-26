@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Install Homebrew
+
+source /tmp/chezmoi-utils.sh
+
+printf "${green}[00 - macOS] ${reset}"
+{{ if or (lt 0 (atoi (env "SCRIPTS_START_AT"))) (env "SKIP_HOMEBREW_SETUP") -}}
+echo "Skip installing Homebrew"
+exit 0
+{{ else }}
+echo "Install Homebrew"
+{{- end }}
+
+
+# Check for Homebrew and install if we don't have it
+if test ! $(which brew); then
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+# Update Homebrew recipes
+brew update
+

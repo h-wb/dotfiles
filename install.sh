@@ -1,39 +1,23 @@
 #!/bin/sh
 
-echo "Setting up your Mac..."
+set -e # -e: exit on error
 
-# Check for Oh My Zsh and install if we don't have it
-if test ! $(which omz); then
-  /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/HEAD/tools/install.sh)"
+if [ ! "$(command -v chezmoi)" ]; then
+  bin_dir="$HOME/.local/bin"
+  chezmoi="$bin_dir/chezmoi"
+  if [ "$(command -v curl)" ]; then
+    sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$bin_dir"
+  elif [ "$(command -v wget)" ]; then
+    sh -c "$(wget -qO- https://git.io/chezmoi)" -- -b "$bin_dir"
+  else
+    echo "To install chezmoi, you must have curl or wget installed." >&2
+    exit 1
+  fi
+else
+  chezmoi=chezmoi
 fi
 
-# Check for Homebrew and install if we don't have it
-if test ! $(which brew); then
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-  echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
-
-# Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
-rm -rf $HOME/.zshrc
-ln -s $HOME/.dotfiles/.zshrc $HOME/.zshrc
-
-# Update Homebrew recipes
-brew update
-
-# Install all our dependencies with bundle (See Brewfile)
-brew tap homebrew/bundle
-brew bundle --file $DOTFILES/Brewfile
-
-# Create a Repo directory
-mkdir $HOME/Repositories
-
-# Clone Github repositories
-$DOTFILES/clone.sh
-
-# Symlink the Mackup config file to the home directory
-ln -s $DOTFILES/.mackup.cfg $HOME/.mackup.cfg
-
-# Set macOS preferences - we will run this last because this will reload the shell
-source $DOTFILES/.macos
+# POSIX way to get script's dir: https://stackoverflow.com/a/29834779/12156188
+script_dir="$(cd -P -- "$(dirname -- "$(command -v -- "$0")")" && pwd -P)"
+# exec: replace current process with chezmoi init
+exec "$chezmoi" init --apply "--source=$script_dir"

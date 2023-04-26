@@ -1,0 +1,5 @@
+{{- $email := promptString "email" -}}
+{{- $personal := promptBool "personal" -}}
+[data]
+    email = {{ $email | quote }}
+    personal = {{ $personal }}
