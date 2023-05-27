@@ -1,5 +1,7 @@
-{{- $email := promptString "email" -}}
+{{- $gitemail := promptString "gitemail" -}}
 {{- $personal := promptBool "personal" -}}
+{{- $bwemail := promptString "bwemail" -}}
 [data]
-    email = {{ $email | quote }}
+    gitemail = {{ $gitemail | quote }}
+    bwemail = {{ $bwemail | quote }}
     personal = {{ $personal }}
