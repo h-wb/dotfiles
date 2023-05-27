@@ -3,6 +3,16 @@
 
 set -ufo pipefail
 
+source /tmp/chezmoi-utils.sh
+
+printf "${green}[02 - Install MAS] ${reset}"
+{{ if or (lt 02 (atoi (env "SCRIPTS_START_AT"))) (env "SKIP_MAS_SETUP") -}}
+echo "Skip installing Mas"
+exit 0
+{{ else }}
+echo "Install MAS"
+{{- end }}
+
 mas account &> /dev/null
 
 if [[ $? -ne 0 ]]; then

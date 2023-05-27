@@ -2,6 +2,16 @@
 
 set -eufo pipefail
 
+source /tmp/chezmoi-utils.sh
+
+printf "${green}[01 - Install packages] ${reset}"
+{{ if or (lt 01 (atoi (env "SCRIPTS_START_AT"))) (env "SKIP_PACKAGES_SETUP") -}}
+echo "Skip installing packages"
+exit 0
+{{ else }}
+echo "Install Packages"
+{{- end }}
+
 {{ $taps := list
     "homebrew/bundle"
     "homebrew/cask"
@@ -32,7 +42,8 @@ set -eufo pipefail
 {{   $brews = concat $brews (list
        "mas"
        "mackup"
-       "wireguard-tools") -}}
+       "wireguard-tools"
+       "bitwarden-cli") -}}
 {{   $casks = concat $casks (list
        "notion"
        "plex"
@@ -49,6 +60,7 @@ set -eufo pipefail
        "rectangle"
        "alt-tab"
        "chatgpt --no-quarantine"
+       "bitwarden"
        ) -}}
 {{ end -}}
 
