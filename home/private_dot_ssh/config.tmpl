@@ -1,0 +1,9 @@
+HashKnownHosts no
+
+Host *
+    AddKeysToAgent yes
+    UseKeychain yes
+
+{{ if .personal -}}
+{{ (bitwarden "item" "ssh_config").notes }}
+{{- end }}
