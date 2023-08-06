@@ -64,6 +64,7 @@ path=(~/bin $path)
 # Export environment variables.
 export GPG_TTY=$TTY
 export EDITOR="code --wait"
+export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
 
 # Source additional local files if they exist.
 z4h source ~/.env.zsh
