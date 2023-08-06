@@ -15,5 +15,10 @@ echo "Cloning repositories"
 REPO=$HOME/Repositories
 
 # Personal
-git clone https://github.com/h-wb/home-ops.git $REPO/home-ops
+URL=https://github.com/h-wb/home-ops.git
+FOLDER=$REPO/home-ops
+
+if [ ! -d "$FOLDER" ] ; then
+    git clone "$URL" "$FOLDER"
+fi
 {{ end -}}
