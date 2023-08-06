@@ -1,6 +1,9 @@
 alias library="cd $HOME/Library"
 alias repo="cd $HOME/Repositories"
+
+#Code
 alias dotfiles="code  $HOME/.local/share/chezmoi"
+alias ops="code $HOME/Repositories/home-ops"
 
 alias ez="exec zsh"
 
