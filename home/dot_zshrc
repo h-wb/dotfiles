@@ -65,6 +65,9 @@ path=(~/bin $path)
 export GPG_TTY=$TTY
 export EDITOR="code --wait"
 export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
+export NVM_DIR="$HOME/.nvm"
+[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 # Source additional local files if they exist.
 z4h source ~/.env.zsh
