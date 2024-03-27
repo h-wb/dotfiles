@@ -1,10 +1,11 @@
 {{- $gitemail := promptString "gitemail" -}}
-{{- $personal := promptBool "personal" -}}
 {{- $bwemail := promptString "bwemail" -}}
+{{- $choices := list "personal" "work"  -}}
+{{- $mode := promptChoiceOnce . "mode" "What type of host are you on" $choices -}}
 [data]
     gitemail = {{ $gitemail | quote }}
     bwemail = {{ $bwemail | quote }}
-    personal = {{ $personal }}
+    mode = {{ $mode | quote }}
 [git]
     autoCommit = true
     autoPush = true

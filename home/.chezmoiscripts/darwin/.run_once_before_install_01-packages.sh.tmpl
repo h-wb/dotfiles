@@ -13,57 +13,27 @@ echo "Install Packages"
 {{- end }}
 
 {{ $taps := list
-    "homebrew/bundle"
-    "homebrew/cask"
-    "homebrew/cask-versions"
-    "homebrew/core"
+
 -}}
 
 {{ $brews := list
-     "node"
-     "docker"
-     "git"
-     "kubernetes-cli"
-     "kubectx"
-     "k9s"
+ 
 -}}
 
 {{ $casks := list
-     "visual-studio-code"
-     "lens"
-     "firefox"
-     "1password"
-     "mos"
-     "keyclu"
+   
 -}}
 
 
 {{ if .personal -}}
 {{   $taps = concat $taps (list
-        "lencx/chatgpt") -}}
+        ) -}}
 {{   $brews = concat $brews (list
-       "mas"
-       "mackup"
-       "wireguard-tools"
-       "bitwarden-cli") -}}
+
+       "mackup") -}}
 {{   $casks = concat $casks (list
-       "notion"
-       "arc"
-       "plex"
-       "plexamp"
-       "spotify"
-       "discord"
-       "messenger"
-       "anki"
-       "cron"
-       "protonvpn"
-       "protonmail-bridge"
-       "parallels"
-       "adobe-creative-cloud"
-       "rectangle"
-       "alt-tab"
-       "chatgpt --no-quarantine"
-       "bitwarden"
+       
+  
        "beeper"
        ) -}}
 {{ end -}}

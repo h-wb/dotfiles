@@ -2,17 +2,9 @@
 #!/bin/sh
 
 # Install Homebrew
-
 source /tmp/chezmoi-utils.sh
 
-printf "${green}[00 - macOS] ${reset}"
-{{ if or (lt 0 (atoi (env "SCRIPTS_START_AT"))) (env "SKIP_HOMEBREW_SETUP") -}}
-echo "Skip installing Homebrew"
-exit 0
-{{ else }}
-echo "Install Homebrew"
-{{- end }}
-
+printf "${green}[01 - Install Homebrew] ${reset}"
 if command -v brew >/dev/null 2>&1; then
   echo "Homebrew already installed, skipping."
   exit 0
