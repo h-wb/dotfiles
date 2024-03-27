@@ -1,0 +1,14 @@
+{{- $git_email := promptString "git_email" -}}
+{{- $bw_email := promptString "bw_email" -}}
+{{- $choices := list "personal" "pro"  -}}
+{{- $mode := promptChoiceOnce . "mode" "What type of host are you on" $choices -}}
+{{- $should_include_secrets := promptBoolOnce . "should_include_secrets" "Should the host include secrets" -}}
+
+data:
+    git_email: {{ $git_email | quote }}
+    bw_email: {{ $bw_email | quote }}
+    mode: {{ $mode | quote }}
+    should_include_secrets: {{ $should_include_secrets | quote }}
+
+scriptEnv:
+    NODE_OPTIONS: "--no-deprecation" #https://github.com/bitwarden/clients/issues/6689

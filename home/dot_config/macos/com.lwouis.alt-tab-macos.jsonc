@@ -1,0 +1,10 @@
+{
+    "label": "AltTab",
+    "restart": "killall Dock",
+    "values": {
+        "holdShortcut": "\\U2318",
+        "updatePolicy": 1,
+        "menubarIcon": 3,
+        "startAtLogin": 1
+    }
+}

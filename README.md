@@ -30,3 +30,10 @@ This repository contains my dotfiles managed by [chezmoi](https://github.com/twp
 https://github.com/twpayne/dotfiles
 https://github.com/narze/dotfiles
 https://github.com/nandalopes/dotfiles
+https://github.com/cweagans/dotfiles
+
+## Misc.
+
+`chezmoi state delete-bucket --bucket=entryState`
+`chezmoi state delete-bucket --bucket=scriptState`
+

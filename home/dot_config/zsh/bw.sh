@@ -44,6 +44,4 @@ then
     export BW_SESSION
 fi
 
-echo "$BW_SESSION"
-# Pull the latest vault data from server
 
