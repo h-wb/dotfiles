@@ -99,6 +99,8 @@ compdef _directories md
 
 # Define aliases.
 z4h source $HOME/.config/zsh/aliases.zsh
+# Bitwarden unlock with TouchID
+z4h source $HOME/.config/zsh/touchid-bw.sh
 
 # Add flags to existing aliases.
 alias ls="${aliases[ls]:-ls} -A"
