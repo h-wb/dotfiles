@@ -51,4 +51,5 @@ Grant full disk access to these apps:
 * Discord
 * Plexamp
 * Raycast
-
+* KeyClu
+* Mos
