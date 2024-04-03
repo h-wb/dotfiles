@@ -1,0 +1,6 @@
+{{- $scriptName := ( list ".10_init" .chezmoi.os "sh" | join "." ) -}}
+{{- $scriptPath := ( joinPath ( toString .chezmoi.sourceDir ) ".chezmoiscripts/darwin" $scriptName ) -}}
+
+{{- if stat $scriptPath -}}
+  {{ include $scriptPath }}
+{{- end -}}
