@@ -1,0 +1,64 @@
+packages:
+  common:
+    darwin:
+      taps:
+        - "homebrew/bundle"
+        - "homebrew/services"
+      brews:
+        - "docker"
+        - "git"
+        - "kubernetes-cli"
+        - "kubectx"
+        - "k9s"
+        - "chezmoi"
+        - "jq"
+      casks:
+        - "raycast"
+        - "visual-studio-code"
+        - "lens"
+        - "mos"
+        - "keyclu"
+        - "arc"
+        - "plexamp"
+        - "spotify"
+        - "notion"
+        - "anki"
+        - "rectangle"
+        - "alt-tab"
+        - "iterm2"
+      mas: []
+  personal:
+    darwin:
+      taps: []
+      brews: 
+        - "bitwarden-cli"
+        - "mas"
+      casks: 
+        - "discord"
+        - "plex"
+        - "messenger"
+        - "protonvpn"
+        - "beeper"
+      mas: 
+        - name: "WireGuard"
+          id: 1451685025
+        - name: "Bitwarden"
+          id: 1352778147
+  pro:
+    darwin:
+      taps: []
+      brews: 
+        - "phpstorm"
+      casks: 
+        - "notion-calendar"
+      mas: []
+repositories:
+  - https://github.com/h-wb/home-ops
+  - https://github.com/h-wb/dotfiles
+
+uninstall_packages:
+  darwin:
+    taps: []
+    mas: []
+    casks: []
+    brews: []

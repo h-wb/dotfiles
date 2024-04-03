@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+CHEZMOI_SOURCE="$(chezmoi source-path)"
+source "${CHEZMOI_SOURCE}/scripts/utils.sh"
+
+echo_info "enabling TouchID for sudo"
+
+curl -sL git.io/sudo-touch-id | sh

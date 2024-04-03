@@ -1,0 +1,79 @@
+#!/bin/bash
+
+export PATH=$PATH:/opt/homebrew/bin
+
+brew bundle --no-lock --no-upgrade --file=/dev/stdin <<EOF
+{{- if .packages.common.darwin.taps }}
+# common taps
+{{ range .packages.common.darwin.taps -}}
+tap "{{ . }}"
+{{ end }}
+{{ end }}
+
+{{- if index .packages .mode "darwin" "taps" }}
+# {{ .mode }} taps
+{{ range index .packages .mode "darwin" "taps" -}}
+tap "{{ . }}"
+{{ end }}
+{{ end }}
+
+{{- if .packages.common.darwin.brews }}
+# common packages
+{{ range .packages.common.darwin.brews -}}
+brew "{{ . }}"
+{{ end }}
+{{ end }}
+
+{{- if index .packages .mode "darwin" "brews" }}
+# {{ .mode }} packages
+{{ range index .packages .mode "darwin" "brews" -}}
+brew "{{ . }}"
+{{ end }}
+{{ end }}
+
+{{- if .packages.common.darwin.casks }}
+# common casks
+{{ range .packages.common.darwin.casks -}}
+cask "{{ . }}"
+{{ end }}
+{{ end }}
+
+{{- if index .packages .mode "darwin" "casks" }}
+# {{ .mode }} casks
+{{ range index .packages .mode "darwin" "casks" -}}
+cask "{{ . }}"
+{{ end }}
+{{ end }}
+
+{{- if .packages.common.darwin.mas }}
+# common app store apps
+{{ range .packages.common.darwin.mas -}}
+mas "{{ .name }}", id: {{ .id }}
+{{ end }}
+{{ end }}
+
+{{- if index .packages .mode "darwin" "mas" }}
+# {{ .mode }} app store apps
+{{ range index .packages .mode "darwin" "mas" -}}
+mas "{{ .name }}", id: {{ .id }}
+{{ end }}
+{{ end }}
+EOF
+
+cat <<EOF | zsh
+{{- if .uninstall_packages.darwin.brews }}
+{{- range .uninstall_packages.darwin.brews }}
+brew uninstall --force {{ . }}
+{{- end }}
+{{- end }}
+{{- if .uninstall_packages.darwin.casks }}
+{{- range .uninstall_packages.darwin.casks }}
+brew uninstall --force {{ . }}
+{{- end }}
+{{- end }}
+{{- if .uninstall_packages.darwin.mas }}
+{{- range .uninstall_packages.darwin.mas }}
+sudo rm -r "/Applications/{{ .name }}.app"
+{{- end }}
+{{- end }}
+EOF

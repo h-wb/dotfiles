@@ -1,0 +1,7 @@
+{
+    "label": "Trackpad",
+    "restart": "true",
+    "values": {
+        "Clicking": true
+    }
+  }
