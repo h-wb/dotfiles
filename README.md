@@ -37,3 +37,18 @@ https://github.com/cweagans/dotfiles
 `chezmoi state delete-bucket --bucket=entryState`
 `chezmoi state delete-bucket --bucket=scriptState`
 
+## Security & Privacy System Preferences
+
+### Full Disk Access
+Grant full disk access to these apps:
+* iTerm
+
+### Screen Recording
+* AltTab
+
+### Accessibility
+* AltTab
+* Discord
+* Plexamp
+* Raycast
+

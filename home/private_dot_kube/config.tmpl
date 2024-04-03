@@ -1,0 +1,3 @@
+{{ if and (eq .mode "personal") (eq .should_include_secrets "true") -}}
+{{ (bitwarden "item" "kubeconfig").notes }}
+{{- end }}
