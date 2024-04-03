@@ -5,6 +5,35 @@
     // Mission control shoudn't rearrange itself
     "mru-spaces": false,
     // Don't show a separate recently used apps section.
-    "show-recents": false
+    "show-recents": false,
+    // Disable Dashboard
+    "mcx-disabled": true,
+    // Automatically hide and show the Dock
+    "autohide" : true,
+    // Remove the auto-hiding Dock delay
+    "autohide-delay": 0,    
+    // Remove the animation when hiding/showing the Dock
+    "autohide-time-modifier" : 0,
+    // Minimize windows into their application’s icon
+    "minimize-to-application" : true,
+    // # Show only open applications in the Dock
+    "static-only" : true,
+    // # Hot corners
+    // # Possible values:
+    // #  0: no-op
+    // #  2: Mission Control
+    // #  3: Show application windows
+    // #  4: Desktop
+    // #  5: Start screen saver
+    // #  6: Disable screen saver
+    // #  7: Dashboard
+    // # 10: Put display to sleep
+    // # 11: Launchpad
+    // # 12: Notification Center
+    // # 13: Lock Screen
+    "wvous-tr-corner": 4,
+    "wvous-tr-modifier": 0,
+    "wvous-bl-corner": 5,
+    "wvous-bl-modifier": 0
   }
 }

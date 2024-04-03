@@ -47,7 +47,8 @@ packages:
   pro:
     darwin:
       taps: []
-      brews: []
+      brews: 
+        - "phpstorm"
       casks: 
         - "notion-calendar"
       mas: []
