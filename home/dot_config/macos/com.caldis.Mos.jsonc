@@ -1,0 +1,8 @@
+{
+    "label": "Mos",
+    "restart": "killall Mos && open -a Mos",
+    "values": {
+        "hideStatusItem": 1,
+        "toggle": 1
+    }
+}
