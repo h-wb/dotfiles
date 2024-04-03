@@ -1,10 +1,10 @@
 {
     "label": "AltTab",
-    "restart": "killall AltTab",
+    "restart": "killall AltTab && open -a AltTab",
     "values": {
-        "holdShortcut": "\\U2318",
         "updatePolicy": 1,
-        "menubarIcon": 2,
-        "startAtLogin": 1
+        "menubarIcon": 3,
+        "startAtLogin": true,
+        "holdShortcut": "⌘"
     }
 }
