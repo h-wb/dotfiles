@@ -5,13 +5,14 @@ packages:
         - "homebrew/bundle"
         - "homebrew/services"
       brews:
-        - "docker"
+        - "go-task"
         - "git"
         - "kubernetes-cli"
         - "kubectx"
         - "k9s"
         - "chezmoi"
         - "jq"
+        - "direnv"
       casks:
         - "raycast"
         - "visual-studio-code"
@@ -26,6 +27,9 @@ packages:
         - "rectangle"
         - "alt-tab"
         - "iterm2"
+        - "obsidian"
+        - "syncthing"
+        - "orbstack"
       mas: []
   personal:
     darwin:
@@ -36,7 +40,6 @@ packages:
       casks: 
         - "discord"
         - "plex"
-        - "messenger"
         - "protonvpn"
         - "beeper"
       mas: 
