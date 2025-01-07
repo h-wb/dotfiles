@@ -14,9 +14,8 @@ This repository contains my dotfiles managed by [chezmoi](https://github.com/twp
 ## Set up new MacOS
 
 1. Sign in to iCloud and App Store
-2. Run `./install.sh`
+2. Run `curl https://raw.githubusercontent.com/h-wb/dotfiles/master/install.sh | sh`
 3. Run `exec zsh`
-4. `chezmoi init https://github.com/h-wb/dotfiles.git`
 
 
 ## Personal

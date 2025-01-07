@@ -14,7 +14,4 @@ alias galias="git config --get-regexp alias"
 #Chezmoi
 alias cm="chezmoi"
 
-#BW
-alias unlock="source $HOME/.config/zsh/bw.sh"
-
 #alias bw='NODE_OPTIONS="--no-deprecation" bw'

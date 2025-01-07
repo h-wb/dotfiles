@@ -1,23 +1,40 @@
 #!/bin/sh
 
-set -e # -e: exit on error
+set -eu
 
-if [ ! "$(command -v chezmoi)" ]; then
-  bin_dir="$HOME/.local/bin"
-  chezmoi="$bin_dir/chezmoi"
-  if [ "$(command -v curl)" ]; then
-    sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$bin_dir"
-  elif [ "$(command -v wget)" ]; then
-    sh -c "$(wget -qO- https://git.io/chezmoi)" -- -b "$bin_dir"
-  else
-    echo "To install chezmoi, you must have curl or wget installed." >&2
-    exit 1
-  fi
-else
-  chezmoi=chezmoi
+if ! echo $PATH | grep -q "$HOME/\.local/bin:"; then
+	export PATH="$HOME/.local/bin:$PATH"
 fi
+
+if ! mise="$(command -v mise)"; then
+	if command -v curl >/dev/null; then
+		curl https://mise.run | sh
+	elif command -v wget >/dev/null; then
+		wget -qO- https://mise.run | sh
+	else
+		echo "To install mise, you must have curl or wget installed." >&2
+		exit 1
+	fi
+	mise=~/.local/bin/mise
+else
+	mise=$(which mise)
+fi
+
+eval "${mise} use -yg chezmoi"
+chezmoi=$(${mise} which chezmoi)
 
 # POSIX way to get script's dir: https://stackoverflow.com/a/29834779/12156188
 script_dir="$(cd -P -- "$(dirname -- "$(command -v -- "$0")")" && pwd -P)"
-# exec: replace current process with chezmoi init
-exec "$chezmoi" init --apply "--source=$script_dir"
+
+set -- init --apply --source="${script_dir}" --no-tty --force
+
+# if [ "${CODESPACES:-false}" = true ]; then
+# 	set -- init --apply
+# elif [ "$USER" = "vagrant" ]; then
+# 	set -- init --apply --source /vagrant
+# else
+# 	set -- init --apply ${GITHUB_USERNAME:-smlloyd}
+# fi
+
+# exec: replace current process with chezmoi
+exec "$chezmoi" "$@"
