@@ -16,7 +16,7 @@ scriptEnv:
 hooks:
   read-source-state:
     pre:
-      command: {{ .chezmoi.workingTree }}/home/scripts/ensure-pre-requisites.sh
+      command: {{ .chezmoi.workingTree }}/home/scripts/install-password-manager.sh
 
 bitwardenSecrets:
     command: {{ .chezmoi.destDir }}/.local/share/mise/shims/bws
