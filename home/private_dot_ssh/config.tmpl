@@ -5,5 +5,5 @@ Host *
     UseKeychain yes
 
 {{ if and (eq .mode "personal") (eq .should_include_secrets "true") -}}
-{{ (bitwarden "item" "ssh_config").notes }}
+{{ (bitwardenSecrets "990dfec0-ac4f-4008-a578-b25e007c569f" .accessToken).value }}
 {{- end }}

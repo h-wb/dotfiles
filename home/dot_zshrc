@@ -64,19 +64,15 @@ path=(~/bin $path)
 # Export environment variables.
 export GPG_TTY=$TTY
 export EDITOR="code --wait"
-export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
-export NVM_DIR="$HOME/.nvm"
-[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
-[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 # Source additional local files if they exist.
 z4h source ~/.env.zsh
 
+eval "$(mise activate zsh)"
+
 # Use additional Git repositories pulled in with `z4h install`.
 #
 # This is just an example that you should delete. It does nothing useful.
-z4h source ohmyzsh/ohmyzsh/lib/diagnostics.zsh  # source an individual file
-z4h load   ohmyzsh/ohmyzsh/plugins/emoji-clock  # load a plugin
 
 # Define key bindings.
 z4h bindkey undo Ctrl+/   Shift+Tab  # undo the last command line change
@@ -99,8 +95,6 @@ compdef _directories md
 
 # Define aliases.
 z4h source $HOME/.config/zsh/aliases.zsh
-# Bitwarden unlock with TouchID
-z4h source $HOME/.config/zsh/touchid-bw.sh
 
 # Add flags to existing aliases.
 alias ls="${aliases[ls]:-ls} -A"

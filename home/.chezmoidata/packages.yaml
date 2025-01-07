@@ -10,9 +10,6 @@ packages:
         - "kubernetes-cli"
         - "kubectx"
         - "k9s"
-        - "chezmoi"
-        - "jq"
-        - "direnv"
       casks:
         - "raycast"
         - "visual-studio-code"
@@ -22,7 +19,6 @@ packages:
         - "arc"
         - "plexamp"
         - "spotify"
-        - "notion"
         - "anki"
         - "rectangle"
         - "alt-tab"
@@ -35,7 +31,6 @@ packages:
     darwin:
       taps: []
       brews: 
-        - "bitwarden-cli"
         - "mas"
       casks: 
         - "discord"
@@ -50,10 +45,8 @@ packages:
   pro:
     darwin:
       taps: []
-      brews: 
-        - "phpstorm"
-      casks: 
-        - "notion-calendar"
+      brews: []
+      casks: []
       mas: []
 repositories:
   - https://github.com/h-wb/home-ops

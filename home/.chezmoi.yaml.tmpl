@@ -1,14 +1,22 @@
 {{- $git_email := promptString "git_email" -}}
-{{- $bw_email := promptString "bw_email" -}}
+{{- $accessToken := promptStringOnce . "accessToken" "Enter BWS accessToken:" -}}
 {{- $choices := list "personal" "pro"  -}}
 {{- $mode := promptChoiceOnce . "mode" "What type of host are you on" $choices -}}
 {{- $should_include_secrets := promptBoolOnce . "should_include_secrets" "Should the host include secrets" -}}
 
 data:
+    accessToken: {{ $accessToken | quote }}
     git_email: {{ $git_email | quote }}
-    bw_email: {{ $bw_email | quote }}
     mode: {{ $mode | quote }}
     should_include_secrets: {{ $should_include_secrets | quote }}
 
 scriptEnv:
     NODE_OPTIONS: "--no-deprecation" #https://github.com/bitwarden/clients/issues/6689
+
+hooks:
+  read-source-state:
+    pre:
+      command: {{ .chezmoi.workingTree }}/home/scripts/ensure-pre-requisites.sh
+
+bitwardenSecrets:
+    command: {{ .chezmoi.destDir }}/.local/share/mise/shims/bws

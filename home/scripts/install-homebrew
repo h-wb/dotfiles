@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-CHEZMOI_SOURCE="$(chezmoi source-path)"
-source "${CHEZMOI_SOURCE}/scripts/utils.sh"
+source "${CHEZMOI_SOURCE_DIR?}/scripts/utils.sh"
 
 if ! command_exists brew; then
     echo_info "installing homebrew"
