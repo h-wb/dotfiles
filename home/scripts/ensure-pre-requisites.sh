@@ -4,7 +4,6 @@ export PATH="${CHEZMOI_SOURCE_DIR?}/scripts:${PATH}"
 
 case "$(uname -s)" in
 Darwin)
-    install-homebrew
     install-password-manager
     ;;
 *)
