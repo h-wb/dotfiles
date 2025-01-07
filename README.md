@@ -14,8 +14,8 @@ This repository contains my dotfiles managed by [chezmoi](https://github.com/twp
 ## Set up new MacOS
 
 1. Sign in to iCloud and App Store
-2. Run `sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"`
-3. Run `exec zsh`
+2. Log-in to BWS and get a new access token for the device
+3. Run `sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"`
 
 
 ## Personal
