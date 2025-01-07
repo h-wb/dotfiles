@@ -12,7 +12,7 @@ packages:
         - "k9s"
       casks:
         - "raycast"
-        - "visual-studio-codei/vy895f"
+        - "visual-studio-code"
         - "mos"
         - "keyclu"
         - "arc"
