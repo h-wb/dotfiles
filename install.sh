@@ -6,6 +6,11 @@ if ! echo $PATH | grep -q "$HOME/\.local/bin:"; then
 	export PATH="$HOME/.local/bin:$PATH"
 fi
 
+if ! xcode-select -p >/dev/null 2>&1 || ! test -f "$(xcode-select -p)/usr/bin/git"; then
+	echo "installing command line tools"
+	xcode-select --install
+fi
+
 if ! mise="$(command -v mise)"; then
 	if command -v curl >/dev/null; then
 		curl https://mise.run | sh
