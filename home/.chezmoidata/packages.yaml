@@ -4,12 +4,14 @@ packages:
       taps:
         - "homebrew/bundle"
         - "homebrew/services"
+        - "dsully/tap"
       brews:
         - "go-task"
         - "git"
         - "kubernetes-cli"
         - "kubectx"
         - "k9s"
+        - "dsully/tap/macos-defaults"
       casks:
         - "raycast"
         - "visual-studio-code"

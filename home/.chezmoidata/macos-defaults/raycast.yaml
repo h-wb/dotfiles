@@ -1,0 +1,7 @@
+---
+description: Raycast
+#kill: ["Raycast"]
+data:
+  com.raycast.macos:
+    onboardingCompleted: true
+    raycastGlobalHotkey: "Command-49"

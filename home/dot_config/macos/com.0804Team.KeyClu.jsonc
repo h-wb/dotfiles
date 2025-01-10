@@ -1,9 +1,0 @@
-{
-    "label": "KeyClu",
-    "restart": "killall KeyClu && open -a KeyClu",
-    "values": {
-        "SUAutomaticallyUpdate": 1,
-        "hideMenuIcon": 1,
-        "launchAtLogin": 1
-    }
-}

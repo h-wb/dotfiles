@@ -1,0 +1,6 @@
+---
+description: Trackpad
+# kill: ["AltTab"]
+data:
+  com.apple.AppleMultitouchTrackpad:
+    Clicking: true

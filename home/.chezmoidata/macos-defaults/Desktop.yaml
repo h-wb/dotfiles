@@ -1,0 +1,7 @@
+---
+description: Desktop services
+# kill: ["AltTab"]
+data:
+  com.apple.desktopservices:
+    DSDontWriteNetworkStores: true
+    DSDontWriteUSBStores: true

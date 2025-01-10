@@ -1,0 +1,27 @@
+#!/bin/bash
+
+{{ range (glob (joinPath .chezmoi.workingTree "home/.chezmoidata/macos-defaults/*.yaml")) -}}
+# {{ . }} hash: {{ include . | sha256sum }}
+{{ end -}}
+
+if command -v macos-defaults &> /dev/null; then
+   macos-defaults apply {{ (joinPath .chezmoi.workingTree "home/.chezmoidata/macos-defaults/") }}
+fi
+
+# Restart SystemUIServer to apply changes
+killall SystemUIServer >/dev/null 2>&1
+
+# Dock clean up
+# find "$HOME/Library/Application Support/Dock" -name "*.db" -maxdepth 1 -delete
+
+echo
+echo "Applying System Modifications"
+
+# Quit System Preferences using AppleScript
+osascript -e 'tell application "System Preferences" to quit' >/dev/null 2>&1
+
+# System info (assumed to be a placeholder for system information command)
+system_profiler SPSoftwareDataType
+
+
+echo

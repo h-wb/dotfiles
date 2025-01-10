@@ -1,0 +1,15 @@
+---
+# Multiple yaml docs in single file.
+description: Keyboard
+data:
+  com.apple.symbolichotkeys:
+    AppleSymbolicHotKeys:
+      # Disable Spotlight on Cmd-Space so Alfred/Raycast can use it.
+      "64":
+          enabled: false
+          value:
+            type: standard
+            parameters:
+              - 32
+              - 49
+              - 1048576
