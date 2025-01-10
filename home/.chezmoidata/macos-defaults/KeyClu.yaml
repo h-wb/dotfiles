@@ -1,0 +1,8 @@
+---
+description: KeyClu
+# kill: ["AltTab"]
+data:
+  com.0804Team.KeyClu:
+    SUAutomaticallyUpdate: 1
+    hideMenuIcon: 1
+    launchAtLogin: 1

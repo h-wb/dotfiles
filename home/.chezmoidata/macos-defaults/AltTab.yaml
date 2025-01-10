@@ -1,0 +1,10 @@
+---
+description: AltTab
+# kill: ["AltTab"]
+data:
+  com.lwouis.alt-tab-macos:
+    updatePolicy: 1
+    menubarIcon: 3
+    menubarIconShown: "false"
+    startAtLogin: true
+    holdShortcut: "⌘"
