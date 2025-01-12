@@ -24,10 +24,10 @@ packages:
         - "anki"
         - "rectangle"
         - "alt-tab"
-        - "iterm2"
         - "obsidian"
         - "syncthing"
         - "orbstack"
+        - "ghostty"
       mas: []
   personal:
     darwin:
