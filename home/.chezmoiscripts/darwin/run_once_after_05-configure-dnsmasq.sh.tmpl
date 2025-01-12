@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -euo pipefail
+
+echo "[Configuration] Adding DNS configuration to dnsmasq.conf..."
+
+# Path to the dnsmasq configuration file
+DNSMASQ_CONF="$HOMEBREW_PREFIX/etc/dnsmasq.conf"
+
+# Check if the configuration already exists in the file to avoid duplicates
+if ! grep -q "{{ .domain }}" "$DNSMASQ_CONF"; then
+    echo "Adding custom DNS settings to $DNSMASQ_CONF..."
+
+    # Append the required DNS settings to the dnsmasq configuration
+    cat <<EOL >> "$DNSMASQ_CONF"
+
+# Ignore /etc/resolv.conf
+no-resolv
+
+# For queries *.domain.com and *.domain.net, forward to the specified DNS server
+# Servers are queried in order (if the previous fails)
+# -- Note: These are EXAMPLES. Replace with your desired config.
+server=/{{ .domain }}/192.168.1.200
+
+# Forward all other requests to Google's public DNS server
+server=8.8.8.8
+
+# Only listen for DNS queries on localhost
+listen-address=127.0.0.1
+
+# Required due to macOS limitations
+bind-interfaces
+EOL
+
+else
+    echo "DNS settings already exist in $DNSMASQ_CONF."
+fi
+
+# Restart dnsmasq to apply new configuration
+echo "Restarting dnsmasq to apply the new configuration..."
+sudo brew services restart dnsmasq
+
+echo "dnsmasq configuration updated and service restarted."

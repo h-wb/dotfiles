@@ -12,6 +12,7 @@ packages:
         - "kubectx"
         - "k9s"
         - "dsully/tap/macos-defaults"
+        - "dnsmasq"
       casks:
         - "raycast"
         - "visual-studio-code"
