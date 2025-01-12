@@ -1,0 +1,8 @@
+---
+description: Syncthing
+kill: ["Syncthing"]
+data:
+  com.github.xor-gate.syncthing-macosx:
+    SUHasLaunchedBefore: true
+    StartAtLogin: true
+    NSStatusItem Visible Item-0: false
