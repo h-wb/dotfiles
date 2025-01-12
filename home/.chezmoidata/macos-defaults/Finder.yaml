@@ -1,0 +1,18 @@
+---
+description: Finder
+kill: ["Finder"]
+data:
+  com.apple.finder:
+    CreateDesktop: false
+    # Set Desktop as the default location for new Finder windows
+    # For other paths, use `PfLo` and `file:///full/path/here/`
+    # Computer     : `PfCm`
+    # Volume       : `PfVo`
+    # $HOME        : `PfHm`
+    # Desktop      : `PfDe`
+    # Documents    : `PfDo`
+    # All My Files : `PfAF`
+    # Other…       : `PfLo`
+    NewWindowTarget: PfHm
+    FXPreferredViewStyle: clmv
+    ShowPathbar: true
