@@ -1,4 +1,5 @@
 {{- $git_email := promptString "git_email" -}}
+{{- $domain := promptStringOnce . "domain" "Enter domain:" -}}
 {{- $accessToken := promptStringOnce . "accessToken" "Enter BWS accessToken:" -}}
 {{- $choices := list "personal" "pro"  -}}
 {{- $mode := promptChoiceOnce . "mode" "What type of host are you on" $choices -}}
@@ -7,6 +8,7 @@
 data:
     accessToken: {{ $accessToken | quote }}
     git_email: {{ $git_email | quote }}
+    domain: {{ $domain | quote }}
     mode: {{ $mode | quote }}
     should_include_secrets: {{ $should_include_secrets | quote }}
 

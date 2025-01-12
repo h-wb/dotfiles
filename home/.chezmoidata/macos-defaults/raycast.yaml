@@ -5,3 +5,4 @@ data:
   com.raycast.macos:
     onboardingCompleted: true
     raycastGlobalHotkey: "Command-49"
+    NSStatusItem Visible raycastIcon: false

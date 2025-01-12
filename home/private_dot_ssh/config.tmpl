@@ -5,5 +5,5 @@ Host *
     UseKeychain yes
 
 {{ if and (eq .mode "personal") (eq .should_include_secrets "true") -}}
-{{ (bitwardenSecrets "990dfec0-ac4f-4008-a578-b25e007c569f" .accessToken).value }}
+{{ (bitwardenSecrets "68b87366-50c3-4151-99d5-b26100b30f6c" .accessToken).value }}
 {{- end }}
