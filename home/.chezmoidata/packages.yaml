@@ -38,7 +38,7 @@ packages:
         - "discord"
         - "plex"
         - "protonvpn"
-        - "beeper"
+        - "steam"
       mas: 
         - name: "WireGuard"
           id: 1451685025
