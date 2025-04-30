@@ -2,7 +2,7 @@
 
 export PATH=$PATH:/opt/homebrew/bin
 
-brew bundle --no-lock --no-upgrade --file=/dev/stdin <<EOF
+brew bundle --no-upgrade --file=/dev/stdin <<EOF
 {{- if .packages.common.darwin.taps }}
 # common taps
 {{ range .packages.common.darwin.taps -}}
