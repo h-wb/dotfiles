@@ -28,6 +28,7 @@ packages:
         - "syncthing"
         - "orbstack"
         - "ghostty"
+        - "betterdisplay"
       mas: []
   personal:
     darwin:
