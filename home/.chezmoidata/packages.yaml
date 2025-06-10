@@ -13,6 +13,7 @@ packages:
         - "k9s"
         - "dsully/tap/macos-defaults"
         - "dnsmasq"
+        - "krew"
       casks:
         - "raycast"
         - "visual-studio-code"
@@ -29,6 +30,7 @@ packages:
         - "orbstack"
         - "ghostty"
         - "betterdisplay"
+        - "hyperkey"
       mas: []
   personal:
     darwin:

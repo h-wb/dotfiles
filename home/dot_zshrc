@@ -64,6 +64,7 @@ path=(~/bin $path)
 # Export environment variables.
 export GPG_TTY=$TTY
 export EDITOR="code --wait"
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
 # Source additional local files if they exist.
 z4h source ~/.env.zsh
