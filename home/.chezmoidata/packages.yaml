@@ -23,7 +23,6 @@ packages:
         - "plexamp"
         - "spotify"
         - "anki"
-        - "rectangle"
         - "alt-tab"
         - "obsidian"
         - "syncthing"
