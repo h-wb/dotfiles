@@ -30,6 +30,7 @@ packages:
         - "ghostty"
         - "betterdisplay"
         - "hyperkey"
+        - "duet"
       mas: []
   personal:
     darwin:
