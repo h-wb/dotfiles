@@ -1,3 +1,0 @@
-{{ if and (eq .mode "personal") (eq .should_include_secrets "true") -}}
-{{ (bitwardenSecrets "4bd2c3bf-5e47-4639-b420-b26500ef8181" .accessToken).value }}
-{{- end }}
