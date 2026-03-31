@@ -13,5 +13,6 @@ alias galias="git config --get-regexp alias"
 
 #Chezmoi
 alias cm="chezmoi"
+alias scm="NO_ROOTMOI= chezmoi"
 
 #alias bw='NODE_OPTIONS="--no-deprecation" bw'

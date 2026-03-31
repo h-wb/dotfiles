@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Rootmoi runs as root, so ~/.config/rootmoi and ~/.cache/rootmoi may end up
+# owned by root. Restore ownership to the regular user.
+chown -R '{{ .non_root_user }}' \
+  '{{ dir .chezmoi.configFile }}' \
+  '{{ .chezmoi.cacheDir }}'

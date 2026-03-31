@@ -61,12 +61,6 @@ z4h init || return
 # Extend PATH.
 path=(~/bin $path)
 
-# Export environment variables.
-export GPG_TTY=$TTY
-export EDITOR="code --wait"
-export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
-export BWS_ACCESS_TOKEN="$(security find-generic-password -w -s 'BWS_ACCESS_TOKEN' -a "h-wb")"
 
 # Source additional local files if they exist.
 z4h source ~/.env.zsh
@@ -98,6 +92,7 @@ compdef _directories md
 
 # Define aliases.
 z4h source $HOME/.config/zsh/aliases.zsh
+z4h source $HOME/.config/zsh/exports.zsh
 
 # Add flags to existing aliases.
 alias ls="${aliases[ls]:-ls} -A"

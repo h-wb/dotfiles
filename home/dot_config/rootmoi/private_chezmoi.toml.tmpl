@@ -1,0 +1,10 @@
+{{- $sourceDir := joinPath .chezmoi.workingTree "root" -}}
+sourceDir = "{{ $sourceDir }}"
+destDir = "/"
+verbose = true
+
+[diff]
+exclude = ['dirs', 'scripts']
+
+[data]
+non_root_user = "{{ .chezmoi.username }}"
