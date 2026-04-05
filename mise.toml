@@ -1,0 +1,44 @@
+[tools]
+shellcheck = "latest"
+shfmt = "latest"
+"aqua:twpayne/chezmoi" = "latest"
+
+[tasks.lint]
+description = "Lint shell scripts"
+run = "shellcheck install/**/*.sh install/common/*.sh"
+
+[tasks.format]
+description = "Format shell scripts"
+run = "shfmt --indent 4 --space-redirects --write install/**/*.sh install/common/*.sh"
+
+[tasks.format-check]
+description = "Check shell script formatting"
+run = "shfmt --indent 4 --space-redirects --diff install/**/*.sh install/common/*.sh"
+
+[tasks.check-templates]
+description = "Verify chezmoi templates render without errors"
+run = """
+chezmoi execute-template \
+  --init \
+  --promptString 'git_email=ci@example.com' \
+  --promptString 'domain=example.com' \
+  --promptChoice 'mode=personal' \
+  --promptBool 'should_include_secrets=false' \
+  < home/.chezmoi.yaml.tmpl
+"""
+
+[tasks.test]
+description = "Run all checks"
+depends = ["lint", "format-check", "check-templates"]
+
+[tasks.apply]
+description = "Apply dotfiles"
+run = "chezmoi apply --verbose"
+
+[tasks.reset]
+description = "Reset chezmoi script state (re-run all run_once/run_onchange scripts)"
+run = "chezmoi state delete-bucket --bucket=scriptState"
+
+[tasks.reset-config]
+description = "Reset chezmoi config (re-run all prompts)"
+run = "chezmoi init --data=false"
