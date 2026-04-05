@@ -1,5 +1,7 @@
 HashKnownHosts no
 
-Host TN1                                                                                                                   
+{{ if .should_include_secrets -}}
+Host TN1
     HostName {{ protonPass "pass://Dev/Truenas/host" }}
     User {{ protonPass "pass://Dev/Truenas/username" }}
+{{- end }}
