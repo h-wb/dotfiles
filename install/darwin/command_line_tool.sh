@@ -2,8 +2,6 @@
 
 set -Eeuo pipefail
 
-fi
-
 function install_command_line_tool() {
     local git_cmd_path="/Library/Developer/CommandLineTools/usr/bin/git"
 
