@@ -14,3 +14,25 @@ jobs:
         with:
           cache: true
       - run: mise run test
+
+  apply-dry-run:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          cache: true
+
+      - name: Create mock chezmoi config
+        run: |
+          mkdir -p ~/.config/chezmoi
+          cat > ~/.config/chezmoi/chezmoi.yaml <<'EOF'
+          data:
+            git_email: "ci@example.com"
+            domain: "example.com"
+            mode: "personal"
+            should_include_secrets: false
+          EOF
+
+      - name: Apply dotfiles (dry-run)
+        run: chezmoi apply --source "${{ github.workspace }}" --dry-run --force

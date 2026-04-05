@@ -4,6 +4,11 @@ set -euo pipefail
 
 export PATH="${HOME}/.local/share/mise/shims:${PATH}"
 
+# Skip auth in CI — should_include_secrets=false prevents any protonPass calls
+if [ "${CI:-false}" = "true" ]; then
+    exit 0
+fi
+
 if ! command -v pass-cli &> /dev/null; then
     echo "[info] installing pass-cli via mise"
     mise use -gy "github:tnfssc/protonpass-cli-bin"
