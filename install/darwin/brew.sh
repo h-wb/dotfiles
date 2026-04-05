@@ -2,10 +2,8 @@
 
 set -Eeuo pipefail
 
-fi
-
 function is_homebrew_installed() {
-    command -v brew &>/dev/null
+    command -v brew &> /dev/null
 }
 
 function install_homebrew() {
