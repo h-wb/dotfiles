@@ -1,0 +1,36 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+
+# Reload LaunchAgents when any plist changes:
+{{- range (glob (joinPath .chezmoi.sourceDir "Library/LaunchAgents/*.plist.tmpl")) }}
+# {{ . | include | sha256sum }}
+{{- end }}
+
+set -euo pipefail
+
+uid=$(id -u)
+
+load_agent() {
+    local plist="$1"
+    local label
+    label=$(defaults read "${plist}" Label 2>/dev/null) || { echo "[warn] could not read label from ${plist}"; return; }
+
+    launchctl bootout "gui/${uid}/${label}" 2>/dev/null || true
+
+    # Wait for service to fully unload before re-bootstrapping
+    local retries=5
+    while launchctl print "gui/${uid}/${label}" &>/dev/null && (( retries-- > 0 )); do
+        sleep 1
+    done
+
+    if launchctl bootstrap "gui/${uid}" "${plist}"; then
+        echo "[info] loaded ${label}"
+    else
+        echo "[warn] failed to load ${label}"
+    fi
+}
+
+{{ range (glob (joinPath .chezmoi.sourceDir "Library/LaunchAgents/*.plist.tmpl")) -}}
+load_agent "{{ $.chezmoi.homeDir }}/Library/LaunchAgents/{{ base . | trimSuffix ".tmpl" }}"
+{{ end -}}
+{{ end -}}

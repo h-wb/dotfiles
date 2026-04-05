@@ -1,15 +1,14 @@
 ---
-# Multiple yaml docs in single file.
-description: Keyboard
+description: Keyboard Shortcuts
 data:
   com.apple.symbolichotkeys:
     AppleSymbolicHotKeys:
-      # Disable Spotlight on Cmd-Space so Alfred/Raycast can use it.
+      # 64 = Spotlight search (Cmd-Space) — disabled so Raycast can own it
       "64":
-          enabled: false
-          value:
-            type: standard
-            parameters:
-              - 32
-              - 49
-              - 1048576
+        enabled: false
+        value:
+          type: standard
+          parameters:
+            - 32    # space character
+            - 49    # space keycode
+            - 1048576  # Cmd modifier

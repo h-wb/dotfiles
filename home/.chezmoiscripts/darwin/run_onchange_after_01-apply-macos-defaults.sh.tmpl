@@ -1,0 +1,14 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+
+{{ range (glob (joinPath .chezmoi.workingTree "home/.chezmoidata/macos-defaults/*.yaml")) -}}
+# {{ . }}: {{ include . | sha256sum }}
+{{ end -}}
+
+set -euo pipefail
+
+export PATH="${HOME}/.local/share/mise/shims:${PATH}"
+
+macos-defaults apply {{ (joinPath .chezmoi.workingTree "home/.chezmoidata/macos-defaults/") }}
+
+{{ end -}}

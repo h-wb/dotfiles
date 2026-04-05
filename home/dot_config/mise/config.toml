@@ -1,0 +1,25 @@
+[tools]
+# languages
+node   = "lts"
+python = "3.11"
+
+# cli tools
+# "cargo:macos-defaults" = { git = "https://github.com/dsully/macos-defaults" }
+aws-cli = "latest"
+k9s = "latest"
+"aqua:kubernetes/kubectl" = "1.33.1"
+"aqua:twpayne/chezmoi"       = "latest"
+bitwarden-secrets-manager = "1.0.0"
+
+# npm tools
+"npm:@anthropic-ai/claude-code" = "latest"
+
+# gui apps
+
+
+# github releases
+"github:cli/cli"                   = "latest"
+"github:tnfssc/protonpass-cli-bin" = "v1.9.0"
+# "github:beeper/bridge-manager" = "latest"
+"github:nikolaeu/numi" = "latest"
+"github:dsully/macos-defaults" = "latest"

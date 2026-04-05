@@ -1,10 +1,39 @@
 ---
 description: AltTab
-# kill: ["AltTab"]
+kill: ["AltTab", "cfprefsd"]
 data:
   com.lwouis.alt-tab-macos:
-    updatePolicy: 1
-    menubarIcon: 3
+    # 0 = manual, 1 = notify, 2 = auto-update
+    updatePolicy: "2"
+    # Don't send crash reports
+    crashPolicy: "0"
+    MSAppCenterNetworkRequestsAllowed: false
+
+    # Hide menubar icon
     menubarIconShown: "false"
-    startAtLogin: true
-    holdShortcut: "⌘"
+    "NSStatusItem VisibleCC Item-0": false
+
+    # Trigger on hold ⌘
+    holdShortcut: ⌘
+
+    # 0 = macOS, 1 = Windows 10, 2 = macOS Ventura
+    appearanceStyle: "2"
+    appearanceSize: "3"
+    previewFadeInAnimation: "false"
+    previewFocusedWindow: "true"
+    windowDisplayDelay: "0"
+
+    # 0 = all apps, 1 = current space only, 2 = visible on screen
+    appsToShow: "0"
+    # 0 = all screens, 1 = screen with mouse, 2 = screen of current window
+    screensToShow: "0"
+    # 0 = current space, 1 = all spaces
+    spacesToShow: "1"
+    showWindowlessApps: "1"
+    showTabsAsWindows: "false"
+    # 0 = screen with mouse, 1 = screen with focused window
+    showOnScreen: "1"
+    hideSpaceNumberLabels: "false"
+
+    # Skip the settings window on first launch
+    settingsWindowShownOnFirstLaunch: "true"

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.proton.pass-cli.ssh-agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>exec "$({{ .chezmoi.homeDir }}/.local/bin/mise which pass-cli)" ssh-agent start --socket-path {{ .chezmoi.homeDir }}/.ssh/proton-pass-agent.sock</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>{{ .chezmoi.homeDir }}</string>
+    <key>PASS_LOG_LEVEL</key>
+    <string>error</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardErrorPath</key>
+  <string>{{ .chezmoi.homeDir }}/.ssh/proton-pass-agent.log</string>
+  <key>StandardOutPath</key>
+  <string>{{ .chezmoi.homeDir }}/.ssh/proton-pass-agent.log</string>
+</dict>
+</plist>

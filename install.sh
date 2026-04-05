@@ -2,37 +2,13 @@
 
 set -eu
 
-if ! echo $PATH | grep -q "$HOME/\.local/bin:"; then
-	export PATH="$HOME/.local/bin:$PATH"
+export PATH="${HOME}/.local/bin:${PATH}"
+
+if ! command -v mise >/dev/null; then
+	curl https://mise.run | sh
 fi
 
-if ! xcode-select -p >/dev/null 2>&1 || ! test -f "$(xcode-select -p)/usr/bin/git"; then
-	echo "installing command line tools"
-	xcode-select --install
-fi
+eval "${HOME}/.local/bin/mise use -yg chezmoi"
+chezmoi="${HOME}/.local/bin/chezmoi"
 
-if ! mise="$(command -v mise)"; then
-	if command -v curl >/dev/null; then
-		curl https://mise.run | sh
-	elif command -v wget >/dev/null; then
-		wget -qO- https://mise.run | sh
-	else
-		echo "To install mise, you must have curl or wget installed." >&2
-		exit 1
-	fi
-	mise=~/.local/bin/mise
-else
-	mise=$(which mise)
-fi
-
-eval "${mise} use -yg chezmoi"
-chezmoi=$(${mise} which chezmoi)
-
-if [ "${CODESPACES:-false}" = true ]; then
-	set -- init --apply
-else
-	set -- init --apply ${GITHUB_USERNAME:-h-wb}
-fi
-
-# exec: replace current process with chezmoi
-exec "$chezmoi" "$@"
+exec "$chezmoi" init --apply --use-builtin-git true ${GITHUB_USERNAME:-h-wb}
