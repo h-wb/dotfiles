@@ -1,8 +1,10 @@
 ---
 description: Raycast
-#kill: ["Raycast"]
+kill: ["Raycast", "cfprefsd"]
 data:
   com.raycast.macos:
     onboardingCompleted: true
+    # Cmd-Space (keycode 49)
     raycastGlobalHotkey: "Command-49"
-    NSStatusItem Visible raycastIcon: false
+    # Hide menubar icon
+    "NSStatusItem Visible raycastIcon": false

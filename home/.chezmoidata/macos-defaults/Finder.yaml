@@ -3,16 +3,23 @@ description: Finder
 kill: ["Finder"]
 data:
   com.apple.finder:
+    # Hide desktop icons (let Raycast/desktop stay clean)
     CreateDesktop: false
-    # Set Desktop as the default location for new Finder windows
-    # For other paths, use `PfLo` and `file:///full/path/here/`
-    # Computer     : `PfCm`
-    # Volume       : `PfVo`
-    # $HOME        : `PfHm`
-    # Desktop      : `PfDe`
-    # Documents    : `PfDo`
-    # All My Files : `PfAF`
-    # Other…       : `PfLo`
+    # Default location for new Finder windows
+    # PfCm=Computer, PfVo=Volume, PfHm=$HOME, PfDe=Desktop, PfDo=Documents, PfLo=Other
     NewWindowTarget: PfHm
+    # Column view
     FXPreferredViewStyle: clmv
+    # Show path bar at the bottom
     ShowPathbar: true
+    # Show status bar (item count, disk space)
+    ShowStatusBar: true
+    # Don't warn when changing a file extension
+    FXEnableExtensionChangeWarning: false
+    # Sort folders and files by name
+    FXPreferredGroupBy: Name
+    FXArrangeGroupViewBy: Name
+    # Don't warn before emptying the Trash
+    WarnOnEmptyTrash: false
+    # Auto-remove items from Trash after 30 days
+    FXRemoveOldTrashItems: true

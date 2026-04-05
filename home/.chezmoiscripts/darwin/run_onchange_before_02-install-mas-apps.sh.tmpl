@@ -1,0 +1,23 @@
+{{- if and (eq .chezmoi.os "darwin") (index .packages .mode "darwin" "mas") -}}
+#!/usr/bin/env bash
+
+# Mac App Store Apps
+#
+# Installs App Store apps declared in packages.yaml using mas directly.
+# Kept separate from brew bundle to avoid the brew/mas version mismatch issue
+# where bundle calls `mas get` instead of `mas install`.
+
+set -euo pipefail
+
+export PATH="${PATH}:/opt/homebrew/bin"
+
+if ! command -v mas &>/dev/null; then
+    echo "[warn] mas not found, skipping App Store installs"
+    exit 0
+fi
+
+{{ range index .packages .mode "darwin" "mas" -}}
+echo "[info] installing {{ .name }} ({{ .id }})"
+mas install {{ .id }}
+{{ end }}
+{{ end -}}

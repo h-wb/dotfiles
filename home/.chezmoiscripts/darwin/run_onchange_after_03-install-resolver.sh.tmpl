@@ -1,0 +1,9 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+sudo mkdir -p /etc/resolver
+echo "nameserver {{ protonPass "pass://Dev/k8s gateway/ip address" }}" | sudo tee /etc/resolver/{{ protonPass "pass://Dev/k8s gateway/hostname" }} > /dev/null
+echo "[info] installed /etc/resolver/{{ protonPass "pass://Dev/k8s gateway/hostname" }}"
+{{ end -}}

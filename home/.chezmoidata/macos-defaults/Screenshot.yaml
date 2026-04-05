@@ -1,0 +1,9 @@
+---
+description: Screenshot
+data:
+  com.apple.screencapture:
+    name: "Screenshot"
+    # Disable the floating thumbnail after taking a screenshot
+    show-thumbnail: false
+    # Save as PNG
+    type: png

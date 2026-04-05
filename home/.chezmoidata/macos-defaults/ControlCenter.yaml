@@ -1,0 +1,15 @@
+---
+description: Control Center
+kill: ["SystemUIServer"]
+data:
+  com.apple.controlcenter:
+    # Show Bluetooth in menu bar
+    "NSStatusItem Visible Bluetooth": true
+---
+# Battery percentage lives in a ByHost plist - requires current_host: true
+description: Control Center (ByHost)
+current_host: true
+kill: ["SystemUIServer"]
+data:
+  com.apple.controlcenter:
+    BatteryShowPercentage: true

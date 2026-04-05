@@ -1,9 +1,5 @@
 HashKnownHosts no
 
-Host *
-    AddKeysToAgent yes
-    UseKeychain yes
-
-{{ if and (eq .mode "personal") (eq .should_include_secrets "true") -}}
-{{ (bitwardenSecrets "68b87366-50c3-4151-99d5-b26100b30f6c" .accessToken).value }}
-{{- end }}
+Host TN1                                                                                                                   
+    HostName {{ protonPass "pass://Dev/Truenas/host" }}
+    User {{ protonPass "pass://Dev/Truenas/username" }}

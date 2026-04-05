@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# {{ joinPath .chezmoi.sourceDir "dot_config/mise/config.toml" | include | sha256sum }}
+
+set -Eeuo pipefail
+
+export PATH="${HOME}/.local/share/mise/shims:${HOME}/.local/bin:${PATH}"
+
+mise install

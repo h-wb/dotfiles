@@ -1,24 +1,22 @@
-{{- $git_email := promptString "git_email" -}}
+{{- $git_email := promptStringOnce . "git_email" "Enter git email:" -}}
 {{- $domain := promptStringOnce . "domain" "Enter domain:" -}}
-{{- $accessToken := promptStringOnce . "accessToken" "Enter BWS accessToken:" -}}
 {{- $choices := list "personal" "pro"  -}}
 {{- $mode := promptChoiceOnce . "mode" "What type of host are you on" $choices -}}
 {{- $should_include_secrets := promptBoolOnce . "should_include_secrets" "Should the host include secrets" -}}
 
 data:
-    accessToken: {{ $accessToken | quote }}
     git_email: {{ $git_email | quote }}
     domain: {{ $domain | quote }}
     mode: {{ $mode | quote }}
-    should_include_secrets: {{ $should_include_secrets | quote }}
+    should_include_secrets: {{ $should_include_secrets }}
 
 scriptEnv:
-    NODE_OPTIONS: "--no-deprecation" #https://github.com/bitwarden/clients/issues/6689
+    PASS_LOG_LEVEL: "error"
 
 hooks:
   read-source-state:
     pre:
-      command: {{ .chezmoi.workingTree }}/home/scripts/install-password-manager.sh
+      command: {{ .chezmoi.workingTree }}/install/common/protonpass.sh
 
-bitwardenSecrets:
-    command: {{ .chezmoi.destDir }}/.local/share/mise/shims/bws
+protonPass:
+    command: {{ .chezmoi.destDir }}/.local/share/mise/shims/pass-cli

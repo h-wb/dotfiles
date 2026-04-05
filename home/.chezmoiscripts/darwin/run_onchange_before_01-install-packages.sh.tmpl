@@ -1,0 +1,17 @@
+{{- if (eq .chezmoi.os "darwin") -}}
+#!/usr/bin/env bash
+
+# Homebrew Packages
+#
+# Uses brew bundle to install macOS packages declared in packages.yaml.
+# The Brewfile content is inlined (not sourced from a file) so that chezmoi's
+# run_onchange hash changes whenever packages.yaml changes, triggering a re-run.
+
+set -euo pipefail
+
+export PATH="${PATH}:/opt/homebrew/bin"
+
+brew bundle --no-upgrade --cleanup --force --file=/dev/stdin <<'EOF'
+{{ template "Brewfile" . -}}
+EOF
+{{ end -}}

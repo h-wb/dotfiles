@@ -1,7 +1,0 @@
----
-description: Mos
-# kill: ["AltTab"]
-data:
-  com.caldis.Mos:
-    hideStatusItem: 1
-    toggle: 1

@@ -1,0 +1,36 @@
+{{- if .packages.common.darwin.taps }}
+# common taps
+{{ range .packages.common.darwin.taps -}}
+tap "{{ . }}"
+{{ end }}
+{{- end -}}
+{{- if index .packages .mode "darwin" "taps" }}
+# {{ .mode }} taps
+{{ range index .packages .mode "darwin" "taps" -}}
+tap "{{ . }}"
+{{ end }}
+{{- end -}}
+{{- if .packages.common.darwin.formulae }}
+# common formulae
+{{ range .packages.common.darwin.formulae -}}
+brew "{{ . }}"
+{{ end }}
+{{- end -}}
+{{- if index .packages .mode "darwin" "formulae" }}
+# {{ .mode }} formulae
+{{ range index .packages .mode "darwin" "formulae" -}}
+brew "{{ . }}"
+{{ end }}
+{{- end -}}
+{{- if .packages.common.darwin.casks }}
+# common casks
+{{ range .packages.common.darwin.casks -}}
+cask "{{ . }}"
+{{ end }}
+{{- end -}}
+{{- if index .packages .mode "darwin" "casks" }}
+# {{ .mode }} casks
+{{ range index .packages .mode "darwin" "casks" -}}
+cask "{{ . }}"
+{{ end }}
+{{- end -}}

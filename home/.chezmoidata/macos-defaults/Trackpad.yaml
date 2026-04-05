@@ -1,6 +1,12 @@
 ---
 description: Trackpad
-# kill: ["AltTab"]
 data:
   com.apple.AppleMultitouchTrackpad:
+    # Tap to click
     Clicking: true
+    # 3-finger drag
+    TrackpadThreeFingerDrag: false
+  com.apple.driver.AppleBluetoothMultitouch.trackpad:
+    # Same settings for bluetooth trackpad
+    Clicking: true
+    TrackpadThreeFingerDrag: false
