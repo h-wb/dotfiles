@@ -8,6 +8,11 @@
 
 set -euo pipefail
 
+if [ "${CI:-false}" = "true" ]; then
+    echo "[info] skipping LaunchAgent loading in CI"
+    exit 0
+fi
+
 uid=$(id -u)
 
 load_agent() {
