@@ -4,9 +4,9 @@
 tap "{{ . }}"
 {{ end }}
 {{- end -}}
-{{- if index .packages .mode "darwin" "taps" }}
+{{- if index .packages .profile "darwin" "taps" }}
 # {{ .mode }} taps
-{{ range index .packages .mode "darwin" "taps" -}}
+{{ range index .packages .profile "darwin" "taps" -}}
 tap "{{ . }}"
 {{ end }}
 {{- end -}}
@@ -16,9 +16,9 @@ tap "{{ . }}"
 brew "{{ . }}"
 {{ end }}
 {{- end -}}
-{{- if index .packages .mode "darwin" "formulae" }}
+{{- if index .packages .profile "darwin" "formulae" }}
 # {{ .mode }} formulae
-{{ range index .packages .mode "darwin" "formulae" -}}
+{{ range index .packages .profile "darwin" "formulae" -}}
 brew "{{ . }}"
 {{ end }}
 {{- end -}}
@@ -28,9 +28,9 @@ brew "{{ . }}"
 cask "{{ . }}"
 {{ end }}
 {{- end -}}
-{{- if index .packages .mode "darwin" "casks" }}
+{{- if index .packages .profile "darwin" "casks" }}
 # {{ .mode }} casks
-{{ range index .packages .mode "darwin" "casks" -}}
+{{ range index .packages .profile "darwin" "casks" -}}
 cask "{{ . }}"
 {{ end }}
 {{- end -}}
