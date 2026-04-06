@@ -1,0 +1,19 @@
+---
+description: BetterTouchTool
+kill: ["BetterTouchTool", "cfprefsd"]
+data:
+  com.hegenberg.BetterTouchTool:
+    # Use new UI
+    BTTDisabledLegacyUI: 1
+
+    # Show menubar icon (set to 1 to hide)
+    BTTForcedHidden: 0
+
+    # Three finger drag compatibility mode
+    BTTThreeFingerDragCompatibilityMode: 1
+
+    # Disable BTT Remote
+    BTTRemoteEnabled: 0
+
+    # Hide Touch Bar (not present on modern Macs)
+    BTTTouchBarVisible: 0
