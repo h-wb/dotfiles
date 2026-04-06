@@ -11,7 +11,7 @@ set -euo pipefail
 
 export PATH="${PATH}:/opt/homebrew/bin"
 
-brew bundle --no-upgrade --cleanup --force --file=/dev/stdin <<'EOF'
+brew bundle --no-upgrade --cleanup --force --verbose --file=/dev/stdin <<'EOF'
 {{ template "Brewfile" . -}}
 EOF
 {{ end -}}
