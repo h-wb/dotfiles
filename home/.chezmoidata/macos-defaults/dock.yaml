@@ -15,8 +15,8 @@ data:
     # Don’t show recent applications in Dock
     show-recents: false
 
-    # Setting the icon size of Dock items to 36 pixels for optimal size/screen-realestate
-    tilesize: 36
+    # Setting the icon size of Dock items to 50 pixels for optimal size/screen-realestate
+    tilesize: 50
 
     # Set Dock to auto-hide and remove the auto-hiding delay.
     autohide: true
