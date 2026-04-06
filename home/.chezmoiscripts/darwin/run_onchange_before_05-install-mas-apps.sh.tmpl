@@ -11,6 +11,11 @@ set -euo pipefail
 
 export PATH="${PATH}:/opt/homebrew/bin"
 
+if [ "${CI:-false}" = "true" ]; then
+    echo "[info] skipping App Store installs in CI"
+    exit 0
+fi
+
 if ! command -v mas &>/dev/null; then
     echo "[warn] mas not found, skipping App Store installs"
     exit 0
