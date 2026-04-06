@@ -1,14 +1,14 @@
 {{- $git_email := promptStringOnce . "git_email" "Enter git email:" -}}
 {{- $domain := promptStringOnce . "domain" "Enter domain:" -}}
-{{- $choices := list "personal" "pro"  -}}
-{{- $mode := promptChoiceOnce . "mode" "What type of host are you on" $choices -}}
-{{- $should_include_secrets := promptBoolOnce . "should_include_secrets" "Should the host include secrets" -}}
+{{- $choices := list "personal" "work"  -}}
+{{- $profile := promptChoiceOnce . "profile" "Host profile" $choices -}}
+{{- $secrets := promptBoolOnce . "secrets" "Enable secrets (ProtonPass)" -}}
 
 data:
     git_email: {{ $git_email | quote }}
     domain: {{ $domain | quote }}
-    mode: {{ $mode | quote }}
-    should_include_secrets: {{ $should_include_secrets }}
+    profile: {{ $profile | quote }}
+    secrets: {{ $secrets }}
 
 scriptEnv:
     PASS_LOG_LEVEL: "error"

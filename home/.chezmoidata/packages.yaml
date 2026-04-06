@@ -34,7 +34,7 @@ packages:
       mas:
         - name: "WireGuard"
           id: 1451685025
-  pro:
+  work:
     darwin:
       taps: []
       formulae: []

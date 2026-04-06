@@ -22,8 +22,8 @@ chezmoi execute-template \
   --init \
   --promptString 'git_email=ci@example.com' \
   --promptString 'domain=example.com' \
-  --promptChoice 'mode=personal' \
-  --promptBool 'should_include_secrets=false' \
+  --promptChoice 'profile=personal' \
+  --promptBool 'secrets=false' \
   < home/.chezmoi.yaml.tmpl
 """
 

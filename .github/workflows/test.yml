@@ -30,8 +30,8 @@ jobs:
           data:
             git_email: "ci@example.com"
             domain: "example.com"
-            mode: "personal"
-            should_include_secrets: false
+            profile: "personal"
+            secrets: false
           EOF
 
       - name: Apply dotfiles
