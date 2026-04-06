@@ -1,4 +1,4 @@
-{{- if and (eq .chezmoi.os "darwin") (index .packages .mode "darwin" "mas") -}}
+{{- if and (eq .chezmoi.os "darwin") (index .packages .profile "darwin" "mas") -}}
 #!/usr/bin/env bash
 
 # Mac App Store Apps
@@ -21,7 +21,7 @@ if ! command -v mas &>/dev/null; then
     exit 0
 fi
 
-{{ range index .packages .mode "darwin" "mas" -}}
+{{ range index .packages .profile "darwin" "mas" -}}
 echo "[info] installing {{ .name }} ({{ .id }})"
 mas install {{ .id }}
 {{ end }}
