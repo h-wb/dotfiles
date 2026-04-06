@@ -23,6 +23,6 @@ fi
 
 {{ range index .packages .profile "darwin" "mas" -}}
 echo "[info] installing {{ .name }} ({{ .id }})"
-mas install {{ .id }}
+mas install {{ .id }} || echo "[warn] failed to install {{ .name }} ({{ .id }}), skipping"
 {{ end }}
 {{ end -}}
