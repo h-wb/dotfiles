@@ -2,8 +2,6 @@
 
 set -Eeuo pipefail
 
-fi
-
 function install_rosetta() {
     local rosetta_path="/Library/Apple/usr/share/rosetta/rosetta"
     if ! [[ -f "${rosetta_path}" ]]; then
