@@ -1,9 +1,7 @@
 packages:
   common:
     darwin:
-      taps:
-        - "homebrew/bundle"
-        - "homebrew/services"
+      taps: []
       formulae:
         - "git"                        # version control
       casks:
