@@ -10,15 +10,12 @@ packages:
         - "anki"             # flashcard app
         - "betterdisplay"    # display management
         - "ghostty"          # terminal emulator
-        - "nextcloud"        # cloud storage client
         - "obsidian"         # note-taking
         - "orbstack"         # fast Docker / Linux VMs
         - "plexamp"          # music player for Plex
         - "raycast"          # spotlight replacement / launcher
-        - "screenmemory"     # screen activity recorder
         - "spotify"
         - "visual-studio-code"
-        - "beeper"
         - "utm"
         - "bettertouchtool"
       mas: []
@@ -28,8 +25,12 @@ packages:
       formulae:
         - "mas"              # Mac App Store CLI
       casks:
+        - "anki"             # flashcard app
+        - "beeper"
         - "crossover"        # run Windows apps on macOS
+        - "nextcloud"        # cloud storage client
         - "plex"
+        - "screenmemory"     # screen activity recorder
         - "protonvpn"
         - "steam"
       mas:
