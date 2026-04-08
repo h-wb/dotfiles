@@ -33,6 +33,7 @@ packages:
         - "screenmemory"     # screen activity recorder
         - "protonvpn"
         - "steam"
+        - "whatsapp"
       mas:
         - name: "WireGuard"
           id: 1451685025
