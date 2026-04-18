@@ -1,7 +1,7 @@
 [tools]
 # languages
 node   = "lts"
-python = "3.11"
+python = "3.14"
 
 # cli tools
 # "cargo:macos-defaults" = { git = "https://github.com/dsully/macos-defaults" }
@@ -23,3 +23,6 @@ bitwarden-secrets-manager = "1.0.0"
 # "github:beeper/bridge-manager" = "latest"
 "github:nikolaeu/numi" = "latest"
 "github:dsully/macos-defaults" = "latest"
+
+[env]
+MISE_EXPERIMENTAL=1
