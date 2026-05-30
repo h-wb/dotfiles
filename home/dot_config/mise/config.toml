@@ -23,6 +23,10 @@ bitwarden-secrets-manager = "1.0.0"
 # "github:beeper/bridge-manager" = "latest"
 "github:nikolaeu/numi" = "latest"
 "github:dsully/macos-defaults" = "latest"
+usage = "latest"
 
 [env]
-MISE_EXPERIMENTAL=1
+MISE_EXPERIMENTAL = 1
+EDITOR = "code --wait"
+PASS_LOG_LEVEL = "error"
+SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
