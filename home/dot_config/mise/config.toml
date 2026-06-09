@@ -19,8 +19,7 @@ bitwarden-secrets-manager = "1.0.0"
 
 # github releases
 "github:cli/cli"                   = "latest"
-"github:tnfssc/protonpass-cli-bin" = "v1.9.0"
-# "github:beeper/bridge-manager" = "latest"
+"github:protonpass/pass-cli"       = "latest"
 "github:nikolaeu/numi" = "latest"
 "github:dsully/macos-defaults" = "latest"
 usage = "latest"
