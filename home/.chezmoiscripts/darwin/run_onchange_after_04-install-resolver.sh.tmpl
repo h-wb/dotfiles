@@ -4,7 +4,6 @@ set -euo pipefail
 sudo mkdir -p /etc/resolver
 printf "nameserver %s\nnameserver %s\n" \
   "{{ protonPass "pass://Dev/k8s gateway/ip address" }}" \
-  "{{ protonPass "pass://Dev/k8s gateway/ip address 2" }}" \
   | sudo tee /etc/resolver/{{ protonPass "pass://Dev/k8s gateway/hostname" }} > /dev/null
 echo "[info] installed /etc/resolver/{{ protonPass "pass://Dev/k8s gateway/hostname" }}"
 {{ end -}}
