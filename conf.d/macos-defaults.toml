@@ -1,0 +1,116 @@
+# macOS defaults, split out of mise.toml to keep the main config scannable.
+# Loaded as a global conf.d fragment (install.sh symlinks ~/.config/mise/conf.d
+# to this repo's conf.d/). Merges into the config like any other section.
+#
+# mise defaults are scalar-only; the three non-scalar values (Dock persistent-apps
+# array, AppleSymbolicHotKeys nested dict, ByHost battery %) + the killall live in
+# the post-defaults hook at the bottom.
+
+[bootstrap.macos.defaults."NSGlobalDomain"]
+ApplePressAndHoldEnabled = false            # repeat key instead of accent popup
+KeyRepeat = 2                               # fast key repeat
+InitialKeyRepeat = 10
+AppleShowAllExtensions = true
+NSNavPanelExpandedStateForSaveMode = true   # expand save panel by default
+AppleHighlightColor = "0.698039 0.843137 1.000000"
+CGDisableCursorLocationMagnification = 1    # disable shake-to-locate cursor
+"com.apple.trackpad.scaling" = 1            # trackpad speed (0-3)
+NSAutomaticCapitalizationEnabled = 0        # do not change what I type
+NSAutomaticDashSubstitutionEnabled = 0
+NSAutomaticPeriodSubstitutionEnabled = 0
+NSAutomaticQuoteSubstitutionEnabled = 0
+NSAutomaticSpellingCorrectionEnabled = 0
+NSInlinePredictionEnabled = 0
+
+[bootstrap.macos.defaults."com.apple.dock"]
+workspaces-auto-swoosh = false              # no Spaces auto-switching
+static-only = true                          # show only open apps
+show-recents = false
+tilesize = 50
+autohide = true
+autohide-delay = 0
+autohide-time-modifier = 0
+wvous-tl-corner = 0                          # hot corners: all no-op
+wvous-tl-modifier = 0
+wvous-tr-corner = 0
+wvous-tr-modifier = 0
+wvous-bl-corner = 0
+wvous-bl-modifier = 0
+wvous-br-corner = 0
+wvous-br-modifier = 0
+
+[bootstrap.macos.defaults."com.apple.finder"]
+CreateDesktop = false                       # hide desktop icons
+NewWindowTarget = "PfHm"                     # new windows open at $HOME
+FXPreferredViewStyle = "clmv"                # column view
+ShowPathbar = true
+ShowStatusBar = true
+FXEnableExtensionChangeWarning = false
+FXPreferredGroupBy = "Name"
+FXArrangeGroupViewBy = "Name"
+WarnOnEmptyTrash = false
+FXRemoveOldTrashItems = true                # auto-empty Trash after 30 days
+
+[bootstrap.macos.defaults."com.apple.AppleMultitouchTrackpad"]
+Clicking = true                             # tap to click
+TrackpadThreeFingerDrag = false
+
+[bootstrap.macos.defaults."com.apple.driver.AppleBluetoothMultitouch.trackpad"]
+Clicking = true
+TrackpadThreeFingerDrag = false
+
+[bootstrap.macos.defaults."com.hegenberg.BetterTouchTool"]
+BTTDisabledLegacyUI = 1
+BTTForcedHidden = 0                          # show menubar icon
+BTTThreeFingerDragCompatibilityMode = 1
+BTTRemoteEnabled = 0
+BTTTouchBarVisible = 0
+
+[bootstrap.macos.defaults."com.apple.desktopservices"]
+DSDontWriteNetworkStores = true             # no .DS_Store on network/USB
+DSDontWriteUSBStores = true
+
+[bootstrap.macos.defaults."com.lwouis.alt-tab-macos"]
+updatePolicy = "2"                           # auto-update
+crashPolicy = "0"
+MSAppCenterNetworkRequestsAllowed = false
+menubarIconShown = "false"
+"NSStatusItem VisibleCC Item-0" = false
+holdShortcut = "⌘"
+appearanceStyle = "2"                        # macOS Ventura style
+appearanceSize = "3"
+previewFadeInAnimation = "false"
+previewFocusedWindow = "true"
+windowDisplayDelay = "0"
+appsToShow = "0"                             # all apps
+screensToShow = "0"                          # all screens
+spacesToShow = "1"                           # all spaces
+showWindowlessApps = "1"
+showTabsAsWindows = "false"
+showOnScreen = "1"
+hideSpaceNumberLabels = "false"
+settingsWindowShownOnFirstLaunch = "true"
+
+[bootstrap.macos.defaults."com.apple.screencapture"]
+name = "Screenshot"
+show-thumbnail = false                       # no floating thumbnail
+type = "png"
+
+[bootstrap.macos.defaults."com.apple.controlcenter"]
+"NSStatusItem Visible Bluetooth" = true      # (battery % is ByHost, set in the hook)
+
+[bootstrap.macos.defaults."com.raycast.macos"]
+onboardingCompleted = true
+raycastGlobalHotkey = "Command-49"           # Cmd-Space
+"NSStatusItem Visible raycastIcon" = false
+
+# After defaults: the values mise's scalar-only writer can't express, then reload.
+[bootstrap.hooks.post-defaults]
+run = '''
+[ "$(uname)" = "Darwin" ] || exit 0
+defaults write com.apple.dock persistent-apps -array
+defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 64 \
+  "<dict><key>enabled</key><false/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>32</integer><integer>49</integer><integer>1048576</integer></array></dict></dict>"
+defaults -currentHost write com.apple.controlcenter BatteryShowPercentage -bool true
+killall cfprefsd Dock Finder SystemUIServer Raycast AltTab BetterTouchTool 2>/dev/null || true
+'''

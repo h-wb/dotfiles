@@ -6,16 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-        with:
-          cache: true
-      - run: mise run test
-
-  apply:
+  render:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,18 +14,13 @@ jobs:
         with:
           cache: true
 
-      - name: Create mock chezmoi config
+      # Render all templated dotfiles into a throwaway HOME. With no fnox/secrets
+      # in the environment, the secret-gated blocks (ssh/wireguard) are skipped —
+      # this validates the Tera templates and the config parse.
+      - name: Render dotfiles
         run: |
-          mkdir -p ~/.config/chezmoi
-          cat > ~/.config/chezmoi/chezmoi.yaml <<'EOF'
-          data:
-            git_email: "ci@example.com"
-            domain: "example.com"
-            profile: "personal"
-            secrets: false
-          EOF
-
-      - name: Apply dotfiles
-        run: chezmoi apply --source "${{ github.workspace }}"
-        env:
-          CI: "true"
+          export HOME="$(mktemp -d)"
+          mise trust
+          mise bootstrap dotfiles apply --yes
+          echo "--- ~/.config/git/config ---"; cat "$HOME/.config/git/config"
+          echo "--- ~/.ssh/config ---"; cat "$HOME/.ssh/config"

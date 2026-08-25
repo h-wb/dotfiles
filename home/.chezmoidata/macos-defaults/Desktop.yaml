@@ -1,7 +1,0 @@
----
-description: Desktop Services
-data:
-  com.apple.desktopservices:
-    # Don't litter .DS_Store files on network or USB volumes
-    DSDontWriteNetworkStores: true
-    DSDontWriteUSBStores: true

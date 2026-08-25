@@ -1,44 +1,128 @@
+# Full-mise dotfiles config — the single source of truth (chezmoi removed).
+#
+#   mise run apply     -> fnox exec -c fnox.toml -- mise bootstrap   (installs everything)
+#   mise run diff      -> preview without changing anything
+#
+# install.sh symlinks this file to ~/.config/mise/config.toml (and conf.d/ →
+# ~/.config/mise/conf.d) so mise uses it globally for tools/env; [dotfiles]/
+# [bootstrap] only act during `mise bootstrap`. Verbose/global bits are split into
+# conf.d/ (macos-defaults.toml, settings.toml). Profile packages: mise.personal.toml.
+
+# git_email is personal, so it is NOT committed — it lives in an untracked
+# mise.local.toml ([vars] git_email = "..."); see mise.local.toml.example. The
+# git config template falls back to empty if it's missing.
+# Secret-gated dotfiles (ssh/wireguard) key off whether fnox provided the secret
+# env var, so no secrets/profile flag is needed.
+
 [tools]
-shellcheck = "latest"
-shfmt = "latest"
-"aqua:twpayne/chezmoi" = "latest"
+# languages
+node = "lts"
+python = "3.14"
 
-[tasks.lint]
-description = "Lint shell scripts"
-run = "shellcheck install/**/*.sh install/common/*.sh"
+# cli tools
+"aqua:kubernetes/kubectl" = "latest"
+aws-cli = "latest"
+"github:bitwarden/sdk-sm" = "latest"
+k9s = "latest"
+claude = "latest"
 
-[tasks.format]
-description = "Format shell scripts"
-run = "shfmt --indent 4 --space-redirects --write install/**/*.sh install/common/*.sh"
+# github releases
+"github:cli/cli" = "latest"
+"github:nikolaeu/numi" = "latest"
+"github:protonpass/pass-cli" = "latest"   # Proton Pass CLI (ssh-agent + fnox backend)
+"github:jdx/fnox" = "latest"              # secret manager; injects ProtonPass secrets as env vars
+"github:filips123/PWAsForFirefox" = "latest"
+usage = "latest"
 
-[tasks.format-check]
-description = "Check shell script formatting"
-run = "shfmt --indent 4 --space-redirects --diff install/**/*.sh install/common/*.sh"
+[env]
+EDITOR = "code --wait"
+MISE_EXPERIMENTAL = 1
+PASS_LOG_LEVEL = "error"
+SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
 
-[tasks.check-templates]
-description = "Verify chezmoi templates render without errors"
-run = """
-chezmoi execute-template \
-  --init \
-  --promptString 'git_email=ci@example.com' \
-  --promptString 'domain=example.com' \
-  --promptChoice 'profile=personal' \
-  --promptBool 'secrets=false' \
-  < home/.chezmoi.yaml.tmpl
-"""
+# ── Dotfiles ────────────────────────────────────────────────────────────────
+# template mode renders Tera ({{ vars.x }}, {{ env.x }}, {% if %}); symlink mode
+# links the source. The mise config itself is symlinked by install.sh, not here.
+[dotfiles]
+"~/.config/git/config"              = { source = "home/git/config.tmpl", mode = "template" }
+"~/.config/wireguard/wg0.home.conf" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template" }
+"~/.ssh/config"                     = { source = "home/ssh/config.tmpl", mode = "template" }
+"~/.config/zsh"                     = { source = "home/zsh", mode = "symlink" }
+"~/.zshrc"                          = { source = "home/zshrc", mode = "symlink" }
+"~/.zshenv"                         = { source = "home/zshenv", mode = "symlink" }
+"~/.p10k.zsh"                       = { source = "home/p10k.zsh", mode = "symlink" }
+"~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }
 
-[tasks.test]
-description = "Run all checks"
-depends = ["lint", "format-check", "check-templates"]
+# ── Bootstrap: system provisioning ──────────────────────────────────────────
+# Before packages: Rosetta + Homebrew (which also installs the Command Line
+# Tools). Guarded to macOS; idempotent.
+[bootstrap.hooks.pre-packages]
+run = '''
+[ "$(uname)" = "Darwin" ] || exit 0
+if [ "$(uname -m)" = "arm64" ] && [ ! -f /Library/Apple/usr/share/rosetta/rosetta ]; then
+  softwareupdate --install-rosetta --agree-to-license
+fi
+if ! command -v brew >/dev/null 2>&1; then
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+if [ "$(uname -m)" = "arm64" ] && ! grep -q "/opt/homebrew/bin" /etc/paths 2>/dev/null; then
+  printf '%s\n' "/opt/homebrew/bin" "$(cat /etc/paths)" | sudo tee /etc/paths >/dev/null
+fi
+'''
+
+# Common packages (formulae, casks, mas). mise drives real Homebrew.
+[bootstrap.packages]
+# formulae
+"brew:git" = "latest"                # version control
+"brew:firefoxpwa" = "latest"
+# casks
+"brew-cask:zen" = "latest"
+"brew-cask:alt-tab" = "latest"          # windows-style alt-tab switcher
+"brew-cask:anki" = "latest"             # flashcard app
+"brew-cask:betterdisplay" = "latest"    # display management
+"brew-cask:ghostty" = "latest"          # terminal emulator
+"brew-cask:obsidian" = "latest"         # note-taking
+"brew-cask:orbstack" = "latest"         # fast Docker / Linux VMs
+"brew-cask:plexamp" = "latest"          # music player for Plex
+"brew-cask:raycast" = "latest"          # spotlight replacement / launcher
+"brew-cask:spotify" = "latest"
+"brew-cask:visual-studio-code" = "latest"
+"brew-cask:utm" = "latest"
+"brew-cask:bettertouchtool" = "latest"
+
+# ProtonPass ssh-agent. mise rejects Label/EnvironmentVariables/Standard*Path and
+# forces the plist name dev.mise.<key>, so env vars + logging are folded into the
+# sh -c string.
+[bootstrap.macos.launchd.agents.pass-cli-ssh-agent]
+program = "/bin/sh"
+args = [
+  "-c",
+  "exec env PASS_LOG_LEVEL=error \"$({{env.HOME}}/.local/bin/mise which pass-cli)\" ssh-agent start --socket-path \"$HOME/.ssh/proton-pass-agent.sock\" >> \"$HOME/.ssh/proton-pass-agent.log\" 2>&1",
+]
+run_at_load = true
+keep_alive = true
+
+# macOS defaults + their post-defaults hook live in conf.d/macos-defaults.toml
+# (verbose and rarely edited — split out to keep this file scannable). Global
+# mise settings (auto_update) live in conf.d/settings.toml.
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+# Runs at the end of `mise bootstrap`. Secret env vars come from fnox (bootstrap
+# is invoked under `fnox exec`); the resolver step is skipped if they're absent.
+[tasks.bootstrap]
+run = '''
+[ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh" || true
+if [ "$(uname)" = "Darwin" ] && [ -n "${K8S_GATEWAY_IP:-}" ] && [ -n "${K8S_GATEWAY_HOST:-}" ]; then
+  sudo mkdir -p /etc/resolver
+  printf "nameserver %s\n" "$K8S_GATEWAY_IP" | sudo tee "/etc/resolver/${K8S_GATEWAY_HOST}" >/dev/null
+  echo "[info] installed /etc/resolver/${K8S_GATEWAY_HOST}"
+fi
+'''
 
 [tasks.apply]
-description = "Apply dotfiles"
-run = "chezmoi apply --verbose"
+description = "Install everything (packages, macOS, dotfiles, tools) with secrets via fnox"
+run = "fnox exec -c fnox.toml -- mise bootstrap --yes"
 
-[tasks.reset]
-description = "Reset chezmoi script state (re-run all run_once/run_onchange scripts)"
-run = "chezmoi state delete-bucket --bucket=scriptState"
-
-[tasks.reset-config]
-description = "Reset chezmoi config (re-run all prompts)"
-run = "chezmoi init --data=false"
+[tasks.diff]
+description = "Preview what bootstrap would change"
+run = "fnox exec -c fnox.toml -- mise bootstrap --dry-run"

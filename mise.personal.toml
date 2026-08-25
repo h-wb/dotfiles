@@ -1,0 +1,16 @@
+# Personal-profile overlay, merged onto mise.toml when MISE_ENV=personal.
+# (anki lives in the common list; not duplicated here.)
+[bootstrap.packages]
+# formulae
+"brew:mas" = "latest"                # Mac App Store CLI
+# casks
+"brew-cask:beeper" = "latest"
+"brew-cask:crossover" = "latest"        # run Windows apps on macOS
+"brew-cask:nextcloud" = "latest"        # cloud storage client
+"brew-cask:plex" = "latest"
+"brew-cask:screenmemory" = "latest"     # screen activity recorder
+"brew-cask:protonvpn" = "latest"
+"brew-cask:steam" = "latest"
+"brew-cask:whatsapp" = "latest"
+# mac app store
+"mas:1451685025" = "latest"          # WireGuard

@@ -2,53 +2,49 @@
 
 ### ~/.dotfiles&nbsp;
 
-#### \> Managed with *chezmoi*&nbsp;
+#### \> Managed with *mise*&nbsp;
 
 </div>
 
 ## Overview
 
-This repository contains my dotfiles managed by [chezmoi](https://github.com/twpayne/chezmoi).
+Dotfiles and full machine setup managed entirely by [mise](https://mise.jdx.dev)
+— packages (Homebrew formulae/casks + Mac App Store), macOS defaults, LaunchAgents,
+tools, and dotfiles — with secrets injected by [fnox](https://github.com/jdx/fnox)
+from Proton Pass. No chezmoi.
 
+- **`mise.toml`** — the single config: `[vars]`, `[tools]`, `[env]`, `[bootstrap.*]`, `[dotfiles]`, `[tasks]`.
+- **`mise.personal.toml`** — profile overlay (loaded via `MISE_ENV=personal`).
+- **`fnox.toml`** — Proton Pass secret references (no secret values).
+- **`home/`** — dotfile sources (symlinked, or `.tmpl` rendered via Tera).
 
-## Set up new MacOS
+## Set up a new Mac
 
-1. Sign in to iCloud and App Store
-2. Log-in to BWS and get a new access token for the device
-3. Run `sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"`
+1. Sign in to iCloud and the App Store.
+2. Run `sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"`
 
+This installs mise, clones the repo to `~/.dotfiles`, symlinks its `mise.toml`
+as the global mise config, and runs `mise bootstrap` under fnox.
 
-## Personal
+## Everyday use
 
-1. To test template
-    `chezmoi execute-template --init --promptString email=me@home.org < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl`
+```sh
+mise run diff     # preview what bootstrap would change
+mise run apply    # apply everything (packages, macOS, dotfiles, tools) with secrets via fnox
+```
 
-
-## Inspiration
-
-https://github.com/twpayne/dotfiles
-https://github.com/narze/dotfiles
-https://github.com/nandalopes/dotfiles
-https://github.com/cweagans/dotfiles
-
-## Misc.
-
-`chezmoi state delete-bucket --bucket=entryState`
-`chezmoi state delete-bucket --bucket=scriptState`
+Bare `mise bootstrap` works on a machine without secrets (secret-guarded dotfiles
+render empty). Per-machine overrides go in an untracked `mise.local.toml`.
 
 ## Security & Privacy System Preferences
 
-### Full Disk Access
-Grant full disk access to these apps:
-* iTerm
+Grant permissions to these apps:
 
-### Screen Recording
-* AltTab
+- **Full Disk Access:** iTerm
+- **Screen Recording:** AltTab
+- **Accessibility:** AltTab, Discord, Plexamp, Raycast, KeyClu, Mos
 
-### Accessibility
-* AltTab
-* Discord
-* Plexamp
-* Raycast
-* KeyClu
-* Mos
+## Inspiration
+
+- https://github.com/onedr0p/dotfiles
+- https://github.com/jdx/dotfiles

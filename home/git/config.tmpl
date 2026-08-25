@@ -1,6 +1,6 @@
 [user]
 	name = h-wb
-	email = {{ .git_email }}
+	email = {{ vars.git_email | default(value="") }}
 [alias]
 	a = add
 	ap = add -p
