@@ -1,0 +1,46 @@
+# Prefect worker for the `macbook-pool` process pool. Flows run as local
+# subprocesses here rather than in the cluster, so they can reach the inference
+# server on 127.0.0.1:1234 (LM Studio, later mlx-vlm) — which also means this
+# can't be a container: Docker on macOS has no Metal access and its localhost
+# isn't the host's.
+#
+# Secrets (PREFECT_API_URL, PREFECT_API_AUTH_STRING) come from fnox.toml.
+
+[tools]
+uv = "latest"                             # worker venv + the `uv pip install .` pull step
+
+# Wrapped in `fnox exec` so the API URL and auth string are resolved at runtime
+# from ProtonPass rather than baked into the plist. env vars and logging are
+# folded into the sh -c string because mise rejects Label/EnvironmentVariables/
+# Standard*Path (same shape as the pass-cli-ssh-agent in mise.toml).
+#
+# VIRTUAL_ENV is what makes the deployments' `uv pip install .` pull step resolve;
+# without it uv errors with "No virtual environment found" on macOS (the cluster
+# worker only gets away with it because that image sets UV_SYSTEM_PYTHON=1).
+[bootstrap.macos.launchd.agents.prefect-worker]
+program = "/bin/sh"
+args = [
+  "-c",
+  'exec env VIRTUAL_ENV="$HOME/.local/share/prefect-worker/venv" PATH="$HOME/.local/share/prefect-worker/venv/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/bin:/bin" "$({{env.HOME}}/.local/bin/mise which fnox)" exec -c "{{env.HOME}}/.local/share/chezmoi/fnox.toml" -- prefect worker start --pool macbook-pool >> "$HOME/Library/Logs/prefect-worker.log" 2>&1',
+]
+run_at_load = true
+keep_alive = true
+
+# Runs at the very end of `mise bootstrap`, after [tools] is installed so uv
+# exists. Note launchd-agents apply (step 11) loads the agent *before* this, so
+# on a first bootstrap the worker crash-loops until the venv appears — keep_alive
+# picks it up on the next retry.
+#
+# Pinned to python 3.12: the global pin is 3.14, which prefect 3.6.7 doesn't
+# support. Prefect is pinned to the version the cluster server runs so the
+# client and server stay in step.
+[bootstrap.hooks.final]
+run = '''
+[ "$(uname)" = "Darwin" ] || exit 0
+PW_VENV="$HOME/.local/share/prefect-worker/venv"
+if [ ! -x "$PW_VENV/bin/prefect" ]; then
+  uv venv --python 3.12 "$PW_VENV"
+  uv pip install --python "$PW_VENV/bin/python" "prefect==3.6.7"
+  echo "[info] created prefect worker venv at $PW_VENV"
+fi
+'''

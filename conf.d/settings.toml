@@ -1,0 +1,6 @@
+# Machine-global mise settings. Lives in conf.d (not mise.toml) because [settings]
+# is ignored — and warns — when a config is read as a local/project file, which
+# mise.toml is whenever you run `mise` from the repo. conf.d is always global.
+[settings]
+auto_update = true                  # self-update before interactive commands
+auto_update_check_duration = "7d"   # ...at most once a week; skipped in CI/non-interactive

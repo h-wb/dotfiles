@@ -1,0 +1,26 @@
+# fnox secret map for this repo. Contains only ProtonPass references (no secret
+# values), so it is safe to commit.
+#
+# Secrets are injected as environment variables by running mise bootstrap under
+# fnox: `fnox exec -c fnox.toml -- mise bootstrap` (see the `apply` task /
+# install.sh). Templated dotfiles read them with {{ get_env(name="NAME") }} and
+# skip their block when the secret is absent.
+#
+# Auth is handled by fnox via the Proton Pass CLI (pass-cli) — the same session
+# the ssh-agent LaunchAgent keeps alive. First use triggers `pass-cli login`.
+
+[providers.protonpass]
+type = "proton-pass"
+vault = "Dev"
+
+[secrets]
+SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://Dev/Truenas/host" }
+SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://Dev/Truenas/username" }
+WG0_HOME_CONF    = { provider = "protonpass", value = "pass://Dev/wg0.conf/note" }
+K8S_GATEWAY_IP   = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
+K8S_GATEWAY_HOST = { provider = "protonpass", value = "pass://Dev/k8s gateway/hostname" }
+
+# Consumed by the prefect-worker LaunchAgent (see mise.toml); the worker reads
+# both straight out of the environment fnox injects.
+PREFECT_API_URL         = { provider = "protonpass", value = "pass://Dev/Prefect/url" }
+PREFECT_API_AUTH_STRING = { provider = "protonpass", value = "pass://Dev/Prefect/password" }

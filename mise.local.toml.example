@@ -1,0 +1,4 @@
+# Copy to mise.local.toml (gitignored) for per-machine values that must not be
+# committed. mise loads mise.local.toml automatically.
+[vars]
+git_email = "you@example.com"
