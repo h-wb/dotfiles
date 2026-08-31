@@ -31,7 +31,6 @@ claude = "latest"
 "github:nikolaeu/numi" = "latest"
 "github:protonpass/pass-cli" = "latest"   # Proton Pass CLI (ssh-agent + fnox backend)
 "github:jdx/fnox" = "latest"              # secret manager; injects ProtonPass secrets as env vars
-"github:filips123/PWAsForFirefox" = "latest"
 usage = "latest"
 
 [env]
@@ -72,9 +71,6 @@ fi
 
 # Common packages (formulae, casks, mas). mise drives real Homebrew.
 [bootstrap.packages]
-# formulae
-"brew:git" = "latest"                # version control
-"brew:firefoxpwa" = "latest"
 # casks
 "brew-cask:zen" = "latest"
 "brew-cask:alt-tab" = "latest"          # windows-style alt-tab switcher
