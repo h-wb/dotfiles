@@ -89,11 +89,13 @@ fi
 # ProtonPass ssh-agent. mise rejects Label/EnvironmentVariables/Standard*Path and
 # forces the plist name dev.mise.<key>, so env vars + logging are folded into the
 # sh -c string.
+# NOTE: mise does NOT template launchd args ({{...}} is passed through literally),
+# so use shell $HOME here — the program is /bin/sh -c and launchd sets HOME.
 [bootstrap.macos.launchd.agents.pass-cli-ssh-agent]
 program = "/bin/sh"
 args = [
   "-c",
-  "exec env PASS_LOG_LEVEL=error \"$({{env.HOME}}/.local/bin/mise which pass-cli)\" ssh-agent start --socket-path \"$HOME/.ssh/proton-pass-agent.sock\" >> \"$HOME/.ssh/proton-pass-agent.log\" 2>&1",
+  "exec env PASS_LOG_LEVEL=error \"$(\"$HOME/.local/bin/mise\" which pass-cli)\" ssh-agent start --socket-path \"$HOME/.ssh/proton-pass-agent.sock\" >> \"$HOME/.ssh/proton-pass-agent.log\" 2>&1",
 ]
 run_at_load = true
 keep_alive = true
@@ -115,10 +117,15 @@ if [ "$(uname)" = "Darwin" ] && [ -n "${K8S_GATEWAY_IP:-}" ] && [ -n "${K8S_GATE
 fi
 '''
 
+# dir = the repo, so `mise bootstrap` loads THIS file as the project config and
+# resolves [dotfiles] sources relative to the repo (not ~/.config/mise, where the
+# global symlink lives). This also lets fnox find fnox.toml by relative path.
 [tasks.apply]
 description = "Install everything (packages, macOS, dotfiles, tools) with secrets via fnox"
+dir = "{{env.HOME}}/.dotfiles"
 run = "fnox exec -c fnox.toml -- mise bootstrap --yes"
 
 [tasks.diff]
 description = "Preview what bootstrap would change"
+dir = "{{env.HOME}}/.dotfiles"
 run = "fnox exec -c fnox.toml -- mise bootstrap --dry-run"
