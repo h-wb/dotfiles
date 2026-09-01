@@ -111,9 +111,16 @@ keep_alive = true
 run = '''
 [ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh" || true
 if [ "$(uname)" = "Darwin" ] && [ -n "${K8S_GATEWAY_IP:-}" ] && [ -n "${K8S_GATEWAY_HOST:-}" ]; then
-  sudo mkdir -p /etc/resolver
-  printf "nameserver %s\n" "$K8S_GATEWAY_IP" | sudo tee "/etc/resolver/${K8S_GATEWAY_HOST}" >/dev/null
-  echo "[info] installed /etc/resolver/${K8S_GATEWAY_HOST}"
+  resolver="/etc/resolver/${K8S_GATEWAY_HOST}"
+  want="nameserver ${K8S_GATEWAY_IP}"
+  # only sudo when the file is missing or stale, so routine applies don't prompt
+  if [ ! -f "$resolver" ] || [ "$(cat "$resolver" 2>/dev/null)" != "$want" ]; then
+    sudo mkdir -p /etc/resolver
+    printf "%s\n" "$want" | sudo tee "$resolver" >/dev/null
+    echo "[info] installed $resolver"
+  else
+    echo "[info] $resolver already current"
+  fi
 fi
 '''
 
