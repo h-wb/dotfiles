@@ -21,7 +21,7 @@ uv = "latest"                             # worker venv + the `uv pip install .`
 program = "/bin/sh"
 args = [
   "-c",
-  'exec env VIRTUAL_ENV="$HOME/.local/share/prefect-worker/venv" PATH="$HOME/.local/share/prefect-worker/venv/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/bin:/bin" "$({{env.HOME}}/.local/bin/mise which fnox)" exec -c "{{env.HOME}}/.dotfiles/fnox.toml" -- prefect worker start --pool macbook-pool >> "$HOME/Library/Logs/prefect-worker.log" 2>&1',
+  'exec env VIRTUAL_ENV="$HOME/.local/share/prefect-worker/venv" PATH="$HOME/.local/share/prefect-worker/venv/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/bin:/bin" "$("$HOME/.local/bin/mise" which fnox)" exec -c "$HOME/.dotfiles/fnox.toml" -- prefect worker start --pool macbook-pool >> "$HOME/Library/Logs/prefect-worker.log" 2>&1',
 ]
 run_at_load = true
 keep_alive = true
