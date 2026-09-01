@@ -104,7 +104,9 @@ onboardingCompleted = true
 raycastGlobalHotkey = "Command-49"           # Cmd-Space
 "NSStatusItem Visible raycastIcon" = false
 
-# After defaults: the values mise's scalar-only writer can't express, then reload.
+# After defaults: the values mise's scalar-only writer can't express.
+# No killall here: Dock/Finder/SystemUIServer respawn, but Raycast/AltTab/BTT
+# would just be quit and left dead. Changes take effect on next relaunch/login.
 [bootstrap.hooks.post-defaults]
 run = '''
 [ "$(uname)" = "Darwin" ] || exit 0
@@ -112,5 +114,4 @@ defaults write com.apple.dock persistent-apps -array
 defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 64 \
   "<dict><key>enabled</key><false/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>32</integer><integer>49</integer><integer>1048576</integer></array></dict></dict>"
 defaults -currentHost write com.apple.controlcenter BatteryShowPercentage -bool true
-killall cfprefsd Dock Finder SystemUIServer Raycast AltTab BetterTouchTool 2>/dev/null || true
 '''
