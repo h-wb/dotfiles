@@ -1,0 +1,17 @@
+# Per-machine mise runtime config. install.sh copies this to
+# ~/.config/mise/miserc.toml (untracked) on a new machine.
+#
+# It MUST live at ~/.config/mise/miserc.toml, not in mise.toml: it controls
+# config DISCOVERY (which env overlays load), which happens before mise.toml is
+# even read. Setting these in mise.toml is too late.
+
+# Active environment(s). Selects which overlays load:
+#   mise.<env>.toml            (e.g. mise.personal.toml)
+#   conf.d/<name>.<env>.toml   (e.g. conf.d/prefect-worker.personal.toml)
+# Last entry wins on conflicts. Adjust per machine (e.g. ["work"], ["personal"]).
+env = ["personal"]
+
+# Opt into environment-scoped conf.d filenames now (default until mise 2027.8.10,
+# after which it's the default). Lets conf.d/<name>.<env>.toml be env-scoped;
+# plain conf.d/<name>.toml still always loads.
+env_conf_d = true

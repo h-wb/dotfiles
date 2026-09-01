@@ -14,9 +14,22 @@ tools, and dotfiles — with secrets injected by [fnox](https://github.com/jdx/f
 from Proton Pass. No chezmoi.
 
 - **`mise.toml`** — the single config: `[vars]`, `[tools]`, `[env]`, `[bootstrap.*]`, `[dotfiles]`, `[tasks]`.
-- **`mise.personal.toml`** — profile overlay (loaded via `MISE_ENV=personal`).
+- **`conf.d/`** — split-out fragments merged into the global config: `macos-defaults.toml`, `settings.toml` (always loaded), and env-scoped ones like `prefect-worker.personal.toml` (loaded only when that env is active).
+- **`mise.personal.toml`** — env overlay, loaded when `personal` is an active env.
+- **`miserc.toml.example`** — template for the per-machine `~/.config/mise/miserc.toml` (which env(s) are active + `env_conf_d`); see below.
 - **`fnox.toml`** — Proton Pass secret references (no secret values).
 - **`home/`** — dotfile sources (symlinked, or `.tmpl` rendered via Tera).
+
+### Environments
+
+Which overlays load is decided per machine by `~/.config/mise/miserc.toml` (untracked, copied from `miserc.toml.example` by `install.sh`):
+
+```toml
+env = ["personal"]   # loads mise.personal.toml + conf.d/*.personal.toml
+env_conf_d = true    # enable env-scoped conf.d/<name>.<env>.toml filenames
+```
+
+`miserc.toml` must live at `~/.config/mise/` (not in `mise.toml`) because it controls config *discovery*, which runs before `mise.toml` is read. To scope something to this machine class, name its fragment `conf.d/<name>.personal.toml`; plain `conf.d/<name>.toml` always loads.
 
 ## Set up a new Mac
 
