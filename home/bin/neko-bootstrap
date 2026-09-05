@@ -65,8 +65,17 @@ if DOTFILES_NO_LOGIN=1 "${HOME}/.dotfiles/scripts/pass-preflight" &&
 	FNOX="$("$MISE" which fnox 2>/dev/null)" && [ -x "$FNOX" ] &&
 	timeout 600 "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes; then
 	echo "[ok] bootstrap applied with secrets"
+elif [ ! -e "${HOME}/.ssh/config" ] && [ ! -e "${HOME}/.config/wireguard/wg0.home.conf" ] &&
+	timeout 600 "$MISE" bootstrap --yes; then
+	# First boot: the secret-gated targets do not exist yet, so there is nothing to
+	# clobber and applying everything is safe. Without this a fresh container comes
+	# up with NO dotfiles at all — no fish config, no prompt, no terminal settings —
+	# just because two of the twelve entries happen to need secrets.
+	echo "[ok] bootstrap applied without secrets (first boot; ssh/wireguard stay empty until \`pass-cli login\` + \`mise run apply\`)"
 elif timeout 600 "$MISE" bootstrap --yes --skip dotfiles; then
-	echo "[ok] bootstrap applied without secrets — dotfiles SKIPPED (run \`pass-cli login\`, then \`mise run apply\`)"
+	# Secret-gated files already exist: applying now would render them empty over
+	# good copies, so the whole dotfiles step sits out this run.
+	echo "[ok] bootstrap applied without secrets — dotfiles SKIPPED to protect existing copies (run \`pass-cli login\`, then \`mise run apply\`)"
 else
 	echo "[error] bootstrap failed — see above"
 	command -v notify-send >/dev/null 2>&1 &&
