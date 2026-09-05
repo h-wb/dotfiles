@@ -24,6 +24,4 @@
 # neko container (which has no fnox) would blank them on every session start.
 "~/.config/wireguard/wg0.home.conf" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template" }
 "~/.ssh/config"                     = { source = "home/ssh/config.tmpl", mode = "template" }
-# Started by the prefect-worker LaunchAgent (conf.d/prefect-worker.personal.toml).
-"~/.local/bin/prefect-worker-start" = { source = "home/bin/prefect-worker-start", mode = "symlink" }
 "~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }

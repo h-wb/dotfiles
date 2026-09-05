@@ -68,7 +68,7 @@ sudo apt-get update -qq
 "~/.config/starship.toml"    = { source = "home/starship.toml", mode = "symlink" }
 # symlink-each links the files inside home/bin individually, so mise's own
 # binary already in ~/.local/bin is left alone.
-"~/.local/bin"                               = { source = "home/bin", mode = "symlink-each", exclude = ["prefect-worker-start"] }  # macOS-only, see mise.personal.toml
+"~/.local/bin"                               = { source = "home/bin", mode = "symlink-each" }
 "~/.config/autostart/mise-bootstrap.desktop" = { source = "home/xfce/mise-bootstrap.desktop.tmpl", mode = "template" }
 "~/.config/xfce4/terminal/terminalrc"        = { source = "home/xfce/terminalrc", mode = "symlink" }
 

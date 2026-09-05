@@ -13,7 +13,7 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 - `mise.neko.toml` — env overlay for the **neko/xfce container** (Debian trixie, user
   `neko`, fish shell, XFCE). Active env there is `neko`. Companion fragments:
   `conf.d/xfce.neko.toml` (xfconf settings) and `conf.d/neko-apps.neko.toml` (GUI apps).
-- `conf.d/` — fragments merged into the global config: `macos-defaults.toml` + `settings.toml` (always load), `prefect-worker.personal.toml` (env-scoped). Symlinked to `~/.config/mise/conf.d`.
+- `conf.d/` — fragments merged into the global config: `macos-defaults.toml` + `settings.toml` (always load), `xfce.neko.toml` / `neko-apps.neko.toml` (env-scoped). Symlinked to `~/.config/mise/conf.d`.
 - `miserc.toml.example` → per-machine `~/.config/mise/miserc.toml` (untracked): picks active `env` + `env_conf_d`.
 - `mise.local.toml` (gitignored) — per-machine values, e.g. `[vars] git_email`.
 - `fnox.toml` — Proton Pass secret *references* only (no values). Safe to commit.
@@ -21,7 +21,7 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
   `home/zsh|zshrc|p10k.zsh` are the Macs' shell; `home/fish/` + `home/starship.toml`
   are the container's. `home/bin/` is symlinked into `~/.local/bin` (neko only).
 - `scripts/` — repo tooling, not dotfiles. `pass-preflight` gates every apply on a
-  live Proton Pass session (see gotcha #11).
+  live Proton Pass session (see gotcha #12).
 - `install.sh` — fresh-machine bootstrap (Mac or neko container; picks the env from
   `/etc/neko`, override with `DOTFILES_ENV=`); `.github/workflows/test.yml` renders templates in a throwaway HOME.
 
@@ -31,7 +31,7 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
   `fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes`.
 - `mise run diff` — same, `--dry-run` (changes nothing).
 - Both tasks set `dir = ~/.dotfiles` (see gotcha #3) and both refuse to run without
-  secrets (see gotcha #11) — that guard is deliberate, don't drop it to "just apply".
+  secrets (see gotcha #12) — that guard is deliberate, don't drop it to "just apply".
 
 ## mise gotchas that WILL bite you (learned the hard way)
 
@@ -62,10 +62,14 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
    `[bootstrap.hooks.post-defaults]` shell hook (Dock array, symbolichotkeys, battery %).
 9. **Hooks fire only on a full `mise bootstrap`.** Sub-commands like
    `mise bootstrap macos defaults apply` do NOT run pre/post hooks.
-10. **Secrets:** templated dotfiles read secrets via `get_env(name="X", default="")`
+10. **A LaunchAgent must set `PATH` before invoking fnox.** fnox shells out to
+    `pass-cli`, and launchd's default PATH has no mise shims — get this wrong and
+    every secret fails with "CLI tool 'pass-cli' not found" while the agent looks
+    perfectly healthy. See the pass-cli-ssh-agent args in `mise.toml`.
+11. **Secrets:** templated dotfiles read secrets via `get_env(name="X", default="")`
     and gate blocks on presence, so bare `mise bootstrap` (no fnox) renders empty and
     doesn't error. `[vars]` boolean overrides via `mise.<env>.toml` do NOT apply.
-11. **`fnox exec` defaults to `--if-missing warn`** — an unresolved secret (expired
+12. **`fnox exec` defaults to `--if-missing warn`** — an unresolved secret (expired
     pass-cli session, renamed vault item) is a WARN, fnox exits 0, and the bootstrap
     runs with the secret unset. Combined with #10 that is silent data loss: the
     templates render their empty fallback and OVERWRITE the real files (`~/.ssh/config`
@@ -82,21 +86,21 @@ Runs in k8s from `ghcr.io/m1k1o/neko/xfce`: Debian trixie, user `neko` (uid 1000
 passwordless sudo, **supervisord as pid 1 — no systemd, no launchd**, XFCE streamed
 over WebRTC.
 
-12. **Only `/home/neko` is on a PVC.** `/usr` and `/etc` are image state and are wiped
+13. **Only `/home/neko` is on a PVC.** `/usr` and `/etc` are image state and are wiped
     on every pod roll. Never "fix" this by mounting volumes over them: an empty volume
     over `/usr` leaves the container with no binaries, and it pins a stale copy of the
     image. Consequences that shape the config: `[bootstrap.packages]` (apt) is a
     *per-start* cost, so it stays tiny; `[tools]` is free (`~/.local/share/mise` is on
     the PVC); GUI apps are `~/.local/opt` tarballs, not apt.
-13. **`[bootstrap.linux.systemd.units]` is useless there** — mise writes those with
+14. **`[bootstrap.linux.systemd.units]` is useless there** — mise writes those with
     `systemctl --user`, and there is no systemd. The launchd-agent equivalent is
     `~/.config/autostart/mise-bootstrap.desktop` → `home/bin/neko-bootstrap`, which
     re-runs `mise bootstrap` at every XFCE session start. That is what makes a fresh
     pod reprovision itself.
-14. **`xfconf-query` needs a D-Bus session bus.** It works from inside the XFCE session
+15. **`xfconf-query` needs a D-Bus session bus.** It works from inside the XFCE session
     (i.e. from the autostart run) but not from a bare `kubectl exec` shell, so
     `tasks."neko:xfce"` detects that and no-ops instead of failing the bootstrap.
-15. **`chsh` doesn't stick** (it writes `/etc/passwd`, which resets on every roll). It's
+16. **`chsh` doesn't stick** (it writes `/etc/passwd`, which resets on every roll). It's
     re-applied each bootstrap for exec shells; the terminal gets fish from
     `home/xfce/terminalrc` (`RunCustomCommand`), which *is* on the PVC.
 
@@ -165,40 +169,6 @@ mise's package managers were each checked against this box before settling on
 - Don't add `MISE_EXPERIMENTAL` removal blindly — `bootstrap` needed it through 2026.8.x.
 - Don't change a launchd agent's plist name expectations — mise forces `dev.mise.<key>`
   and rejects `Label`/`EnvironmentVariables`/`Standard*Path`.
-
-## Prefect worker (fixed, then disabled 2026-09-05)
-
-`conf.d/prefect-worker.personal.toml` is commented out: paperless-gpt reaches LM
-Studio directly over the WireGuard tunnel, so nothing needs a local worker. The
-debugging below is kept because the fragment is still there to re-enable, and
-because two of the three findings are not Prefect-specific.
-
-It had been crash-looping ~25,800 times. The note that used to live here —
-"waiting on a `Prefect` item in the Proton Pass `Dev` vault" — was wrong: the item
-exists and fnox resolves it. Three real causes, all now fixed and verified working
-(the worker did start and create its pool) before it was switched off:
-
-1. **prefect 3.6.7 ships a broken dependency list.** `prefect/workers/base.py`
-   imports `importlib_metadata` unconditionally, but the wheel declares no
-   `Requires-Dist` for it, so uv never installed it and every start died at import.
-   The final hook installs it explicitly, checked separately from venv creation so
-   an existing venv gets it too. Drop that when upstream fixes the metadata.
-2. **`PREFECT_API_URL` is the site root, not the API root.** Prefect's client wants
-   `.../api`; without it requests hit the UI, get 302'd into the Kanidm/oauth2-proxy
-   login flow, and the worker dies parsing an HTML login page as JSON
-   (`JSONDecodeError: Expecting value: line 1 column 1`). `home/bin/prefect-worker-start`
-   appends `/api` when missing, so the stored secret can hold either form.
-   The SSO is already scoped correctly cluster-side — `/api/*` is exempt from
-   oauth2-proxy (`/api/health` → `200 true`), only the UI sits behind Kanidm. A 401
-   on `/api/*` is Prefect's own auth, satisfied by `PREFECT_API_AUTH_STRING`.
-3. **The `macbook-pool` work pool did not exist** (404) and the worker ran without
-   `--type`, so it exited instead of creating it. The start script passes
-   `--type process`, which creates the pool on first run.
-
-**Gotcha that outlives this service:** a LaunchAgent must set `PATH` *before*
-invoking fnox. fnox shells out to `pass-cli`, and launchd's default PATH has no
-mise shims — get it wrong and every secret fails with "CLI tool 'pass-cli' not
-found" while the agent looks healthy. Same shape as the pass-cli-ssh-agent.
 
 ## The container has NO secrets, on purpose
 

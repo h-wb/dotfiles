@@ -7,7 +7,7 @@
 
 # Active environment(s). Selects which overlays load:
 #   mise.<env>.toml            (e.g. mise.personal.toml)
-#   conf.d/<name>.<env>.toml   (e.g. conf.d/prefect-worker.personal.toml)
+#   conf.d/<name>.<env>.toml   (e.g. conf.d/xfce.neko.toml)
 # Last entry wins on conflicts. Adjust per machine (e.g. ["work"], ["personal"]).
 # Machines in use:
 #   ["personal"] — the MacBook

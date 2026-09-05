@@ -14,7 +14,7 @@ tools, and dotfiles — with secrets injected by [fnox](https://github.com/jdx/f
 from Proton Pass. No chezmoi.
 
 - **`mise.toml`** — the single config: `[vars]`, `[tools]`, `[env]`, `[bootstrap.*]`, `[dotfiles]`, `[tasks]`.
-- **`conf.d/`** — split-out fragments merged into the global config: `macos-defaults.toml`, `settings.toml` (always loaded), and env-scoped ones like `prefect-worker.personal.toml` (loaded only when that env is active).
+- **`conf.d/`** — split-out fragments merged into the global config: `macos-defaults.toml`, `settings.toml` (always loaded), and env-scoped ones like `xfce.neko.toml` (loaded only when that env is active).
 - **`mise.personal.toml`** — env overlay, loaded when `personal` is an active env.
 - **`mise.neko.toml`** — env overlay for the neko/xfce container (Debian, fish, XFCE); see below.
 - **`miserc.toml.example`** — template for the per-machine `~/.config/mise/miserc.toml` (which env(s) are active + `env_conf_d`); see below.
