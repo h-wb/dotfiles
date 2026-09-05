@@ -1,46 +1,35 @@
 # GUI apps for the neko desktop — the brew-cask list's counterpart.
 #
-# Why not one of mise's package managers, which would obviously be nicer:
-#   brew      works on Linux without Homebrew, but installs into
-#             /home/linuxbrew/.linuxbrew — not on the PVC, so it is wiped every
-#             roll — and on Linux `brew-cask` is FONT-ONLY: every other cask type
-#             is reported unavailable and skipped. No GUI apps that way.
-#   apt       works, but /usr is image state, so an apt-installed Obsidian is a
-#             fresh 300 MB download at every container start.
-#   flatpak-user  installs into ~/.local/share/flatpak, which IS on the PVC, and
-#             mise drives it declaratively — but it needs bubblewrap to create a
-#             user namespace (unverified in this pod), and a sandboxed VS Code
-#             cannot see the mise toolchain in ~/.local/share/mise without
-#             --filesystem grants and flatpak-spawn. For a box whose whole point
-#             is that toolchain, that is more complication, not less.
+# These are ordinary [tools] entries. mise does the whole job: picks the right
+# asset for the architecture, downloads, verifies, extracts, records a checksum
+# in the lockfile and puts the binary on PATH as a shim. Installs land in
+# ~/.local/share/mise, which is on the PVC, so they survive a pod roll like every
+# other tool. The only thing mise does not do is write XFCE menu entries, which
+# is all the task at the bottom is for.
 #
-# So apps are unpacked into ~/.local/opt, which is on the PVC and needs no
-# privileges at all. home/bin/neko-app does the work (tarball /
-# AppImage / .deb, plus the .desktop entry, the icon and the ~/.local/bin
-# symlink); this file is just the catalog.
+# Why not the other managers:
+#   brew      installs into /home/linuxbrew/.linuxbrew — not on the PVC — and on
+#             Linux `brew-cask` is font-casks only. No GUI apps that way.
+#   apt       /usr is image state, so it is a fresh download every pod roll.
+#   flatpak   needs bubblewrap to create a user namespace (unverified here), and
+#             a sandboxed VS Code cannot see the mise toolchain without
+#             --filesystem grants and flatpak-spawn.
 #
-# To add an app, add a line. The fields are:
+# ADDING AN APP
+#   From GitHub releases:  a `github:` entry with extract_all (the archive is a
+#   whole app tree, not one binary) and `exe` naming the launcher.
+#   From a vendor URL:     an `http:` entry with a [platforms] table. Note these
+#   are PINNED: bumping is editing the version and the two URLs. `github:` ones
+#   track latest on their own.
 #
-#   name | source | exe | args | display name | categories
-#
-#   source   url:<url>            vendor "latest" URL; the redirect is followed
-#                                 and the resolved versioned URL is recorded, so
-#                                 a new upstream release reinstalls by itself on
-#                                 the next bootstrap
-#            gh:<owner/repo>:<re> newest release asset matching the regex
-#            {a,b}                a on amd64, b on arm64
-#   exe      path to the binary inside the unpacked app, or `auto` for AppImages
-#   args     appended to Exec, or `-`. Electron apps need --no-sandbox: Chromium's
-#            sandbox wants user namespaces, which an unprivileged pod doesn't get.
-#
-# Reinstall everything at current latest:  NEKO_APPS_UPGRADE=1 mise run neko:apps
-# (an env var, not a task arg — mise appends `-- args` to the last line of a
-# multi-line run script rather than passing them as $1..$n.)
-#
-# Watch the PVC: these are 150-400 MB each once unpacked.
+# Obsidian has to be `http:` rather than `github:` even though it is on GitHub:
+# that repo publishes Android APK releases as "latest", and the backend then
+# fails with "could not find a release asset after filtering for archive files
+# from Obsidian-x.y.z.apk". Pinning sidesteps it.
 
-# Shared libraries the neko base image lacks. Small, and reinstalled each start.
-# (Verified against Debian trixie — hence the t64 suffix on libasound.)
+# Shared libraries the neko base image lacks. Reinstalled on every pod roll, so
+# kept to what the Electron/Gecko apps actually need. (Verified against Debian
+# trixie — hence the t64 suffix on libasound.)
 [bootstrap.packages]
 "apt:libnss3" = "latest"          # Electron (VS Code, Obsidian)
 "apt:libnspr4" = "latest"
@@ -49,28 +38,82 @@
 "apt:libxkbfile1" = "latest"
 "apt:libxss1" = "latest"
 "apt:libsecret-1-0" = "latest"    # VS Code keyring
-"apt:libdbus-glib-1-2" = "latest" # Firefox / Zen
+"apt:libdbus-glib-1-2" = "latest" # Zen (Gecko)
 
+# os = "linux" on each: the fragment is neko-scoped already, but a stray
+# MISE_ENV=neko on a Mac would otherwise try to install these and fail with
+# "No URL for platform macos-arm64" (or quietly install a macOS build).
+[tools]
+"github:zen-browser/desktop" = { version = "latest", extract_all = true, exe = "zen", os = "linux" }
+
+[tools."http:vscode"]
+os = "linux"
+version = "1.136.1"
+strip_components = 1
+bin_path = "bin"                  # the launcher is bin/code, next to a bin/ dir of helpers
+[tools."http:vscode".platforms]
+linux-x64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-x64/stable" }
+linux-arm64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-arm64/stable" }
+
+[tools."http:obsidian"]
+os = "linux"
+version = "1.13.7"
+strip_components = 1
+[tools."http:obsidian".platforms]
+linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
+linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
+
+
+# The one gap: mise puts the binaries on PATH but XFCE's menu needs .desktop
+# files. This resolves each shim with `mise which`, so it always points at the
+# version mise actually installed, and re-runs harmlessly after an upgrade.
+#
+# --no-sandbox on the Electron apps: Chromium's sandbox wants user namespaces,
+# which an unprivileged pod does not get.
 [tasks."neko:apps"]
-description = "Install/refresh the ~/.local/opt GUI apps"
+description = "Write XFCE menu entries for the GUI apps installed by [tools]"
 run = '''
+set -eu
 [ "$(uname)" = "Linux" ] || { echo "[skip] linux only"; exit 0; }
-NEKO_APP="$HOME/.local/bin/neko-app"
-[ -x "$NEKO_APP" ] || { echo "[skip] neko-app not applied yet"; exit 0; }
+APPS="$HOME/.local/share/applications"
+mkdir -p "$APPS"
 
-"$NEKO_APP" install-all <<'CATALOG'
-# name     | source                                                                        | exe      | args         | display name       | categories
-obsidian   | gh:obsidianmd/obsidian-releases:obsidian-[0-9.]+{,-arm64}\.tar\.gz             | obsidian | --no-sandbox | Obsidian           | Office;TextEditor;
-vscode     | url:https://update.code.visualstudio.com/latest/{linux-x64,linux-arm64}/stable | bin/code | --no-sandbox | Visual Studio Code | Development;IDE;
-firefox    | url:https://download.mozilla.org/?product=firefox-latest-ssl&os={linux64,linux64-aarch64}&lang=en-US | firefox | - | Firefox | Network;WebBrowser;
-zen        | gh:zen-browser/desktop:zen\.linux-{x86_64,aarch64}\.tar\.xz                   | zen      | -            | Zen Browser        | Network;WebBrowser;
+while IFS='|' read -r bin display cats args; do
+  case "$(printf %s "$bin" | tr -d ' \t')" in '' | '#'*) continue ;; esac
+  bin="$(printf %s "$bin" | xargs)";   display="$(printf %s "$display" | xargs)"
+  cats="$(printf %s "$cats" | xargs)"; args="$(printf %s "$args" | xargs)"
+  if [ "$args" = "-" ]; then args=""; fi
 
-# More shapes, for when you add to this list:
-#   an AppImage (extracted, never FUSE-mounted):
-# someapp  | gh:owner/repo:SomeApp-[0-9.]+{,-arm64}\.AppImage                              | auto     | --no-sandbox | Some App           | Utility;
-#   a .deb unpacked into $HOME (paths are as they'd be under /):
-# someapp  | gh:owner/repo:someapp_[0-9.]+_{amd64,arm64}\.deb                              | opt/SomeApp/someapp | - | Some App | Utility;
+  exe="$(mise which "$bin" 2>/dev/null)" || exe=""
+  if [ -z "$exe" ] || [ ! -x "$exe" ]; then
+    echo "[skip] $bin is not installed"
+    continue
+  fi
+
+  # Apps ship their icon somewhere under the install dir; a missing one is only
+  # cosmetic, so fall back to a generic freedesktop name.
+  icon="$(find "$(dirname "$exe")" -maxdepth 5 -type f \( -name '*.png' -o -name '*.svg' \) \
+    \( -ipath "*$bin*" -o -ipath '*icon*' \) 2>/dev/null | sort | head -1)"
+  [ -n "$icon" ] || icon="applications-other"
+
+  cat > "$APPS/$bin.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=$display
+Exec=$exe $args %U
+Icon=$icon
+Categories=$cats
+Terminal=false
+StartupNotify=true
+EOF
+  echo "[ok] $bin -> $exe"
+done <<'CATALOG'
+# shim | display name       | categories           | extra args
+code   | Visual Studio Code | Development;IDE;     | --no-sandbox
+obsidian | Obsidian         | Office;TextEditor;   | --no-sandbox
+zen    | Zen Browser        | Network;WebBrowser;  | -
 CATALOG
 
-command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser firefox.desktop 2>/dev/null || true
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS" 2>/dev/null || true
+command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser zen.desktop 2>/dev/null || true
 '''
