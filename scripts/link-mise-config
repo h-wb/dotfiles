@@ -1,0 +1,45 @@
+#!/bin/sh
+# Wire this repo into mise's global config dir: mise.toml as the global config,
+# every mise.<env>.toml as an overlay, conf.d as the fragment dir, and a
+# per-machine miserc.toml selecting the active env.
+#
+# Extracted from install.sh because the neko container needs it too: on a fresh
+# PVC the session-start bootstrap runs before anyone has run the installer, and
+# without this wiring mise never loads the conf.d fragments (so the neko:* tasks
+# do not exist) or the env overlay.
+#
+# Idempotent. DOTFILES_ENV overrides the auto-detected env.
+set -eu
+
+DOTFILES_DIR="${DOTFILES_DIR:-${HOME}/.dotfiles}"
+CONFIG_DIR="${HOME}/.config/mise"
+mkdir -p "${CONFIG_DIR}"
+
+ln -sf "${DOTFILES_DIR}/mise.toml" "${CONFIG_DIR}/config.toml"
+
+# mise.<env>.toml -> config.<env>.toml, so mise finds the overlays next to the
+# global config: personal, neko, whatever comes next.
+for overlay in "${DOTFILES_DIR}"/mise.*.toml; do
+	name="$(basename "${overlay}")"
+	case "${name}" in
+	mise.local.toml | *.example) continue ;;
+	esac
+	ln -sf "${overlay}" "${CONFIG_DIR}/config.${name#mise.}"
+done
+
+[ -d "${CONFIG_DIR}/conf.d" ] && [ ! -L "${CONFIG_DIR}/conf.d" ] && rm -rf "${CONFIG_DIR}/conf.d"
+ln -sfn "${DOTFILES_DIR}/conf.d" "${CONFIG_DIR}/conf.d"
+
+# Not a symlink: machine-specific, and it must exist before config discovery.
+# The env defaults to the machine class — `neko` inside the neko container
+# (/etc/neko is baked into that image), `personal` otherwise.
+if [ ! -f "${CONFIG_DIR}/miserc.toml" ]; then
+	cp "${DOTFILES_DIR}/miserc.toml.example" "${CONFIG_DIR}/miserc.toml"
+	if [ -z "${DOTFILES_ENV:-}" ] && [ -d /etc/neko ]; then
+		DOTFILES_ENV="neko"
+	fi
+	if [ -n "${DOTFILES_ENV:-}" ]; then
+		sed -i.bak "s/^env = .*/env = [\"${DOTFILES_ENV}\"]/" "${CONFIG_DIR}/miserc.toml"
+		rm -f "${CONFIG_DIR}/miserc.toml.bak"
+	fi
+fi

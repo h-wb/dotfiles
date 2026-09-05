@@ -42,6 +42,11 @@ fi
 [ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
 cd "${HOME}/.dotfiles" || exit 0
 
+# On a fresh PVC nobody has run install.sh, so mise has no global config dir yet
+# — without this the conf.d fragments never load and the neko:* tasks do not
+# exist. Idempotent, so it is cheap to redo on every session start.
+"${HOME}/.dotfiles/scripts/link-mise-config"
+
 # Prefer the fnox path so secret-gated dotfiles render, but never let it hold up
 # the session: if the Proton Pass session has expired, fnox cannot prompt for a
 # login from an autostart script, so fall back to a bare bootstrap (templates
