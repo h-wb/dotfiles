@@ -110,15 +110,17 @@ mise's package managers were each checked against this box before settling on
   is wiped every roll. And on Linux `brew-cask` is **font-casks only** — every other
   cask type is reported unavailable and skipped. No GUI apps this way, full stop.
 - **`apt`:** works, but `/usr` is image state → a fresh 300 MB download per pod start.
-- **`flatpak-user`:** the real alternative, and mise drives it declaratively. Installs
-  into `~/.local/share/flatpak` (on the PVC), but every app runs through bubblewrap,
-  which needs an unprivileged **user namespace**. Verify in the pod with
-  `unshare -Ur true` before betting on it; it failed under a default-seccomp Docker
-  container here, which is suggestive but NOT conclusive for k8s. Ready-to-enable
-  config in `conf.d/neko-flatpak.neko.toml.example`. Note mise "does not install
-  Flatpak or configure remotes implicitly" — the flathub remote must be added by a
-  pre-packages hook, and that hook must install the flatpak CLI itself, since the
-  `apt:flatpak` entry only lands during the packages step that needs it.
+- **`flatpak-user`:** considered and rejected. It installs into
+  `~/.local/share/flatpak` (on the PVC) and mise drives it declaratively, but: every
+  app runs through bubblewrap, which needs an unprivileged **user namespace**
+  (`unshare -Ur true` failed under default-seccomp Docker here — suggestive, not
+  conclusive for k8s), and a sandboxed VS Code cannot see the mise toolchain in
+  `~/.local/share/mise` without `--filesystem` grants and `flatpak-spawn`. On a box
+  that exists to use that toolchain, that is a worse trade than one small installer.
+  If it is ever revisited: mise "does not install Flatpak or configure remotes
+  implicitly", so a pre-packages hook must add the flathub remote *and* install the
+  flatpak CLI itself — an `apt:flatpak` entry lands during the packages step that
+  already needs it.
 - **What is used instead:** `home/bin/neko-app` unpacks tarballs / AppImages / .debs
   into `~/.local/opt` — no privileges at all — and writes the .desktop entry, icon and
   `~/.local/bin` symlink. The catalog is a table in `conf.d/neko-apps.neko.toml`; one
