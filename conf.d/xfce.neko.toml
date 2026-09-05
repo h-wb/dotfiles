@@ -1,0 +1,99 @@
+# XFCE settings for the neko container — the counterpart to
+# conf.d/macos-defaults.toml, split out of mise.neko.toml for the same reason:
+# verbose, rarely edited.
+#
+# xfconf is to XFCE what `defaults` is to macOS, with one extra catch: xfconfd is
+# a session daemon, so `xfconf-query` only works when there is a D-Bus session
+# bus to talk to. Inside the XFCE session (which is where this runs, via the
+# autostart entry) that is true. From a bare `kubectl exec` shell it is not, so
+# the task no-ops there instead of failing the whole bootstrap.
+#
+# Writes land in ~/.config/xfce4/xfconf/xfce-perchannel-xml/*.xml — on the PVC,
+# so they persist; re-applying is idempotent and cheap.
+
+[tasks."neko:xfce"]
+description = "Apply XFCE settings (xfconf) inside the neko desktop session"
+run = '''
+set -u
+command -v xfconf-query >/dev/null 2>&1 || { echo "[skip] xfconf-query not installed"; exit 0; }
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && ! xfconf-query -l >/dev/null 2>&1; then
+  echo "[skip] no D-Bus session bus — run this from inside the XFCE session"
+  exit 0
+fi
+
+set -- # $@ unused; helper below keeps the call sites readable
+x() { # x <channel> <property> <type> <value>
+  xfconf-query -c "$1" -p "$2" --create -t "$3" -s "$4" 2>/dev/null \
+    || echo "[warn] could not set $1 $2"
+}
+
+# ── Fonts & rendering ──────────────────────────────────────────────────────
+# Crisp text matters more here than anywhere: the desktop is re-encoded as video,
+# and grey subpixel fuzz is exactly what a video encoder wastes bitrate on. Hence
+# slight hinting and rgba=none rather than subpixel.
+x xsettings /Gtk/FontName          string "Sans 10"
+x xsettings /Gtk/MonospaceFontName string "MesloLGS NF 11"
+x xsettings /Xft/Antialias         int    1
+x xsettings /Xft/Hinting           int    1
+x xsettings /Xft/HintStyle         string "hintslight"
+x xsettings /Xft/RGBA              string "none"
+x xsettings /Xft/DPI               int    96
+x xsettings /Net/EnableEventSounds int    0
+x xsettings /Net/EnableInputFeedbackSounds int 0
+
+# ── Window manager ─────────────────────────────────────────────────────────
+# Compositing off: shadows, transparency and vsync are pure CPU cost on a
+# machine whose "screen" is a gstreamer pipeline.
+x xfwm4 /general/use_compositing bool  false
+x xfwm4 /general/workspace_count int   1      # one workspace: nothing to switch to by accident in a browser tab
+x xfwm4 /general/title_font      string "Sans Bold 9"
+x xfwm4 /general/zoom_desktop    bool  false
+
+# ── Desktop ────────────────────────────────────────────────────────────────
+x xfce4-desktop /desktop-icons/style int 0    # no desktop icons (cf. Finder CreateDesktop=false)
+
+# ── Session ────────────────────────────────────────────────────────────────
+# SaveOnExit off: a container that rolls constantly should come back to a known
+# desktop, not to whatever happened to be open when the pod was killed.
+x xfce4-session /general/SaveOnExit          bool false
+x xfce4-session /shutdown/LockScreen         bool false
+x xfce4-session /startup/ssh-agent/enabled   bool false   # pass-cli runs the agent instead (see home/bin/neko-bootstrap)
+x xfce4-session /startup/gpg-agent/enabled   bool false
+
+# ── Never blank, never lock ────────────────────────────────────────────────
+# There is no one sitting at this screen to wake it up; a blanked X display just
+# streams black. (xset s off -dpms in the autostart script covers the X server
+# side — this covers the XFCE daemons that would turn it back on.)
+x xfce4-power-manager /xfce4-power-manager/dpms-enabled              bool false
+x xfce4-power-manager /xfce4-power-manager/blank-on-ac               int  0
+x xfce4-power-manager /xfce4-power-manager/dpms-on-ac-sleep          int  0
+x xfce4-power-manager /xfce4-power-manager/dpms-on-ac-off            int  0
+x xfce4-power-manager /xfce4-power-manager/lock-screen-suspend-hibernate bool false
+x xfce4-screensaver /saver/enabled bool false
+x xfce4-screensaver /lock/enabled  bool false
+
+# ── Keyboard ───────────────────────────────────────────────────────────────
+# Same intent as the macOS KeyRepeat=2 / InitialKeyRepeat=10 pair: repeat fast,
+# start early. Values are ms of delay and repeats/sec.
+x keyboards /Default/KeyRepeat/Delay int 200
+x keyboards /Default/KeyRepeat/Rate  int 40
+
+# Ctrl+Alt+T for a terminal. Super-based shortcuts are a bad bet here — the
+# browser tab running neko rarely gets to see the Super key.
+x xfce4-keyboard-shortcuts "/commands/custom/<Primary><Alt>t" string "xfce4-terminal"
+
+# ── Thunar ─────────────────────────────────────────────────────────────────
+x thunar /last-view          string "ThunarDetailsView"
+x thunar /misc-single-click  bool   false
+
+# ── Panel ──────────────────────────────────────────────────────────────────
+# Debian's XFCE ships panel-1 (top bar) and panel-2 (bottom dock). Autohide the
+# dock like the macOS one; leave the top bar visible. Guarded because a
+# customised panel layout may not have a panel-2 at all.
+if xfconf-query -c xfce4-panel -p /panels/panel-2 >/dev/null 2>&1; then
+  x xfce4-panel /panels/panel-2/autohide-behavior int 2   # always hidden
+  x xfce4-panel /panels/panel-2/size              int 44
+fi
+
+echo "[ok] xfce settings applied"
+'''

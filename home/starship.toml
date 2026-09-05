@@ -1,0 +1,37 @@
+# Prompt for the neko container's fish shell — the p10k stand-in. p10k is
+# zsh-only, and starship is a single static binary mise installs into
+# ~/.local/share/mise, so it survives pod rolls like everything else in $HOME.
+#
+# Glyphs need MesloLGS NF, which the bootstrap task drops into
+# ~/.local/share/fonts and terminalrc selects.
+
+format = """$directory$git_branch$git_status$kubernetes$cmd_duration
+$character"""
+
+[directory]
+truncation_length = 3
+truncate_to_repo = false
+style = "bold cyan"
+
+[git_branch]
+symbol = " "
+style = "bold magenta"
+
+[git_status]
+style = "bold yellow"
+
+# Off by default in starship; this box exists mostly to talk to the cluster.
+[kubernetes]
+disabled = false
+symbol = "󱃾 "
+format = '[$symbol$context( \($namespace\))]($style) '
+style = "bold blue"
+
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
+style = "dimmed white"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"

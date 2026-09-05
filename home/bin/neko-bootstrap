@@ -1,0 +1,70 @@
+#!/bin/sh
+# Re-provision the neko container at every XFCE session start.
+#
+# This is the launchd equivalent for a box that has no launchd and no systemd:
+# ~/.config/autostart/mise-bootstrap.desktop runs it when the XFCE session comes
+# up. It has to exist because only /home/neko is on a PVC — /usr and /etc are
+# image state, so every pod roll loses the apt packages and the login shell,
+# while $HOME (mise, [tools], dotfiles, ~/.local/opt) comes back intact.
+#
+# It is also just a normal script: run `neko-bootstrap` by hand any time.
+set -u
+
+LOG="${HOME}/.local/state/neko-bootstrap.log"
+mkdir -p "$(dirname "$LOG")"
+exec >>"$LOG" 2>&1
+echo "=== $(date -Is) session start ==="
+
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
+
+# X server side of "never blank": there is nobody at this screen to wake it, and
+# a blanked display just streams black. The xfce daemons are handled by neko:xfce.
+[ -n "${DISPLAY:-}" ] && command -v xset >/dev/null 2>&1 && xset s off -dpms || true
+
+# mise itself lives on the PVC, but reinstall it if the volume is ever new.
+if ! command -v mise >/dev/null 2>&1; then
+	echo "[info] installing mise"
+	curl -fsSL https://mise.run | sh
+fi
+MISE="${HOME}/.local/bin/mise"
+
+# ProtonPass ssh-agent, the pass-cli-ssh-agent LaunchAgent's counterpart. The
+# socket file is on the PVC and outlives the process, so a stale one is always
+# left over from the previous container — remove it before starting.
+SOCK="${HOME}/.ssh/proton-pass-agent.sock"
+if PASS_CLI="$("$MISE" which pass-cli 2>/dev/null)" && [ -x "$PASS_CLI" ]; then
+	rm -f "$SOCK"
+	PASS_LOG_LEVEL=error nohup "$PASS_CLI" ssh-agent start --socket-path "$SOCK" \
+		>>"${HOME}/.ssh/proton-pass-agent.log" 2>&1 &
+	echo "[info] started pass-cli ssh-agent"
+fi
+
+[ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
+cd "${HOME}/.dotfiles" || exit 0
+
+# Prefer the fnox path so secret-gated dotfiles render, but never let it hold up
+# the session: if the Proton Pass session has expired, fnox cannot prompt for a
+# login from an autostart script, so fall back to a bare bootstrap (templates
+# then render their empty fallback, exactly as on a machine without secrets).
+#
+# --if-missing error is what makes that fallback reachable at all: fnox's default
+# is to WARN on an unresolved secret and carry on with exit 0, so this branch
+# used to "succeed" with every secret unset and report that it had applied them.
+#
+# The fallback then has to SKIP dotfiles. Reaching it means there are no secrets,
+# and a full bootstrap would render the secret-gated templates empty straight
+# over the good copies (~/.ssh/config loses its hosts, wg0.home.conf truncates to
+# 0 bytes) — the same trap scripts/pass-preflight exists to prevent. Everything
+# else converges normally.
+if DOTFILES_NO_LOGIN=1 "${HOME}/.dotfiles/scripts/pass-preflight" &&
+	FNOX="$("$MISE" which fnox 2>/dev/null)" && [ -x "$FNOX" ] &&
+	timeout 600 "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes; then
+	echo "[ok] bootstrap applied with secrets"
+elif timeout 600 "$MISE" bootstrap --yes --skip dotfiles; then
+	echo "[ok] bootstrap applied without secrets — dotfiles SKIPPED (run \`pass-cli login\`, then \`mise run apply\`)"
+else
+	echo "[error] bootstrap failed — see above"
+	command -v notify-send >/dev/null 2>&1 &&
+		notify-send -u critical "neko-bootstrap failed" "see $LOG" || true
+	exit 1
+fi

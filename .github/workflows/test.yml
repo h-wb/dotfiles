@@ -24,3 +24,42 @@ jobs:
           mise bootstrap dotfiles apply --yes
           echo "--- ~/.config/git/config ---"; cat "$HOME/.config/git/config"
           echo "--- ~/.ssh/config ---"; cat "$HOME/.ssh/config"
+
+  # The neko/xfce container config. Linux runner, `neko` env active: this catches
+  # the things the macOS job cannot — a Linux-only [dotfiles] entry that fails to
+  # render, an overlay that stops parsing, a task that disappears.
+  render-neko:
+    runs-on: ubuntu-latest
+    env:
+      MISE_ENV: neko
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          cache: true
+
+      - name: Render dotfiles (neko env)
+        run: |
+          export HOME="$(mktemp -d)"
+          mise trust
+          mise bootstrap dotfiles apply --yes
+          echo "--- ~/.config/autostart/mise-bootstrap.desktop ---"
+          cat "$HOME/.config/autostart/mise-bootstrap.desktop"
+          test -L "$HOME/.config/fish/config.fish"
+          test -L "$HOME/.config/fish/conf.d/aliases.fish"
+          test -L "$HOME/.config/xfce4/terminal/terminalrc"
+          test -x "$HOME/.local/bin/neko-bootstrap"
+
+      # The neko:* tasks live in conf.d fragments, which only load through the
+      # global config dir — so this also exercises the install.sh wiring
+      # (conf.d symlink + miserc selecting the env).
+      - name: conf.d fragments load and their tasks resolve
+        run: |
+          export HOME="$(mktemp -d)"
+          mkdir -p "$HOME/.config/mise"
+          ln -sfn "$PWD/conf.d" "$HOME/.config/mise/conf.d"
+          printf 'env = ["neko"]\nenv_conf_d = true\n' > "$HOME/.config/mise/miserc.toml"
+          mise trust
+          mise config
+          mise tasks --all | grep -q 'neko:xfce'
+          mise tasks --all | grep -q 'neko:apps'

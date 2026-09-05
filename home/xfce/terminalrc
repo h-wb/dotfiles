@@ -1,0 +1,32 @@
+# xfce4-terminal settings. Symlinked, not copied: this file is the source of
+# truth, and changes made in the GUI preferences dialog are meant to be lost on
+# the next bootstrap rather than silently diverge.
+#
+# RunCustomCommand is what actually makes fish the shell here. `chsh` is applied
+# too (mise.neko.toml), but /etc/passwd is image state and resets on every pod
+# roll, whereas this file is on the PVC — so this is the reliable half.
+#
+# Palette is VS Code's Dark+ ANSI set, so the terminal and the editor agree.
+[Configuration]
+FontName=MesloLGS NF 11
+RunCustomCommand=TRUE
+CustomCommand=/usr/bin/fish -l
+MiscMenubarDefault=FALSE
+MiscToolbarDefault=FALSE
+MiscAlwaysShowTabs=FALSE
+MiscConfirmClose=FALSE
+MiscBell=FALSE
+MiscCursorBlinks=FALSE
+MiscCursorShape=TERMINAL_CURSOR_SHAPE_BLOCK
+MiscDefaultGeometry=120x34
+MiscHighlightUrls=TRUE
+MiscMiddleClickOpensUri=FALSE
+MiscShowUnsafePasteDialog=FALSE
+ScrollingUnlimited=TRUE
+ScrollingOnOutput=FALSE
+ShortcutsNoMenukey=TRUE
+ColorForeground=#cccccc
+ColorBackground=#1e1e1e
+ColorCursor=#cccccc
+ColorBold=#ffffff
+ColorPalette=#000000;#cd3131;#0dbc79;#e5e510;#2472c8;#bc3fbc;#11a8cd;#e5e5e5;#666666;#f14c4c;#23d18b;#f5f543;#3b8eea;#d670d6;#29b8db;#e5e5e5

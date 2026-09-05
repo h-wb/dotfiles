@@ -9,6 +9,9 @@
 #   mise.<env>.toml            (e.g. mise.personal.toml)
 #   conf.d/<name>.<env>.toml   (e.g. conf.d/prefect-worker.personal.toml)
 # Last entry wins on conflicts. Adjust per machine (e.g. ["work"], ["personal"]).
+# Machines in use:
+#   ["personal"] — the MacBook
+#   ["neko"]     — the neko/xfce container (Debian, no launchd/systemd)
 env = ["personal"]
 
 # Opt into environment-scoped conf.d filenames now (default until mise 2027.8.10,
