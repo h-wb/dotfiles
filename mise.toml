@@ -51,6 +51,8 @@ SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
 "~/.zshrc"                          = { source = "home/zshrc", mode = "symlink" }
 "~/.zshenv"                         = { source = "home/zshenv", mode = "symlink" }
 "~/.p10k.zsh"                       = { source = "home/p10k.zsh", mode = "symlink" }
+# Referenced by the launchd agent in conf.d/wireguard.personal.toml.
+"~/.local/bin/wireguard-autoconnect" = { source = "home/bin/wireguard-autoconnect", mode = "symlink" }
 
 # ── Bootstrap: system provisioning ──────────────────────────────────────────
 # Before packages: Rosetta + Homebrew (which also installs the Command Line

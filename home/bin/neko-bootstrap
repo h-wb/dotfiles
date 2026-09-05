@@ -28,6 +28,32 @@ if ! command -v mise >/dev/null 2>&1; then
 fi
 MISE="${HOME}/.local/bin/mise"
 
+# Secret Service for pass-cli/fnox. Without it pass-cli cannot even create its
+# local key store: NoStorageAccess(PermissionDenied), before any login.
+#
+# It must be unlocked with KEYRING_PASSWORD, non-interactively — otherwise
+# gnome-keyring puts an unlock dialog on the desktop and every client is refused
+# until somebody clicks it. The keyring lives in ~/.local/share/keyrings, on the
+# PVC, so it is created on the first run and merely unlocked on later ones.
+#
+# Only --components=secrets: gnome-keyring's own ssh-agent would fight the
+# pass-cli one below over SSH_AUTH_SOCK.
+if command -v gnome-keyring-daemon > /dev/null 2>&1; then
+	if [ -z "${KEYRING_PASSWORD:-}" ]; then
+		echo "[warn] KEYRING_PASSWORD unset — no Secret Service, so pass-cli/fnox cannot run"
+	elif dbus-send --session --dest=org.freedesktop.DBus --type=method_call \
+		--print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>/dev/null |
+		grep -q "org.freedesktop.secrets"; then
+		echo "[info] Secret Service already running"
+	else
+		# printf, not echo: a trailing newline becomes part of the password.
+		eval "$(printf '%s' "${KEYRING_PASSWORD}" |
+			gnome-keyring-daemon --unlock --replace --daemonize --components=secrets 2>/dev/null)"
+		export GNOME_KEYRING_CONTROL
+		echo "[info] unlocked gnome-keyring (secrets)"
+	fi
+fi
+
 # ProtonPass ssh-agent, the pass-cli-ssh-agent LaunchAgent's counterpart. The
 # socket file is on the PVC and outlives the process, so a stale one is always
 # left over from the previous container — remove it before starting.

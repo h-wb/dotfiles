@@ -200,6 +200,29 @@ invoking fnox. fnox shells out to `pass-cli`, and launchd's default PATH has no
 mise shims — get it wrong and every secret fails with "CLI tool 'pass-cli' not
 found" while the agent looks healthy. Same shape as the pass-cli-ssh-agent.
 
+## Secrets in the container need a keyring
+
+pass-cli keeps its local encryption key in the **Secret Service**, and the neko
+image provides none — so it fails before login even starts:
+
+    Failed to get encryption key for database
+    Could not get local key from keyring
+    Error accessing credential [name=cli-local-key:...]: NoStorageAccess(PermissionDenied)
+
+`apt:gnome-keyring` supplies it, but installing it is not enough: the daemon has
+to be started **inside the XFCE session** (it registers `org.freedesktop.secrets`
+on that session bus — start it on a `dbus-launch` bus of your own and no client
+will ever see it) and unlocked non-interactively. An unlocked-by-prompt keyring
+looks identical to a broken one from the client side: the service is on the bus,
+the collection is locked, every request returns PermissionDenied, and a password
+dialog is sitting on the desktop waiting for a click.
+
+So `home/bin/neko-bootstrap` unlocks it with `KEYRING_PASSWORD` (from
+neko-desktop-secret) piped with `printf`, not `echo` — a trailing newline becomes
+part of the password. Only `--components=secrets`: gnome-keyring's own ssh-agent
+would fight the pass-cli one over SSH_AUTH_SOCK. The keyring itself lives in
+`~/.local/share/keyrings`, on the PVC, so it is created once and unlocked after.
+
 ## Secrets: the silent-overwrite trap
 
 `fnox exec` defaults to `--if-missing warn`: a dead Proton Pass session is only a
