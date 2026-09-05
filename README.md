@@ -94,9 +94,11 @@ linux-x64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7.tar.gz" }
 linux-arm64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7-arm64.tar.gz" }
 ```
 
-mise handles the architecture, download, extraction, checksum and PATH shim. Add a
-row to the `neko:apps` catalog at the bottom of the file to get an XFCE menu entry.
-`http:` versions are pinned by hand; `github:` ones track latest.
+mise handles the architecture, download, extraction, checksum and PATH shim. For a
+menu entry, drop a `.desktop` file in `home/xfce/applications/` and add its
+`[dotfiles]` line in `mise.neko.toml` — its `Exec` points at the mise shim, which
+does not change when the version does. `http:` versions are pinned by hand;
+`github:` ones track latest.
 
 ## Everyday use
 

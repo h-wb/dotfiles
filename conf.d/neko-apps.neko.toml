@@ -1,31 +1,33 @@
 # GUI apps for the neko desktop — the brew-cask list's counterpart.
 #
-# These are ordinary [tools] entries. mise does the whole job: picks the right
-# asset for the architecture, downloads, verifies, extracts, records a checksum
-# in the lockfile and puts the binary on PATH as a shim. Installs land in
-# ~/.local/share/mise, which is on the PVC, so they survive a pod roll like every
-# other tool. The only thing mise does not do is write XFCE menu entries, which
-# is all the task at the bottom is for.
+# These are ordinary [tools] entries: mise picks the asset for the architecture,
+# downloads, verifies, extracts, records a checksum in the lockfile and puts the
+# binary on PATH as a shim. Installs land in ~/.local/share/mise, which is on the
+# PVC, so they survive a pod roll like every other tool.
 #
 # Why not the other managers:
 #   brew      installs into /home/linuxbrew/.linuxbrew — not on the PVC — and on
 #             Linux `brew-cask` is font-casks only. No GUI apps that way.
 #   apt       /usr is image state, so it is a fresh download every pod roll.
-#   flatpak   needs bubblewrap to create a user namespace (unverified here), and
-#             a sandboxed VS Code cannot see the mise toolchain without
+#   flatpak   needs bubblewrap to create a user namespace (blocked here), and a
+#             sandboxed VS Code cannot see the mise toolchain without
 #             --filesystem grants and flatpak-spawn.
 #
 # ADDING AN APP
-#   From GitHub releases:  a `github:` entry with extract_all (the archive is a
-#   whole app tree, not one binary) and `exe` naming the launcher.
-#   From a vendor URL:     an `http:` entry with a [platforms] table. Note these
-#   are PINNED: bumping is editing the version and the two URLs. `github:` ones
-#   track latest on their own.
+#   1. a [tools] entry below — `github:` with extract_all for a release archive,
+#      or `http:` with a [platforms] table for a vendor URL;
+#   2. a .desktop file in home/xfce/applications/, and its [dotfiles] line in
+#      mise.neko.toml.
+#   That is all: there is no installer script and no catalog. The .desktop Exec
+#   points at ~/.local/share/mise/shims/<name>, which is stable across version
+#   bumps, so upgrading an app never means touching the menu entry.
 #
-# Obsidian has to be `http:` rather than `github:` even though it is on GitHub:
-# that repo publishes Android APK releases as "latest", and the backend then
-# fails with "could not find a release asset after filtering for archive files
-# from Obsidian-x.y.z.apk". Pinning sidesteps it.
+# `http:` entries are PINNED — bumping one is editing the version and its two
+# URLs. `github:` entries track latest by themselves.
+#
+# Obsidian has to be `http:` even though it lives on GitHub: that repo publishes
+# Android APK releases as "latest", and the github backend then fails with "could
+# not find a release asset after filtering for archive files from *.apk".
 
 # Shared libraries the neko base image lacks. Reinstalled on every pod roll, so
 # kept to what the Electron/Gecko apps actually need. (Verified against Debian
@@ -62,73 +64,3 @@ strip_components = 1
 [tools."http:obsidian".platforms]
 linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
 linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
-
-
-# The one gap: mise puts the binaries on PATH but XFCE's menu needs .desktop
-# files. This resolves each shim with `mise which`, so it always points at the
-# version mise actually installed, and re-runs harmlessly after an upgrade.
-#
-# --no-sandbox on the Electron apps: Chromium's sandbox wants user namespaces,
-# which an unprivileged pod does not get.
-[tasks."neko:apps"]
-description = "Write XFCE menu entries for the GUI apps installed by [tools]"
-run = '''
-set -eu
-[ "$(uname)" = "Linux" ] || { echo "[skip] linux only"; exit 0; }
-APPS="$HOME/.local/share/applications"
-mkdir -p "$APPS"
-
-while IFS='|' read -r bin display cats args icon; do
-  case "$(printf %s "$bin" | tr -d ' \t')" in '' | '#'*) continue ;; esac
-  bin="$(printf %s "$bin" | xargs)";   display="$(printf %s "$display" | xargs)"
-  cats="$(printf %s "$cats" | xargs)"; args="$(printf %s "$args" | xargs)"
-  icon="$(printf %s "${icon:-}" | xargs)"
-  if [ "$args" = "-" ]; then args=""; fi
-
-  exe="$(mise which "$bin" 2>/dev/null)" || exe=""
-  if [ -z "$exe" ] || [ ! -x "$exe" ]; then
-    echo "[skip] $bin is not installed"
-    continue
-  fi
-
-  # Icon column: a path relative to the install dir, an icon-theme name, or `-`
-  # to search the tree. Searching rarely works — VS Code, Obsidian and Zen all
-  # pack their icons into archives rather than shipping a loose file — which is
-  # why the catalog names theme icons instead.
-  case "$icon" in
-  '' | '-')
-    icon="$(find "$(dirname "$exe")" -maxdepth 5 -type f \( -name '*.png' -o -name '*.svg' \) \
-      \( -ipath "*$bin*" -o -ipath '*icon*' \) 2>/dev/null | sort | head -1)"
-    [ -n "$icon" ] || icon="applications-other"
-    ;;
-  */*)
-    # relative to the install dir; fall back to generic if it is not there
-    if [ -f "$(dirname "$exe")/$icon" ]; then
-      icon="$(dirname "$exe")/$icon"
-    else
-      icon="applications-other"
-    fi
-    ;;
-  esac
-
-  cat > "$APPS/$bin.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=$display
-Exec=$exe $args %U
-Icon=$icon
-Categories=$cats
-Terminal=false
-StartupNotify=true
-EOF
-  echo "[ok] $bin -> $exe"
-done <<'CATALOG'
-# shim | display name       | categories           | extra args   | icon (theme name, path under the install dir, or - to search)
-code     | Visual Studio Code | Development;IDE;     | --no-sandbox | applications-development
-obsidian | Obsidian           | Office;TextEditor;   | --no-sandbox | accessories-text-editor
-zen      | Zen Browser        | Network;WebBrowser;  | -            | web-browser
-CATALOG
-
-command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS" 2>/dev/null || true
-command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser zen.desktop 2>/dev/null || true
-'''

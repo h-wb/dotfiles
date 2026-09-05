@@ -129,8 +129,11 @@ mise's package managers were each checked against this box before settling on
   `github:` with `extract_all` for release archives, `http:` with a `[platforms]`
   table for vendor URLs. mise picks the arch, downloads, extracts, checksums into the
   lockfile and shims the binary onto PATH; installs land in `~/.local/share/mise`,
-  which is on the PVC. A ~30-line task writes the XFCE menu entries, resolving each
-  path with `mise which` — that is the only part mise does not do.
+  which is on the PVC. The XFCE menu entries are static `.desktop` files in
+  `home/xfce/applications/`, applied like any other dotfile; their `Exec` points at
+  `~/.local/share/mise/shims/<name>`, which is stable across version bumps, so
+  upgrading an app never means touching its menu entry. `home/xfce/mimeapps.list`
+  sets the default browser declaratively instead of calling `xdg-settings`.
   Two things learned wiring it up: `ubi:` is deprecated in favour of `github:` (gone
   in mise 2027.1.0), and Obsidian cannot use `github:` at all because that repo
   publishes Android APKs as "latest" — the backend then fails with "could not find a
