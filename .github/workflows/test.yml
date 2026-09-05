@@ -8,6 +8,10 @@ on:
 jobs:
   render:
     runs-on: macos-latest
+    # personal is what a real Mac runs, and it is where the secret-gated dotfiles
+    # (ssh, wireguard) live — without it this job renders neither.
+    env:
+      MISE_ENV: personal
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
