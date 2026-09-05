@@ -121,12 +121,19 @@ mise's package managers were each checked against this box before settling on
   implicitly", so a pre-packages hook must add the flathub remote *and* install the
   flatpak CLI itself — an `apt:flatpak` entry lands during the packages step that
   already needs it.
-- **What is used instead:** `home/bin/neko-app` unpacks tarballs / AppImages / .debs
-  into `~/.local/opt` — no privileges at all — and writes the .desktop entry, icon and
-  `~/.local/bin` symlink. The catalog is a table in `conf.d/neko-apps.neko.toml`; one
-  line per app. It records the *resolved* download URL, so a new upstream release
-  changes the URL and the app reinstalls itself on the next bootstrap.
-  AppImages are extracted, never mounted: there is no `/dev/fuse` in the pod.
+- **What is used instead:** plain `[tools]` entries in `conf.d/neko-apps.neko.toml`.
+  `github:` with `extract_all` for release archives, `http:` with a `[platforms]`
+  table for vendor URLs. mise picks the arch, downloads, extracts, checksums into the
+  lockfile and shims the binary onto PATH; installs land in `~/.local/share/mise`,
+  which is on the PVC. A ~30-line task writes the XFCE menu entries, resolving each
+  path with `mise which` — that is the only part mise does not do.
+  Two things learned wiring it up: `ubi:` is deprecated in favour of `github:` (gone
+  in mise 2027.1.0), and Obsidian cannot use `github:` at all because that repo
+  publishes Android APKs as "latest" — the backend then fails with "could not find a
+  release asset after filtering for archive files from Obsidian-x.y.z.apk", so it is
+  pinned via `http:`. `http:` entries are pinned by hand; bumping is a version and
+  two URLs. Give every app entry `os = "linux"`: a stray `MISE_ENV=neko` on a Mac
+  otherwise tries to install them and errors on the missing macos platform URL.
 
 ## More mise behaviour worth knowing (verified, not guessed)
 

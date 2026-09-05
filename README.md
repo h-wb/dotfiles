@@ -76,19 +76,27 @@ NEKO_APPS_UPGRADE=1 mise run neko:apps      # force-reinstall the GUI apps at la
 ### Adding a GUI app
 
 Homebrew is not usable for this — on Linux `brew-cask` handles font casks only, and
-mise's brew prefix (`/home/linuxbrew/.linuxbrew`) isn't on the PVC. So apps are
-unpacked into `~/.local/opt` by `home/bin/neko-app`, and adding one is a line in the
-catalog in `conf.d/neko-apps.neko.toml`:
+mise's brew prefix (`/home/linuxbrew/.linuxbrew`) isn't on the PVC. So the apps are
+ordinary `[tools]` entries in `conf.d/neko-apps.neko.toml`, installed into
+`~/.local/share/mise` (which *is* on the PVC):
 
-```
-# name   | source                                                            | exe      | args         | display  | categories
-obsidian | gh:obsidianmd/obsidian-releases:obsidian-[0-9.]+{,-arm64}\.tar\.gz | obsidian | --no-sandbox | Obsidian | Office;TextEditor;
+```toml
+# a GitHub release archive
+"github:zen-browser/desktop" = { version = "latest", extract_all = true, exe = "zen", os = "linux" }
+
+# a vendor URL, pinned
+[tools."http:obsidian"]
+os = "linux"
+version = "1.13.7"
+strip_components = 1
+[tools."http:obsidian".platforms]
+linux-x64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7.tar.gz" }
+linux-arm64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7-arm64.tar.gz" }
 ```
 
-`gh:` picks the newest matching release asset, `url:` follows a vendor "latest"
-redirect; `{a,b}` selects by architecture. Tarballs, AppImages (extracted, not
-FUSE-mounted) and `.deb`s all work. The resolved URL is recorded, so new upstream
-releases reinstall themselves on the next bootstrap.
+mise handles the architecture, download, extraction, checksum and PATH shim. Add a
+row to the `neko:apps` catalog at the bottom of the file to get an XFCE menu entry.
+`http:` versions are pinned by hand; `github:` ones track latest.
 
 ## Everyday use
 
