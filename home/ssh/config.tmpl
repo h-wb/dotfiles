@@ -1,6 +1,6 @@
 HashKnownHosts no
-{% if get_env(name="SSH_TRUENAS_HOST", default="") %}
+{% if vars.ssh_truenas_host %}
 Host TN1
-    HostName {{ get_env(name="SSH_TRUENAS_HOST", default="") }}
-    User {{ get_env(name="SSH_TRUENAS_USER", default="") }}
+    HostName {{ vars.ssh_truenas_host }}
+    User {{ vars.ssh_truenas_user }}
 {% endif %}

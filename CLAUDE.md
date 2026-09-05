@@ -66,12 +66,20 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
     `pass-cli`, and launchd's default PATH has no mise shims — get this wrong and
     every secret fails with "CLI tool 'pass-cli' not found" while the agent looks
     perfectly healthy. See the pass-cli-ssh-agent args in `mise.toml`.
-11. **Secrets:** templated dotfiles read secrets via `get_env(name="X", default="")`
-    and gate blocks on presence, so bare `mise bootstrap` (no fnox) renders empty and
-    doesn't error. `[vars]` boolean overrides via `mise.<env>.toml` do NOT apply.
+11. **Templated dotfiles never name a secret source.** They read `{{ vars.x }}`;
+    `mise.toml`'s `[vars]` default each one to `get_env(...)` (the fnox path on
+    macOS), and an untracked `mise.local.toml` overrides the same names with
+    literals (the neko path, since fnox cannot run there). Local wins over env.
+    **`mise`'s own `[env]` does NOT feed `get_env()`** — that reads the real
+    process environment — which is why the indirection is `[vars]`, not `[env]`.
+    On the container a third source needs no file: a value in the `neko` BWS
+    secret arrives as a real env var through `envFrom` and `get_env()` finds it.
+    Because every block is gated on presence, a bare `mise bootstrap` with no
+    source at all renders empty rather than erroring. (`[vars]` *boolean*
+    overrides via `mise.<env>.toml` still do NOT apply — only `mise.local.toml`.)
 12. **`fnox exec` defaults to `--if-missing warn`** — an unresolved secret (expired
     pass-cli session, renamed vault item) is a WARN, fnox exits 0, and the bootstrap
-    runs with the secret unset. Combined with #10 that is silent data loss: the
+    runs with the secret unset. Combined with #11 that is silent data loss: the
     templates render their empty fallback and OVERWRITE the real files (`~/.ssh/config`
     loses the truenas host; `wg0.home.conf` truncates to 0 bytes). Every fnox call in
     this repo therefore passes **`--if-missing error`** (it is a *global* flag —

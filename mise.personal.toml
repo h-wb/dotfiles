@@ -19,9 +19,8 @@
 # on machines running env = ["personal"], so parking it here keeps the neko
 # container from growing a stray ~/Library.
 [dotfiles]
-# Secret-gated: rendered from fnox-injected env vars, and they fall back to empty
-# when the secret is absent — so they must NOT be in the shared list, where the
-# neko container (which has no fnox) would blank them on every session start.
+# macOS-only: a WireGuard config for the home network is pointless inside the
+# cluster, so this one does not go in the shared list. The value still comes from
+# vars.wg0_home_conf like everything else.
 "~/.config/wireguard/wg0.home.conf" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template" }
-"~/.ssh/config"                     = { source = "home/ssh/config.tmpl", mode = "template" }
 "~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }
