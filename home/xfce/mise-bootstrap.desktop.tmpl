@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=mise bootstrap
+Comment=Reprovision this container (apt packages, dotfiles, XFCE settings) at session start
+# Desktop entries do not expand ~, so $HOME is baked in at render time
+# (Tera; [dotfiles] mode = "template").
+Exec={{ env.HOME }}/.local/bin/neko-bootstrap
+Icon=preferences-system
+Terminal=false
+StartupNotify=false
+X-XFCE-Autostart-Override=true

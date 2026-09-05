@@ -28,7 +28,8 @@ claude = "latest"
 
 # github releases
 "github:cli/cli" = "latest"
-"github:nikolaeu/numi" = "latest"
+"github:shoenot/diskard" = "latest"     # TUI disk usage analyzer (reclaim space)
+"github:nikolaeu/numi" = { version = "latest", os = "macos" }
 "github:protonpass/pass-cli" = "latest"   # Proton Pass CLI (ssh-agent + fnox backend)
 "github:jdx/fnox" = "latest"              # secret manager; injects ProtonPass secrets as env vars
 usage = "latest"
@@ -50,7 +51,6 @@ SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
 "~/.zshrc"                          = { source = "home/zshrc", mode = "symlink" }
 "~/.zshenv"                         = { source = "home/zshenv", mode = "symlink" }
 "~/.p10k.zsh"                       = { source = "home/p10k.zsh", mode = "symlink" }
-"~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }
 
 # ── Bootstrap: system provisioning ──────────────────────────────────────────
 # Before packages: Rosetta + Homebrew (which also installs the Command Line
@@ -70,21 +70,25 @@ fi
 '''
 
 # Common packages (formulae, casks, mas). mise drives real Homebrew.
+# os = "macos" on every entry: this file is the *shared* config, so it is also
+# loaded inside the neko/xfce container (see mise.neko.toml), where brew has no
+# business running. [tools] takes the same filter (numi above); [dotfiles] does
+# NOT — mac-only dotfiles have to be moved into a mac-only overlay instead.
 [bootstrap.packages]
 # casks
-"brew-cask:zen" = "latest"
-"brew-cask:alt-tab" = "latest"          # windows-style alt-tab switcher
-"brew-cask:anki" = "latest"             # flashcard app
-"brew-cask:betterdisplay" = "latest"    # display management
-"brew-cask:ghostty" = "latest"          # terminal emulator
-"brew-cask:obsidian" = "latest"         # note-taking
-"brew-cask:orbstack" = "latest"         # fast Docker / Linux VMs
-"brew-cask:plexamp" = "latest"          # music player for Plex
-"brew-cask:raycast" = "latest"          # spotlight replacement / launcher
-"brew-cask:spotify" = "latest"
-"brew-cask:visual-studio-code" = "latest"
-"brew-cask:utm" = "latest"
-"brew-cask:bettertouchtool" = "latest"
+"brew-cask:zen" = { version = "latest", os = "macos" }
+"brew-cask:alt-tab" = { version = "latest", os = "macos" }          # windows-style alt-tab switcher
+"brew-cask:anki" = { version = "latest", os = "macos" }             # flashcard app
+"brew-cask:betterdisplay" = { version = "latest", os = "macos" }    # display management
+"brew-cask:ghostty" = { version = "latest", os = "macos" }          # terminal emulator
+"brew-cask:obsidian" = { version = "latest", os = "macos" }         # note-taking
+"brew-cask:orbstack" = { version = "latest", os = "macos" }         # fast Docker / Linux VMs
+"brew-cask:plexamp" = { version = "latest", os = "macos" }          # music player for Plex
+"brew-cask:raycast" = { version = "latest", os = "macos" }          # spotlight replacement / launcher
+"brew-cask:spotify" = { version = "latest", os = "macos" }
+"brew-cask:visual-studio-code" = { version = "latest", os = "macos" }
+"brew-cask:utm" = { version = "latest", os = "macos" }
+"brew-cask:bettertouchtool" = { version = "latest", os = "macos" }
 
 # ProtonPass ssh-agent. mise rejects Label/EnvironmentVariables/Standard*Path and
 # forces the plist name dev.mise.<key>, so env vars + logging are folded into the
@@ -127,12 +131,26 @@ fi
 # dir = the repo, so `mise bootstrap` loads THIS file as the project config and
 # resolves [dotfiles] sources relative to the repo (not ~/.config/mise, where the
 # global symlink lives). This also lets fnox find fnox.toml by relative path.
+#
+# Both tasks guard the secrets before touching anything:
+#   scripts/pass-preflight  -> live Proton Pass session (offers to log in)
+#   fnox --if-missing error -> every secret in fnox.toml actually resolved
+# Without the flag fnox only WARNs on an unresolved secret and still runs the
+# bootstrap, which re-renders the secret-gated dotfiles empty and clobbers them.
+# The preflight is inline rather than a `depends` task so `pass-cli login` gets
+# this terminal's stdin.
 [tasks.apply]
 description = "Install everything (packages, macOS, dotfiles, tools) with secrets via fnox"
 dir = "{{env.HOME}}/.dotfiles"
-run = "fnox exec -c fnox.toml -- mise bootstrap --yes"
+run = """
+./scripts/pass-preflight || exit 1
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes
+"""
 
 [tasks.diff]
 description = "Preview what bootstrap would change"
 dir = "{{env.HOME}}/.dotfiles"
-run = "fnox exec -c fnox.toml -- mise bootstrap --dry-run"
+run = """
+./scripts/pass-preflight || exit 1
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
+"""

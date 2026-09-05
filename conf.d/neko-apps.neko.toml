@@ -1,0 +1,74 @@
+# GUI apps for the neko desktop — the brew-cask list's counterpart.
+#
+# Why not one of mise's package managers, which would obviously be nicer:
+#   brew      works on Linux without Homebrew, but installs into
+#             /home/linuxbrew/.linuxbrew — not on the PVC, so it is wiped every
+#             roll — and on Linux `brew-cask` is FONT-ONLY: every other cask type
+#             is reported unavailable and skipped. No GUI apps that way.
+#   apt       works, but /usr is image state, so an apt-installed Obsidian is a
+#             fresh 300 MB download at every container start.
+#   flatpak-user  the real contender — it installs into ~/.local/share/flatpak,
+#             which IS on the PVC, and mise drives it declaratively. It hinges on
+#             whether bubblewrap can create a user namespace in this pod. See
+#             conf.d/neko-flatpak.neko.toml.example for the check and the config.
+#
+# Until that check passes, apps are unpacked into ~/.local/opt, which is on the
+# PVC and needs no privileges at all. home/bin/neko-app does the work (tarball /
+# AppImage / .deb, plus the .desktop entry, the icon and the ~/.local/bin
+# symlink); this file is just the catalog.
+#
+# To add an app, add a line. The fields are:
+#
+#   name | source | exe | args | display name | categories
+#
+#   source   url:<url>            vendor "latest" URL; the redirect is followed
+#                                 and the resolved versioned URL is recorded, so
+#                                 a new upstream release reinstalls by itself on
+#                                 the next bootstrap
+#            gh:<owner/repo>:<re> newest release asset matching the regex
+#            {a,b}                a on amd64, b on arm64
+#   exe      path to the binary inside the unpacked app, or `auto` for AppImages
+#   args     appended to Exec, or `-`. Electron apps need --no-sandbox: Chromium's
+#            sandbox wants user namespaces, which an unprivileged pod doesn't get.
+#
+# Reinstall everything at current latest:  NEKO_APPS_UPGRADE=1 mise run neko:apps
+# (an env var, not a task arg — mise appends `-- args` to the last line of a
+# multi-line run script rather than passing them as $1..$n.)
+#
+# Watch the PVC: these are 150-400 MB each once unpacked.
+
+# Shared libraries the neko base image lacks. Small, and reinstalled each start.
+# (Verified against Debian trixie — hence the t64 suffix on libasound.)
+[bootstrap.packages]
+"apt:libnss3" = "latest"          # Electron (VS Code, Obsidian)
+"apt:libnspr4" = "latest"
+"apt:libasound2t64" = "latest"
+"apt:libgbm1" = "latest"
+"apt:libxkbfile1" = "latest"
+"apt:libxss1" = "latest"
+"apt:libsecret-1-0" = "latest"    # VS Code keyring
+"apt:libdbus-glib-1-2" = "latest" # Firefox / Zen
+
+[tasks."neko:apps"]
+description = "Install/refresh the ~/.local/opt GUI apps"
+run = '''
+[ "$(uname)" = "Linux" ] || { echo "[skip] linux only"; exit 0; }
+NEKO_APP="$HOME/.local/bin/neko-app"
+[ -x "$NEKO_APP" ] || { echo "[skip] neko-app not applied yet"; exit 0; }
+
+"$NEKO_APP" install-all <<'CATALOG'
+# name     | source                                                                        | exe      | args         | display name       | categories
+obsidian   | gh:obsidianmd/obsidian-releases:obsidian-[0-9.]+{,-arm64}\.tar\.gz             | obsidian | --no-sandbox | Obsidian           | Office;TextEditor;
+vscode     | url:https://update.code.visualstudio.com/latest/{linux-x64,linux-arm64}/stable | bin/code | --no-sandbox | Visual Studio Code | Development;IDE;
+firefox    | url:https://download.mozilla.org/?product=firefox-latest-ssl&os={linux64,linux64-aarch64}&lang=en-US | firefox | - | Firefox | Network;WebBrowser;
+zen        | gh:zen-browser/desktop:zen\.linux-{x86_64,aarch64}\.tar\.xz                   | zen      | -            | Zen Browser        | Network;WebBrowser;
+
+# More shapes, for when you add to this list:
+#   an AppImage (extracted, never FUSE-mounted):
+# someapp  | gh:owner/repo:SomeApp-[0-9.]+{,-arm64}\.AppImage                              | auto     | --no-sandbox | Some App           | Utility;
+#   a .deb unpacked into $HOME (paths are as they'd be under /):
+# someapp  | gh:owner/repo:someapp_[0-9.]+_{amd64,arm64}\.deb                              | opt/SomeApp/someapp | - | Some App | Utility;
+CATALOG
+
+command -v xdg-settings >/dev/null 2>&1 && xdg-settings set default-web-browser firefox.desktop 2>/dev/null || true
+'''

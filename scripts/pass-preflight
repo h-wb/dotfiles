@@ -1,0 +1,58 @@
+#!/bin/sh
+# Make sure there is a live Proton Pass session before a bootstrap that renders
+# secret-gated dotfiles.
+#
+# Why this exists: fnox defaults to `--if-missing warn`, so a dead pass-cli
+# session is only a WARN — fnox still exits 0 and runs mise bootstrap with every
+# secret unset. The templated dotfiles then render their empty fallback and
+# OVERWRITE the good copies (~/.ssh/config loses the truenas host, and
+# wg0.home.conf is truncated to 0 bytes). The apply/diff tasks pair this with
+# `--if-missing error` so a failure is loud; this script is the part that makes
+# it self-healing instead of just fatal.
+#
+# Exit 0 = session is live. Exit 1 = no session (and we could not get one).
+# Interactive callers get a `pass-cli login` prompt; non-interactive ones
+# (neko's autostart bootstrap) just fail so the caller can fall back.
+# Set DOTFILES_NO_LOGIN=1 to check without ever prompting.
+set -u
+
+MISE="${MISE:-$HOME/.local/bin/mise}"
+
+# pass-cli is a [tools] entry, so it may not be on PATH yet on a fresh machine
+# (install.sh runs this before the first bootstrap installs the tools).
+pass_cli() {
+	if command -v pass-cli >/dev/null 2>&1; then
+		pass-cli "$@"
+	elif [ -x "$MISE" ] && P="$("$MISE" which pass-cli 2>/dev/null)" && [ -x "$P" ]; then
+		"$P" "$@"
+	elif [ -x "$MISE" ]; then
+		"$MISE" exec github:protonpass/pass-cli@latest -- pass-cli "$@"
+	else
+		return 127
+	fi
+}
+
+# `test` is the cheap round trip that proves the stored session still works;
+# `info` would too, but test is what it is for.
+if PASS_LOG_LEVEL=error pass_cli test >/dev/null 2>&1; then
+	exit 0
+fi
+
+if [ -n "${DOTFILES_NO_LOGIN:-}" ] || [ ! -t 0 ]; then
+	echo "[preflight] no Proton Pass session — run \`pass-cli login\`, then re-run." >&2
+	exit 1
+fi
+
+echo "[preflight] no Proton Pass session — starting \`pass-cli login\`." >&2
+if ! pass_cli login; then
+	echo "[preflight] login failed." >&2
+	exit 1
+fi
+
+if PASS_LOG_LEVEL=error pass_cli test >/dev/null 2>&1; then
+	echo "[preflight] session established." >&2
+	exit 0
+fi
+
+echo "[preflight] still no usable session after login." >&2
+exit 1

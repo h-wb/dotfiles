@@ -14,3 +14,11 @@
 "brew-cask:whatsapp" = "latest"
 # mac app store
 "mas:1451685025" = "latest"          # WireGuard
+
+# macOS-only: [dotfiles] entries take no `os` filter, and this overlay only loads
+# on machines running env = ["personal"], so parking it here keeps the neko
+# container from growing a stray ~/Library.
+[dotfiles]
+# Started by the prefect-worker LaunchAgent (conf.d/prefect-worker.personal.toml).
+"~/.local/bin/prefect-worker-start" = { source = "home/bin/prefect-worker-start", mode = "symlink" }
+"~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }

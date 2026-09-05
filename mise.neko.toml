@@ -1,0 +1,102 @@
+# neko/xfce container overlay — merged onto mise.toml when `neko` is an active
+# env (~/.config/mise/miserc.toml: env = ["neko"]).
+#
+# Target: ghcr.io/m1k1o/neko/xfce — Debian trixie, user `neko` (uid 1000),
+# passwordless sudo, supervisord as pid 1. There is NO systemd and NO launchd in
+# there, so [bootstrap.linux.systemd.units] is useless: mise writes those with
+# `systemctl --user`, which has nothing to talk to.
+#
+# THE constraint: only /home/neko is on a PVC. /usr and /etc come from the image
+# and are wiped on every pod roll. So:
+#   - [bootstrap.packages] is deliberately tiny — it is a per-start cost, paid
+#     again every time the pod is rescheduled;
+#   - real tooling goes in [tools], which installs under ~/.local/share/mise and
+#     therefore survives (this is why the inherited tool list is left alone);
+#   - GUI apps are $HOME tarballs, not apt (conf.d/neko-apps.neko.toml);
+#   - ~/.config/autostart/mise-bootstrap.desktop re-runs bootstrap at every XFCE
+#     session start, which is what makes a fresh container reprovision itself.
+#     That is the launchd-agent equivalent for this box.
+
+[tools]
+starship = "latest"   # fish prompt; p10k is zsh-only (see home/starship.toml)
+
+[env]
+# Debian ships C.UTF-8 without the `locales` package; enough for tmux -u.
+LANG = "C.UTF-8"
+# EDITOR is inherited as `code --wait` — valid here because conf.d/neko-apps
+# installs VS Code into ~/.local/opt. Drop that fragment and override this too.
+
+# ── System packages ─────────────────────────────────────────────────────────
+# Everything here is reinstalled on each container start. Keep it to things that
+# genuinely cannot live in $HOME. Runtime libs for the ~/.local/opt apps are in
+# conf.d/neko-apps.neko.toml so the two lists can be trimmed independently.
+[bootstrap.packages]
+"apt:git" = "latest"       # not in the neko base image; needed to clone this repo
+"apt:fish" = "latest"      # the shell here; the Macs stay on zsh + z4h
+"apt:tmux" = "latest"      # survives a dropped WebRTC session
+"apt:less" = "latest"
+"apt:unzip" = "latest"
+"apt:xz-utils" = "latest"  # .tar.xz app tarballs
+"apt:xdg-utils" = "latest" # xdg-open / default browser
+"apt:fontconfig" = "latest" # fc-cache, for the Nerd Font the bootstrap task drops in $HOME
+
+# The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
+# NOTE: hooks with the same name in different configs ACCUMULATE, they do not
+# override — mise.toml's pre-packages hook still runs here, right before this
+# one. That is fine (it exits immediately on non-Darwin), but it is the opposite
+# of how [tasks.bootstrap] below behaves, which does override.
+[bootstrap.hooks.pre-packages]
+run = '''
+[ "$(uname)" = "Linux" ] || exit 0
+sudo apt-get update -qq
+'''
+
+# ── Dotfiles ────────────────────────────────────────────────────────────────
+# On top of the shared set in mise.toml (git, ssh, wireguard — and the zsh ones,
+# which land here too because [dotfiles] takes no `os` filter. They cost nothing:
+# zsh is not installed in this container, so nothing ever sources them, and
+# leaving them shared keeps the zsh config in one place for the Macs.)
+[dotfiles]
+"~/.config/fish/config.fish" = { source = "home/fish/config.fish", mode = "symlink" }
+# symlink-each, not symlink: fish writes fish_variables and its own generated
+# completions into conf.d's parent, so only the files we own are linked.
+"~/.config/fish/conf.d"      = { source = "home/fish/conf.d", mode = "symlink-each" }
+"~/.config/starship.toml"    = { source = "home/starship.toml", mode = "symlink" }
+# symlink-each links the files inside home/bin individually, so mise's own
+# binary already in ~/.local/bin is left alone.
+"~/.local/bin"                               = { source = "home/bin", mode = "symlink-each", exclude = ["prefect-worker-start"] }  # macOS-only, see mise.personal.toml
+"~/.config/autostart/mise-bootstrap.desktop" = { source = "home/xfce/mise-bootstrap.desktop.tmpl", mode = "template" }
+"~/.config/xfce4/terminal/terminalrc"        = { source = "home/xfce/terminalrc", mode = "symlink" }
+
+# scripts/ is not a dotfile source; neko-bootstrap calls scripts/pass-preflight
+# straight out of the repo checkout at ~/.dotfiles, so nothing to link here.
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+# Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
+# merge, so the shared body's ssh chmod is repeated here; only its /etc/resolver
+# block is dropped, which was macOS-only. Also pulls in the two fragments. `mise bootstrap` runs this at step 15,
+# after packages/dotfiles/tools, so xfconf and the app installer can rely on
+# everything else already being in place.
+[tasks.bootstrap]
+depends = ["neko:xfce", "neko:apps"]
+run = '''
+[ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh" || true
+
+# Login shell for `kubectl exec` shells. /etc/passwd is image state, so this is
+# re-applied every roll; the terminal emulator gets fish from terminalrc instead.
+FISH="$(command -v fish || true)"
+if [ -n "$FISH" ] && [ "$(getent passwd "$(id -un)" | cut -d: -f7)" != "$FISH" ]; then
+  sudo chsh -s "$FISH" "$(id -un)" || true
+fi
+
+# Glyphs for the starship prompt. ~/.local/share/fonts is on the PVC, so this is a one-time cost.
+FONTDIR="$HOME/.local/share/fonts"
+mkdir -p "$FONTDIR"
+for style in "Regular" "Bold" "Italic" "Bold Italic"; do
+  target="$FONTDIR/MesloLGS NF $style.ttf"
+  [ -f "$target" ] && continue
+  url="https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20$(echo "$style" | sed 's/ /%20/g').ttf"
+  curl -fsSL "$url" -o "$target" || rm -f "$target"
+done
+command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONTDIR" >/dev/null 2>&1 || true
+'''
