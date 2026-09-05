@@ -53,13 +53,18 @@ jobs:
       # The neko:* tasks live in conf.d fragments, which only load through the
       # global config dir — so this also exercises the install.sh wiring
       # (conf.d symlink + miserc selecting the env).
+      # MISE_CONFIG_DIR, not HOME: mise-action pins mise's config dir for the job,
+      # so moving HOME here does not move where conf.d is looked up (that is how
+      # this step first failed — fragments silently absent from `mise config`).
       - name: conf.d fragments load and their tasks resolve
         run: |
-          export HOME="$(mktemp -d)"
-          mkdir -p "$HOME/.config/mise"
-          ln -sfn "$PWD/conf.d" "$HOME/.config/mise/conf.d"
-          printf 'env = ["neko"]\nenv_conf_d = true\n' > "$HOME/.config/mise/miserc.toml"
+          export MISE_CONFIG_DIR="$(mktemp -d)/mise"
+          mkdir -p "$MISE_CONFIG_DIR"
+          ln -sfn "$PWD/conf.d" "$MISE_CONFIG_DIR/conf.d"
+          printf 'env = ["neko"]\nenv_conf_d = true\n' > "$MISE_CONFIG_DIR/miserc.toml"
           mise trust
-          mise config
+          mise config | tee /tmp/cfg
+          grep -q 'conf.d/xfce.neko.toml' /tmp/cfg
+          grep -q 'conf.d/neko-apps.neko.toml' /tmp/cfg
           mise tasks --all | grep -q 'neko:xfce'
           mise tasks --all | grep -q 'neko:apps'
