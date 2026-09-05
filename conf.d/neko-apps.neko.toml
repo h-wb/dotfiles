@@ -7,13 +7,15 @@
 #             is reported unavailable and skipped. No GUI apps that way.
 #   apt       works, but /usr is image state, so an apt-installed Obsidian is a
 #             fresh 300 MB download at every container start.
-#   flatpak-user  the real contender — it installs into ~/.local/share/flatpak,
-#             which IS on the PVC, and mise drives it declaratively. It hinges on
-#             whether bubblewrap can create a user namespace in this pod. See
-#             conf.d/neko-flatpak.neko.toml.example for the check and the config.
+#   flatpak-user  installs into ~/.local/share/flatpak, which IS on the PVC, and
+#             mise drives it declaratively — but it needs bubblewrap to create a
+#             user namespace (unverified in this pod), and a sandboxed VS Code
+#             cannot see the mise toolchain in ~/.local/share/mise without
+#             --filesystem grants and flatpak-spawn. For a box whose whole point
+#             is that toolchain, that is more complication, not less.
 #
-# Until that check passes, apps are unpacked into ~/.local/opt, which is on the
-# PVC and needs no privileges at all. home/bin/neko-app does the work (tarball /
+# So apps are unpacked into ~/.local/opt, which is on the PVC and needs no
+# privileges at all. home/bin/neko-app does the work (tarball /
 # AppImage / .deb, plus the .desktop entry, the icon and the ~/.local/bin
 # symlink); this file is just the catalog.
 #

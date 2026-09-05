@@ -90,11 +90,6 @@ redirect; `{a,b}` selects by architecture. Tarballs, AppImages (extracted, not
 FUSE-mounted) and `.deb`s all work. The resolved URL is recorded, so new upstream
 releases reinstall themselves on the next bootstrap.
 
-Flatpak would be nicer still — `~/.local/share/flatpak` is on the PVC and mise
-supports `flatpak-user:` entries — but it needs bubblewrap to create a user
-namespace. Check with `unshare -Ur true` in the container; if it prints nothing and
-exits 0, enable `conf.d/neko-flatpak.neko.toml.example`.
-
 ## Everyday use
 
 ```sh
