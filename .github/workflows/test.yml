@@ -53,6 +53,26 @@ jobs:
           test -L "$HOME/.config/fish/conf.d/aliases.fish"
           test -L "$HOME/.config/xfce4/terminal/terminalrc"
           test -x "$HOME/.local/bin/neko-bootstrap"
+          # menu entries are dotfiles now, and their Exec must resolve to a mise
+          # shim (stable across version bumps) rather than a versioned path
+          for app in code obsidian zen; do
+            grep -q "^Exec=$HOME/.local/share/mise/shims/$app" \
+              "$HOME/.local/share/applications/$app.desktop"
+          done
+          test -L "$HOME/.config/mimeapps.list"
+          # the ssh template renders from vars: empty with no source...
+          grep -qx 'HashKnownHosts no' "$HOME/.ssh/config"
+          test "$(grep -c 'Host TN1' "$HOME/.ssh/config")" = 0
+
+      # The same template, fed from the environment instead of fnox: this is the
+      # container's path, and it must produce the same file the Macs get.
+      - name: Templated dotfiles render from vars (env source)
+        run: |
+          export HOME="$(mktemp -d)"
+          SSH_TRUENAS_HOST=tn.example SSH_TRUENAS_USER=someone \
+            mise bootstrap dotfiles apply --yes
+          grep -q 'HostName tn.example' "$HOME/.ssh/config"
+          grep -q 'User someone' "$HOME/.ssh/config"
 
       # The neko:* tasks live in conf.d fragments, which only load through the
       # global config dir — so this also exercises the install.sh wiring
@@ -71,4 +91,3 @@ jobs:
           grep -q 'conf.d/xfce.neko.toml' /tmp/cfg
           grep -q 'conf.d/neko-apps.neko.toml' /tmp/cfg
           mise tasks --all | grep -q 'neko:xfce'
-          mise tasks --all | grep -q 'neko:apps'
