@@ -82,14 +82,12 @@ sudo apt-get update -qq
 # scripts/ is not a dotfile source; neko-bootstrap calls scripts/pass-preflight
 # straight out of the repo checkout at ~/.dotfiles, so nothing to link here.
 
-# NO SECRETS HERE. pass-cli keeps its local encryption key in the kernel keyring,
-# and the container runtime's seccomp profile blocks add_key/keyctl outright —
-# `keyctl add user probe v @u` fails with EPERM even as root, so pass-cli errors
-# with NoStorageAccess(PermissionDenied) before a login can start, and fnox with
-# it. (gnome-keyring does not help: it provides the D-Bus Secret Service, which is
-# a different store.) The fix would be seccompProfile: Unconfined on the pod,
-# which trades away syscall filtering; instead the secret-gated dotfiles moved to
-# mise.personal.toml and this box simply has no secrets to manage.
+# NO SECRETS HERE — by choice. pass-cli's default backend keeps its key in the
+# kernel keyring, which container seccomp blocks (add_key fails with EPERM even as
+# root), so fnox cannot resolve anything out of the box. That IS surmountable with
+# PROTON_PASS_KEY_PROVIDER=fs plus a one-time login, but nothing here needs it:
+# ~/.ssh/config takes its values from [vars] (mise.local.toml or a plain env var)
+# and wg0.home.conf is macOS-only. See CLAUDE.md for the full finding.
 #
 # apply/diff therefore override mise.toml's fnox-wrapped versions.
 [tasks.apply]
