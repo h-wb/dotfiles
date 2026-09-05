@@ -22,5 +22,5 @@ K8S_GATEWAY_HOST = { provider = "protonpass", value = "pass://Dev/k8s gateway/ho
 
 # Consumed by the prefect-worker LaunchAgent (see mise.toml); the worker reads
 # both straight out of the environment fnox injects.
-PREFECT_API_URL         = { provider = "protonpass", value = "pass://Dev/Prefect/url" }
-PREFECT_API_AUTH_STRING = { provider = "protonpass", value = "pass://Dev/Prefect/password" }
+PREFECT_API_URL         = { provider = "protonpass", value = "pass://Bitwarden/Prefect/url" }
+PREFECT_API_AUTH_STRING = { provider = "protonpass", value = "pass://Bitwarden/Prefect/password" }
