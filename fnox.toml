@@ -20,7 +20,3 @@ WG0_HOME_CONF    = { provider = "protonpass", value = "pass://Dev/wg0.conf/note"
 K8S_GATEWAY_IP   = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
 K8S_GATEWAY_HOST = { provider = "protonpass", value = "pass://Dev/k8s gateway/hostname" }
 
-# Consumed by the prefect-worker LaunchAgent (see mise.toml); the worker reads
-# both straight out of the environment fnox injects.
-PREFECT_API_URL         = { provider = "protonpass", value = "pass://Bitwarden/Prefect/url" }
-PREFECT_API_AUTH_STRING = { provider = "protonpass", value = "pass://Bitwarden/Prefect/password" }
