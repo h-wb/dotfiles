@@ -200,30 +200,39 @@ invoking fnox. fnox shells out to `pass-cli`, and launchd's default PATH has no
 mise shims — get it wrong and every secret fails with "CLI tool 'pass-cli' not
 found" while the agent looks healthy. Same shape as the pass-cli-ssh-agent.
 
-## Secrets in the container need a keyring
+## The container has NO secrets, on purpose
 
-pass-cli keeps its local encryption key in the **Secret Service**, and the neko
-image provides none — so it fails before login even starts:
+pass-cli cannot run in the neko container, and no amount of configuration fixes
+it: it keeps its local encryption key in the **kernel keyring**, and the
+container runtime's default seccomp profile blocks `add_key`/`keyctl`/
+`request_key`. In the pod, `keyctl add user probe v @u` fails with EPERM **even
+as root** (`/proc/1/status` shows `Seccomp: 2`), so pass-cli dies with
 
-    Failed to get encryption key for database
     Could not get local key from keyring
     Error accessing credential [name=cli-local-key:...]: NoStorageAccess(PermissionDenied)
 
-`apt:gnome-keyring` supplies it, but installing it is not enough: the daemon has
-to be started **inside the XFCE session** (it registers `org.freedesktop.secrets`
-on that session bus — start it on a `dbus-launch` bus of your own and no client
-will ever see it) and unlocked non-interactively. An unlocked-by-prompt keyring
-looks identical to a broken one from the client side: the service is on the bus,
-the collection is locked, every request returns PermissionDenied, and a password
-dialog is sitting on the desktop waiting for a click.
+before a login can start — and fnox, which shells out to pass-cli, with it.
 
-So `home/bin/neko-bootstrap` unlocks it with `KEYRING_PASSWORD` (from
-neko-desktop-secret) piped with `printf`, not `echo` — a trailing newline becomes
-part of the password. Only `--components=secrets`: gnome-keyring's own ssh-agent
-would fight the pass-cli one over SSH_AUTH_SOCK. The keyring itself lives in
-`~/.local/share/keyrings`, on the PVC, so it is created once and unlocked after.
+Installing gnome-keyring does NOT help. It provides the D-Bus Secret Service,
+which is a different store; the service comes up, the default collection unlocks,
+and pass-cli still fails on the kernel keyring. (Verified: collections listed,
+`aliases/default` reporting `Locked=false`, same error.) The only fix that would
+work is `seccompProfile: type: Unconfined` on the pod, trading away syscall
+filtering.
 
-## Secrets: the silent-overwrite trap
+So the secret-gated dotfiles (`~/.ssh/config`, wireguard) live in
+`mise.personal.toml`, not the shared list, and the container has nothing to
+decrypt. That is what lets `home/bin/neko-bootstrap` be a straight line rather
+than the fnox/preflight/fallback ladder it used to be, and why `mise.neko.toml`
+overrides `apply`/`diff` with plain `mise bootstrap`. `SSH_AUTH_SOCK` is
+cancelled there too (`= false`), since the Proton Pass agent that serves that
+socket never runs on this box.
+
+**If a container dotfile ever needs a secret**, put it in the `neko` BWS secret
+and read it with `get_env()` in the template — the env arrives via `envFrom`,
+no keyring involved. Do not reach for pass-cli.
+
+## Secrets: the silent-overwrite trap (macOS)
 
 `fnox exec` defaults to `--if-missing warn`: a dead Proton Pass session is only a
 WARN, fnox still exits 0, and bootstrap then renders the secret-gated templates
@@ -235,4 +244,5 @@ truncates to 0 bytes. Anything that runs bootstrap unattended must therefore:
 - pass `--if-missing error` so a mid-run failure is loud, and
 - `--skip dotfiles` on any no-secrets fallback path, never a plain bootstrap.
 
-`home/bin/neko-bootstrap` does all three; that is the pattern to copy.
+`install.sh` does the first two. This no longer applies to the neko container,
+which has no secret-gated dotfiles at all — see the section above.

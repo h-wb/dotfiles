@@ -23,6 +23,10 @@ starship = "latest"   # fish prompt; p10k is zsh-only (see home/starship.toml)
 [env]
 # Debian ships C.UTF-8 without the `locales` package; enough for tmux -u.
 LANG = "C.UTF-8"
+# Cancels the value mise.toml sets: that socket is served by the Proton Pass
+# ssh-agent, which does not run here (see the secrets note in the header), so
+# leaving it set just points ssh at a socket that will never exist.
+SSH_AUTH_SOCK = false
 # EDITOR is inherited as `code --wait` — valid here because conf.d/neko-apps
 # installs VS Code into ~/.local/opt. Drop that fragment and override this too.
 
@@ -39,10 +43,6 @@ LANG = "C.UTF-8"
 "apt:xz-utils" = "latest"  # .tar.xz app tarballs
 "apt:xdg-utils" = "latest" # xdg-open / default browser
 "apt:fontconfig" = "latest" # fc-cache, for the Nerd Font the bootstrap task drops in $HOME
-# Proton Pass keeps its local encryption key in the Secret Service. This image
-# ships nothing that provides one, so pass-cli dies with
-# NoStorageAccess(PermissionDenied) before login even starts.
-"apt:gnome-keyring" = "latest"
 
 # The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
 # NOTE: hooks with the same name in different configs ACCUMULATE, they do not
@@ -74,6 +74,26 @@ sudo apt-get update -qq
 
 # scripts/ is not a dotfile source; neko-bootstrap calls scripts/pass-preflight
 # straight out of the repo checkout at ~/.dotfiles, so nothing to link here.
+
+# NO SECRETS HERE. pass-cli keeps its local encryption key in the kernel keyring,
+# and the container runtime's seccomp profile blocks add_key/keyctl outright —
+# `keyctl add user probe v @u` fails with EPERM even as root, so pass-cli errors
+# with NoStorageAccess(PermissionDenied) before a login can start, and fnox with
+# it. (gnome-keyring does not help: it provides the D-Bus Secret Service, which is
+# a different store.) The fix would be seccompProfile: Unconfined on the pod,
+# which trades away syscall filtering; instead the secret-gated dotfiles moved to
+# mise.personal.toml and this box simply has no secrets to manage.
+#
+# apply/diff therefore override mise.toml's fnox-wrapped versions.
+[tasks.apply]
+description = "Install everything (packages, dotfiles, tools, XFCE settings)"
+dir = "{{env.HOME}}/.dotfiles"
+run = "mise bootstrap --yes --force-dotfiles"
+
+[tasks.diff]
+description = "Preview what bootstrap would change"
+dir = "{{env.HOME}}/.dotfiles"
+run = "mise bootstrap --dry-run"
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
