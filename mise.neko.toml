@@ -39,6 +39,10 @@ LANG = "C.UTF-8"
 "apt:xz-utils" = "latest"  # .tar.xz app tarballs
 "apt:xdg-utils" = "latest" # xdg-open / default browser
 "apt:fontconfig" = "latest" # fc-cache, for the Nerd Font the bootstrap task drops in $HOME
+# Proton Pass keeps its local encryption key in the Secret Service. This image
+# ships nothing that provides one, so pass-cli dies with
+# NoStorageAccess(PermissionDenied) before login even starts.
+"apt:gnome-keyring" = "latest"
 
 # The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
 # NOTE: hooks with the same name in different configs ACCUMULATE, they do not

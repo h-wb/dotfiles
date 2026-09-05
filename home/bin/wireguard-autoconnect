@@ -1,0 +1,28 @@
+#!/bin/sh
+# Keeps the `home` WireGuard tunnel up.
+#
+# The cluster reaches LM Studio on this machine at 192.168.27.65 (paperless-gpt and
+# paperless' own AI both go through litellm to get here), and that address only
+# exists while this tunnel is connected. WireGuard.app does not auto-connect and is
+# not a login item, so without this the whole document pipeline silently stalls
+# after every reboot.
+#
+# A poll loop rather than a one-shot: this also recovers from sleep/wake and from
+# the tunnel dropping, which a run-at-login agent would not.
+set -u
+
+TUNNEL="home"
+INTERVAL="${WG_CHECK_INTERVAL:-60}"
+
+while :; do
+	# `scutil --nc status` prints the state on its first line.
+	state="$(scutil --nc status "${TUNNEL}" 2>/dev/null | head -1)"
+	case "${state}" in
+	Connected) ;;
+	*)
+		echo "[$(date '+%Y-%m-%dT%H:%M:%S')] tunnel '${TUNNEL}' is '${state:-unknown}', starting"
+		scutil --nc start "${TUNNEL}" 2>&1
+		;;
+	esac
+	sleep "${INTERVAL}"
+done
