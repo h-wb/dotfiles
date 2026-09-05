@@ -1,4 +1,32 @@
-# Copy to mise.local.toml (gitignored) for per-machine values that must not be
-# committed. mise loads mise.local.toml automatically.
+# Per-machine values, untracked (gitignored). mise loads mise.local.toml
+# automatically and it overrides everything, so this is the highest-precedence
+# source for [vars].
+#
+# WHY THIS EXISTS
+# Templated dotfiles read {{ vars.x }} and never name a source. mise.toml
+# defaults every one of those vars to `get_env(...)`, which is the macOS path:
+# `fnox exec` injects the ProtonPass secrets and the templates pick them up. On a
+# machine where fnox cannot run — the neko container, where pass-cli needs the
+# kernel keyring and container seccomp blocks it — put the literals here instead.
+# Same templates, same var names, different source.
+#
+# A var that is neither in the environment nor here renders empty, and the
+# templates gate their blocks on that, so a partial file is always safe.
+#
+# On the neko container there is a third option that needs no file at all: add
+# the value to the `neko` BWS secret, which arrives as a real environment
+# variable via envFrom — get_env() then finds it exactly like fnox's. Prefer that
+# for anything genuinely secret; this file is plaintext on the PVC.
+
 [vars]
 git_email = "you@example.com"
+
+# Consumed by home/ssh/config.tmpl — the Host block is skipped when unset.
+# ssh_truenas_host = "truenas.lan"
+# ssh_truenas_user = "you"
+
+# Whole-file WireGuard config (macOS only; see mise.personal.toml).
+# wg0_home_conf = """
+# [Interface]
+# ...
+# """

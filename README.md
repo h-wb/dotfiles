@@ -19,6 +19,7 @@ from Proton Pass. No chezmoi.
 - **`mise.neko.toml`** — env overlay for the neko/xfce container (Debian, fish, XFCE); see below.
 - **`miserc.toml.example`** — template for the per-machine `~/.config/mise/miserc.toml` (which env(s) are active + `env_conf_d`); see below.
 - **`fnox.toml`** — Proton Pass secret references (no secret values).
+- **`mise.local.toml`** — untracked per-machine values; see *Where values come from* below.
 - **`home/`** — dotfile sources (symlinked, or `.tmpl` rendered via Tera).
 
 ### Environments
@@ -99,6 +100,22 @@ menu entry, drop a `.desktop` file in `home/xfce/applications/` and add its
 `[dotfiles]` line in `mise.neko.toml` — its `Exec` points at the mise shim, which
 does not change when the version does. `http:` versions are pinned by hand;
 `github:` ones track latest.
+
+### Where values come from
+
+Templated dotfiles read `{{ vars.x }}` and never name a source. `mise.toml`
+defaults every such var to `get_env(...)`, so there are three interchangeable
+ways to supply one:
+
+| source | used by |
+| --- | --- |
+| `fnox exec` injecting ProtonPass secrets as env vars | the Macs |
+| an untracked `mise.local.toml` `[vars]` (highest precedence) | any machine without fnox |
+| a real env var from the environment (e.g. k8s `envFrom`) | the neko container |
+
+Nothing set renders empty, and the templates gate their blocks on that, so a
+machine that supplies only some values still gets a valid file. This is why the
+neko container needs no fnox, no pass-cli and no keyring.
 
 ## Everyday use
 

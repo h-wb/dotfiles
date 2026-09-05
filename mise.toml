@@ -14,6 +14,23 @@
 # Secret-gated dotfiles (ssh/wireguard) key off whether fnox provided the secret
 # env var, so no secrets/profile flag is needed.
 
+# ── Vars: the one abstraction over "where did this value come from" ─────────
+# Templated dotfiles read {{ vars.x }} and never name a source. Each var
+# defaults to whatever is in the ENVIRONMENT — that is the macOS path, where
+# `fnox exec` injects the ProtonPass secrets before bootstrap runs. A machine
+# without fnox (the neko container: pass-cli needs the kernel keyring, which
+# container seccomp blocks) overrides the same names with literals in an
+# untracked mise.local.toml, which wins over this file. Neither source present
+# renders empty, and the templates gate their blocks on that.
+#
+# NOTE: mise's own [env] does NOT feed get_env() — it reads the real process
+# environment — which is exactly why this indirection is [vars] and not [env].
+[vars]
+git_email        = "{{ get_env(name='GIT_EMAIL', default='') }}"
+ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
+ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
+wg0_home_conf    = "{{ get_env(name='WG0_HOME_CONF', default='') }}"
+
 [tools]
 # languages
 node = "lts"
@@ -45,13 +62,13 @@ SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
 # ── Dotfiles ────────────────────────────────────────────────────────────────
 # template mode renders Tera ({{ vars.x }}, {{ env.x }}, {% if %}); symlink mode
 # links the source. The mise config itself is symlinked by install.sh, not here.
-# The secret-gated entries (ssh, wireguard) live in mise.personal.toml: they need
-# fnox, and fnox needs pass-cli, which cannot run in the neko container at all —
-# Proton Pass keeps its key in the kernel keyring and container seccomp blocks
-# add_key/keyctl outright. Keeping them out of the shared list is what lets the
-# container just apply its dotfiles with no secret machinery.
+# Entries here read [vars], so they work on both machine classes: fnox supplies
+# the values on macOS, mise.local.toml on the container. wg0.home.conf stays in
+# mise.personal.toml — a WireGuard tunnel into the home network is meaningless
+# from inside the cluster it would tunnel to.
 [dotfiles]
 "~/.config/git/config"              = { source = "home/git/config.tmpl", mode = "template" }
+"~/.ssh/config"                     = { source = "home/ssh/config.tmpl", mode = "template" }
 "~/.config/zsh"                     = { source = "home/zsh", mode = "symlink" }
 "~/.zshrc"                          = { source = "home/zshrc", mode = "symlink" }
 "~/.zshenv"                         = { source = "home/zshenv", mode = "symlink" }
