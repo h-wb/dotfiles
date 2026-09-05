@@ -181,37 +181,37 @@ mise's package managers were each checked against this box before settling on
 - Don't change a launchd agent's plist name expectations — mise forces `dev.mise.<key>`
   and rejects `Label`/`EnvironmentVariables`/`Standard*Path`.
 
-## The container has NO secrets, on purpose
+## The container has no secrets — by choice, not because it cannot
 
-pass-cli cannot run in the neko container, and no amount of configuration fixes
-it: it keeps its local encryption key in the **kernel keyring**, and the
-container runtime's default seccomp profile blocks `add_key`/`keyctl`/
-`request_key`. In the pod, `keyctl add user probe v @u` fails with EPERM **even
-as root** (`/proc/1/status` shows `Seccomp: 2`), so pass-cli dies with
+The default pass-cli setup does not work in the neko container: it keeps its local
+encryption key in the **kernel keyring**, and the container runtime's seccomp
+profile blocks `add_key`/`keyctl`/`request_key`. In the pod, `keyctl add user probe
+v @u` fails with EPERM **even as root** (`/proc/1/status` → `Seccomp: 2`), so it
+dies with `NoStorageAccess(PermissionDenied)` before a login can start.
 
-    Could not get local key from keyring
-    Error accessing credential [name=cli-local-key:...]: NoStorageAccess(PermissionDenied)
+Two dead ends worth not repeating:
 
-before a login can start — and fnox, which shells out to pass-cli, with it.
+- **gnome-keyring does not help.** It provides the D-Bus Secret Service, a
+  *different* store. Installed, the service came up and the default collection
+  unlocked (`aliases/default` → `Locked=false`) — and pass-cli failed identically,
+  because it never asks the Secret Service anything.
+- **`seccompProfile: Unconfined`** on the pod would work, but trades away syscall
+  filtering for the whole container.
 
-Installing gnome-keyring does NOT help. It provides the D-Bus Secret Service,
-which is a different store; the service comes up, the default collection unlocks,
-and pass-cli still fails on the kernel keyring. (Verified: collections listed,
-`aliases/default` reporting `Locked=false`, same error.) The only fix that would
-work is `seccompProfile: type: Unconfined` on the pod, trading away syscall
-filtering.
+**The actual escape hatch is `PROTON_PASS_KEY_PROVIDER`** (`fs`, `env` or
+`keyring`; fnox's own error message names it). With `PROTON_PASS_KEY_PROVIDER=fs`
+the keyring error is gone and pass-cli gets as far as "there is no session" — the
+normal not-logged-in state. `env` instead takes the key from
+`PROTON_PASS_ENCRYPTION_KEY`, which in k8s could come straight from the BWS secret
+via `envFrom`, leaving no key material on the PVC.
 
-So the secret-gated dotfiles (`~/.ssh/config`, wireguard) live in
-`mise.personal.toml`, not the shared list, and the container has nothing to
-decrypt. That is what lets `home/bin/neko-bootstrap` be a straight line rather
-than the fnox/preflight/fallback ladder it used to be, and why `mise.neko.toml`
-overrides `apply`/`diff` with plain `mise bootstrap`. `SSH_AUTH_SOCK` is
-cancelled there too (`= false`), since the Proton Pass agent that serves that
-socket never runs on this box.
-
-**If a container dotfile ever needs a secret**, put it in the `neko` BWS secret
-and read it with `get_env()` in the template — the env arrives via `envFrom`,
-no keyring involved. Do not reach for pass-cli.
+So secrets in the container are **possible**; we simply chose not to. The
+container has nothing that needs them: `~/.ssh/config` gets its values through
+`[vars]` (gotcha #11) from `mise.local.toml` or a plain env var, and `wg0.home.conf`
+is macOS-only. That choice is what keeps `home/bin/neko-bootstrap` a straight line
+instead of an fnox/preflight/fallback ladder. If that changes, wire up
+`PROTON_PASS_KEY_PROVIDER=fs` plus a one-time `pass-cli login` (the session dir
+lives on the PVC) rather than reaching for Unconfined seccomp.
 
 ## Secrets: the silent-overwrite trap (macOS)
 
