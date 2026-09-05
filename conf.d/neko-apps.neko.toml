@@ -78,10 +78,11 @@ set -eu
 APPS="$HOME/.local/share/applications"
 mkdir -p "$APPS"
 
-while IFS='|' read -r bin display cats args; do
+while IFS='|' read -r bin display cats args icon; do
   case "$(printf %s "$bin" | tr -d ' \t')" in '' | '#'*) continue ;; esac
   bin="$(printf %s "$bin" | xargs)";   display="$(printf %s "$display" | xargs)"
   cats="$(printf %s "$cats" | xargs)"; args="$(printf %s "$args" | xargs)"
+  icon="$(printf %s "${icon:-}" | xargs)"
   if [ "$args" = "-" ]; then args=""; fi
 
   exe="$(mise which "$bin" 2>/dev/null)" || exe=""
@@ -90,11 +91,25 @@ while IFS='|' read -r bin display cats args; do
     continue
   fi
 
-  # Apps ship their icon somewhere under the install dir; a missing one is only
-  # cosmetic, so fall back to a generic freedesktop name.
-  icon="$(find "$(dirname "$exe")" -maxdepth 5 -type f \( -name '*.png' -o -name '*.svg' \) \
-    \( -ipath "*$bin*" -o -ipath '*icon*' \) 2>/dev/null | sort | head -1)"
-  [ -n "$icon" ] || icon="applications-other"
+  # Icon column: a path relative to the install dir, an icon-theme name, or `-`
+  # to search the tree. Searching rarely works — VS Code, Obsidian and Zen all
+  # pack their icons into archives rather than shipping a loose file — which is
+  # why the catalog names theme icons instead.
+  case "$icon" in
+  '' | '-')
+    icon="$(find "$(dirname "$exe")" -maxdepth 5 -type f \( -name '*.png' -o -name '*.svg' \) \
+      \( -ipath "*$bin*" -o -ipath '*icon*' \) 2>/dev/null | sort | head -1)"
+    [ -n "$icon" ] || icon="applications-other"
+    ;;
+  */*)
+    # relative to the install dir; fall back to generic if it is not there
+    if [ -f "$(dirname "$exe")/$icon" ]; then
+      icon="$(dirname "$exe")/$icon"
+    else
+      icon="applications-other"
+    fi
+    ;;
+  esac
 
   cat > "$APPS/$bin.desktop" <<EOF
 [Desktop Entry]
@@ -108,10 +123,10 @@ StartupNotify=true
 EOF
   echo "[ok] $bin -> $exe"
 done <<'CATALOG'
-# shim | display name       | categories           | extra args
-code   | Visual Studio Code | Development;IDE;     | --no-sandbox
-obsidian | Obsidian         | Office;TextEditor;   | --no-sandbox
-zen    | Zen Browser        | Network;WebBrowser;  | -
+# shim | display name       | categories           | extra args   | icon (theme name, path under the install dir, or - to search)
+code     | Visual Studio Code | Development;IDE;     | --no-sandbox | applications-development
+obsidian | Obsidian           | Office;TextEditor;   | --no-sandbox | accessories-text-editor
+zen      | Zen Browser        | Network;WebBrowser;  | -            | web-browser
 CATALOG
 
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS" 2>/dev/null || true
