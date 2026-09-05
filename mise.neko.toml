@@ -71,6 +71,13 @@ sudo apt-get update -qq
 "~/.local/bin"                               = { source = "home/bin", mode = "symlink-each" }
 "~/.config/autostart/mise-bootstrap.desktop" = { source = "home/xfce/mise-bootstrap.desktop.tmpl", mode = "template" }
 "~/.config/xfce4/terminal/terminalrc"        = { source = "home/xfce/terminalrc", mode = "symlink" }
+# Menu entries for the GUI apps in [tools]. Static files rather than a script:
+# they point at mise's shims, whose paths do not change when a version does.
+# template mode because .desktop files do not expand `~`.
+"~/.local/share/applications/code.desktop"     = { source = "home/xfce/applications/code.desktop.tmpl", mode = "template" }
+"~/.local/share/applications/obsidian.desktop" = { source = "home/xfce/applications/obsidian.desktop.tmpl", mode = "template" }
+"~/.local/share/applications/zen.desktop"      = { source = "home/xfce/applications/zen.desktop.tmpl", mode = "template" }
+"~/.config/mimeapps.list"                      = { source = "home/xfce/mimeapps.list", mode = "symlink" }
 
 # scripts/ is not a dotfile source; neko-bootstrap calls scripts/pass-preflight
 # straight out of the repo checkout at ~/.dotfiles, so nothing to link here.
@@ -99,10 +106,10 @@ run = "mise bootstrap --dry-run"
 # Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
 # merge, so the shared body's ssh chmod is repeated here; only its /etc/resolver
 # block is dropped, which was macOS-only. Also pulls in the two fragments. `mise bootstrap` runs this at step 15,
-# after packages/dotfiles/tools, so xfconf and the app installer can rely on
-# everything else already being in place.
+# after packages/dotfiles/tools, so xfconf can rely on everything else already
+# being in place.
 [tasks.bootstrap]
-depends = ["neko:xfce", "neko:apps"]
+depends = ["neko:xfce"]
 run = '''
 [ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh" || true
 

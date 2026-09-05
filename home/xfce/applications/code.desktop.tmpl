@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Visual Studio Code
+Comment=Code editing. Redefined.
+# The mise shim, not the versioned install path, so a version bump needs no edit.
+# --no-sandbox: Chromium's sandbox wants user namespaces, which this pod does not get.
+Exec={{ env.HOME }}/.local/share/mise/shims/code --no-sandbox %F
+Icon=applications-development
+Categories=Development;IDE;TextEditor;
+MimeType=text/plain;inode/directory;
+StartupNotify=true
+StartupWMClass=Code
+Terminal=false
