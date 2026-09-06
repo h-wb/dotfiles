@@ -41,6 +41,13 @@ cd "${HOME}/.dotfiles" || exit 0
 # exist. Idempotent, so it is cheap to redo on every session start.
 "${HOME}/.dotfiles/scripts/link-mise-config"
 
+# Apply mise's [env] to THIS shell. Everything below runs as a plain script, not
+# under `mise exec`, so without this the config's env vars simply are not there —
+# in particular PROTON_PASS_KEY_PROVIDER=fs, whose absence sends pass-cli back to
+# the kernel keyring that seccomp blocks, and the whole secrets path fails with
+# no obvious cause.
+eval "$("$MISE" env 2>/dev/null)" || true
+
 # Pick the mode first, then run bootstrap exactly ONCE. Chaining the three cases
 # on each other's exit status looks tidier but is wrong: an unrelated failure
 # (one tool with no asset for this platform) makes a mode that already applied
