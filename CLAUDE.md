@@ -183,6 +183,27 @@ mise's package managers were each checked against this box before settling on
 - Don't change a launchd agent's plist name expectations — mise forces `dev.mise.<key>`
   and rejects `Label`/`EnvironmentVariables`/`Standard*Path`.
 
+## Working ON the dotfiles FROM the desktop
+
+The desktop re-runs `mise bootstrap` at every XFCE session start, which is what
+makes a rolled pod come back configured — and also means an unfinished edit gets
+applied to the machine you are editing from. `touch ~/.neko-hold` makes
+`neko-bootstrap` exit before doing anything; remove it to resume. The flag lives
+in $HOME, so it survives a pod roll: a desktop parked mid-surgery comes back
+parked rather than repairing itself into a broken state.
+
+What is already safe without it: `--skip-dirty` means a repo with uncommitted work
+never fails the bootstrap, the git pull is `--ff-only` so local commits are never
+clobbered, and a failed bootstrap leaves the session running (it is a separate
+process from XFCE) with a notify-send and a log at
+`~/.local/state/neko-bootstrap.log`.
+
+What is NOT protected: the PVC has `reclaimPolicy: Delete` and the Flux
+Kustomization has `prune: true`, so removing the app from git deletes the volume
+and the Ceph image with it. The backstop there is kopiur, which snapshots
+/home/neko to the NAS daily at 04:45 — verify with
+`kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.
+
 ## The container has no secrets — by choice, not because it cannot
 
 The default pass-cli setup does not work in the neko container: it keeps its local

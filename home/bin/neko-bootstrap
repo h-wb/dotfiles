@@ -33,6 +33,20 @@ if ! command -v mise >/dev/null 2>&1; then
 fi
 MISE="${HOME}/.local/bin/mise"
 
+# Escape hatch. This box is where the dotfiles get edited, and the session-start
+# run would happily apply a half-finished config over a working desktop — or
+# fight an edit in progress. `touch ~/.neko-hold` stops that until you remove it.
+#
+# Deliberately checked before anything else, and deliberately a file in $HOME:
+# it survives a pod roll, so a desktop parked mid-surgery comes back parked.
+if [ -e "${HOME}/.neko-hold" ]; then
+	echo "[hold] ~/.neko-hold present — skipping bootstrap entirely."
+	echo "[hold] remove it and run \`neko-bootstrap\` (or restart the session) to resume."
+	command -v notify-send >/dev/null 2>&1 &&
+		notify-send "neko-bootstrap on hold" "~/.neko-hold is present; nothing was applied" || true
+	exit 0
+fi
+
 [ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
 cd "${HOME}/.dotfiles" || exit 0
 
