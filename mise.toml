@@ -18,10 +18,8 @@
 # Templated dotfiles read {{ vars.x }} and never name a source. Each var
 # defaults to whatever is in the ENVIRONMENT — that is the macOS path, where
 # `fnox exec` injects the ProtonPass secrets before bootstrap runs. A machine
-# without fnox — the neko container, where pass-cli's default keyring backend is
-# blocked by container seccomp (workable via PROTON_PASS_KEY_PROVIDER=fs, but we
-# chose not to) — overrides the same names with literals in an untracked
-# mise.local.toml, which wins over this file. Neither source present
+# without fnox, or one that simply prefers a literal, overrides the same names in
+# an untracked mise.local.toml, which wins over this file. Neither source present
 # renders empty, and the templates gate their blocks on that.
 #
 # NOTE: mise's own [env] does NOT feed get_env() — it reads the real process
@@ -48,10 +46,8 @@ claude = "latest"
 "github:cli/cli" = "latest"
 "github:shoenot/diskard" = "latest"     # TUI disk usage analyzer (reclaim space)
 "github:nikolaeu/numi" = { version = "latest", os = "macos" }
-# macOS-only: pass-cli stores its local key in the kernel keyring, and container
-# seccomp blocks add_key/keyctl, so neither is usable in the neko container.
-"github:protonpass/pass-cli" = { version = "latest", os = "macos" }   # Proton Pass CLI (ssh-agent + fnox backend)
-"github:jdx/fnox" = { version = "latest", os = "macos" }              # injects ProtonPass secrets as env vars
+"github:protonpass/pass-cli" = "latest"   # Proton Pass CLI (ssh-agent + fnox backend)
+"github:jdx/fnox" = "latest"              # injects ProtonPass secrets as env vars
 usage = "latest"
 
 [env]

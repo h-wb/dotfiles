@@ -11,9 +11,9 @@
 # it self-healing instead of just fatal.
 #
 # Exit 0 = session is live. Exit 1 = no session (and we could not get one).
-# Interactive callers get a `pass-cli login` prompt; non-interactive ones
-# (neko's autostart bootstrap) just fail so the caller can fall back.
-# Set DOTFILES_NO_LOGIN=1 to check without ever prompting.
+# Order: an existing session, then a non-interactive PAT login (PASS_CLI_PAT),
+# then an interactive `pass-cli login` if stdin is a TTY.
+# Set DOTFILES_NO_LOGIN=1 to skip only the interactive step.
 set -u
 
 MISE="${MISE:-$HOME/.local/bin/mise}"
@@ -38,8 +38,20 @@ if PASS_LOG_LEVEL=error pass_cli test >/dev/null 2>&1; then
 	exit 0
 fi
 
+# A Personal Access Token logs in without a TTY, which is what lets an unattended
+# box (the neko container's session-start bootstrap) authenticate itself. Create
+# one with `pass-cli personal-access-token create` on a machine that already has a
+# session, and hand it over as PASS_CLI_PAT.
+if [ -n "${PASS_CLI_PAT:-}" ]; then
+	if PASS_LOG_LEVEL=error pass_cli login --pat "${PASS_CLI_PAT}" >/dev/null 2>&1; then
+		echo "[preflight] logged in with PASS_CLI_PAT." >&2
+		exit 0
+	fi
+	echo "[preflight] PASS_CLI_PAT was rejected (expired or revoked?)." >&2
+fi
+
 if [ -n "${DOTFILES_NO_LOGIN:-}" ] || [ ! -t 0 ]; then
-	echo "[preflight] no Proton Pass session — run \`pass-cli login\`, then re-run." >&2
+	echo "[preflight] no Proton Pass session — set PASS_CLI_PAT or run \`pass-cli login\`." >&2
 	exit 1
 fi
 

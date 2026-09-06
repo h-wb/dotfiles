@@ -27,6 +27,13 @@ LANG = "C.UTF-8"
 # ssh-agent, which does not run here (see the secrets note in the header), so
 # leaving it set just points ssh at a socket that will never exist.
 SSH_AUTH_SOCK = false
+# pass-cli's default backend keeps its local key in the KERNEL keyring, and this
+# container's seccomp profile blocks add_key/keyctl — it fails with
+# NoStorageAccess(PermissionDenied) before a login can even start. `fs` keeps the
+# key beside the session under ~/.local/share/proton-pass-cli, which is on the
+# PVC, so both survive a pod roll. (`env` is the other option: the key would then
+# come from PROTON_PASS_ENCRYPTION_KEY.)
+PROTON_PASS_KEY_PROVIDER = "fs"
 # EDITOR is inherited as `code --wait` — valid here because conf.d/neko-apps
 # installs VS Code into ~/.local/opt. Drop that fragment and override this too.
 
@@ -82,23 +89,31 @@ sudo apt-get update -qq
 # scripts/ is not a dotfile source; neko-bootstrap calls scripts/pass-preflight
 # straight out of the repo checkout at ~/.dotfiles, so nothing to link here.
 
-# NO SECRETS HERE — by choice. pass-cli's default backend keeps its key in the
-# kernel keyring, which container seccomp blocks (add_key fails with EPERM even as
-# root), so fnox cannot resolve anything out of the box. That IS surmountable with
-# PROTON_PASS_KEY_PROVIDER=fs plus a one-time login, but nothing here needs it:
-# ~/.ssh/config takes its values from [vars] (mise.local.toml or a plain env var)
-# and wg0.home.conf is macOS-only. See CLAUDE.md for the full finding.
+# Secrets work here the same way as on the Macs — fnox over Proton Pass — once
+# PROTON_PASS_KEY_PROVIDER (above) sidesteps the blocked kernel keyring. The only
+# difference is how the session starts: a session-start bootstrap has no TTY, so
+# scripts/pass-preflight logs in from PASS_CLI_PAT (a Proton Pass Personal Access
+# Token delivered by the k8s secret) instead of prompting. Values can still come
+# from mise.local.toml [vars] instead, which wins over fnox.
 #
-# apply/diff therefore override mise.toml's fnox-wrapped versions.
+# --force-dotfiles: apps write their own defaults before bootstrap runs (fish
+# creates ~/.config/fish/config.fish on first shell), and mise will not replace a
+# regular file with a symlink without it.
 [tasks.apply]
-description = "Install everything (packages, dotfiles, tools, XFCE settings)"
+description = "Install everything (packages, dotfiles, tools, XFCE settings) with secrets"
 dir = "{{env.HOME}}/.dotfiles"
-run = "mise bootstrap --yes --force-dotfiles"
+run = """
+./scripts/pass-preflight || exit 1
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes --force-dotfiles
+"""
 
 [tasks.diff]
 description = "Preview what bootstrap would change"
 dir = "{{env.HOME}}/.dotfiles"
-run = "mise bootstrap --dry-run"
+run = """
+./scripts/pass-preflight || exit 1
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
+"""
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
