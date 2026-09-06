@@ -26,3 +26,10 @@ K8S_GATEWAY_HOST = { provider = "protonpass", value = "pass://Dev/k8s gateway/ho
 KUBECONFIG_MAIN  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/main" }
 KUBECONFIG_EDGE  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/edge" }
 
+# GIT_EMAIL feeds vars.git_email, so a machine without an untracked
+# mise.local.toml still commits with the right author. GH_TOKEN authenticates git
+# over HTTPS (all the remotes are HTTPS) and `gh`; on macOS the keychain already
+# does that, so it is only really needed in the container.
+GIT_EMAIL        = { provider = "protonpass", value = "pass://Dev/GitHub/email" }
+GH_TOKEN         = { provider = "protonpass", value = "pass://Dev/GitHub/token" }
+

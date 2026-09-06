@@ -53,6 +53,10 @@ eval "$("$MISE" env 2>/dev/null)" || true
 # (one tool with no asset for this platform) makes a mode that already applied
 # the dotfiles look failed, and the next branch re-runs the whole bootstrap.
 #
+# --skip-dirty: [bootstrap.repos] converges the checkouts on every session start,
+# and without it one repo with uncommitted work fails the whole bootstrap — on
+# this box that means the desktop silently stops provisioning.
+#
 # --force-dotfiles where dotfiles are applied: apps write their own defaults
 # before we get here (fish creates ~/.config/fish/config.fish on first shell) and
 # mise will not replace a regular file with a symlink without it.
@@ -80,18 +84,18 @@ fi
 case "$MODE" in
 secrets)
 	timeout 900 "$FNOX" --if-missing error exec -c fnox.toml -- \
-		"$MISE" bootstrap --yes --force-dotfiles
+		"$MISE" bootstrap --yes --force-dotfiles --skip-dirty
 	STATUS=$?
 	[ $STATUS -eq 0 ] && echo "[ok] bootstrap applied with secrets"
 	;;
 fresh)
-	timeout 900 "$MISE" bootstrap --yes --force-dotfiles
+	timeout 900 "$MISE" bootstrap --yes --force-dotfiles --skip-dirty
 	STATUS=$?
 	[ $STATUS -eq 0 ] &&
 		echo "[ok] bootstrap applied without secrets (set PASS_CLI_PAT, or run \`pass-cli login\` then \`mise run apply\`)"
 	;;
 protect)
-	timeout 900 "$MISE" bootstrap --yes --skip dotfiles
+	timeout 900 "$MISE" bootstrap --yes --skip dotfiles --skip-dirty
 	STATUS=$?
 	[ $STATUS -eq 0 ] &&
 		echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies"
