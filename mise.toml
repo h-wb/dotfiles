@@ -29,6 +29,8 @@ git_email        = "{{ get_env(name='GIT_EMAIL', default='') }}"
 ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
 wg0_home_conf    = "{{ get_env(name='WG0_HOME_CONF', default='') }}"
+kubeconfig_main  = "{{ get_env(name='KUBECONFIG_MAIN', default='') }}"
+kubeconfig_edge  = "{{ get_env(name='KUBECONFIG_EDGE', default='') }}"
 
 [tools]
 # languages
@@ -55,6 +57,11 @@ EDITOR = "code --wait"
 MISE_EXPERIMENTAL = 1
 PASS_LOG_LEVEL = "error"
 SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
+# kubectl merges every file in this list, so the clusters stay one file each
+# instead of something having to merge YAML. ~/.kube/config is deliberately NOT
+# here: these two are the managed copies, and leaving the default path out means
+# a stale hand-written config cannot silently win a context-name collision.
+KUBECONFIG = "{{env.HOME}}/.kube/main.yaml:{{env.HOME}}/.kube/edge.yaml"
 
 # ── Dotfiles ────────────────────────────────────────────────────────────────
 # template mode renders Tera ({{ vars.x }}, {{ env.x }}, {% if %}); symlink mode
@@ -66,6 +73,8 @@ SSH_AUTH_SOCK = "{{env.HOME}}/.ssh/proton-pass-agent.sock"
 [dotfiles]
 "~/.config/git/config"              = { source = "home/git/config.tmpl", mode = "template" }
 "~/.ssh/config"                     = { source = "home/ssh/config.tmpl", mode = "template" }
+"~/.kube/main.yaml"                 = { source = "home/kube/main.yaml.tmpl", mode = "template" }
+"~/.kube/edge.yaml"                 = { source = "home/kube/edge.yaml.tmpl", mode = "template" }
 "~/.config/zsh"                     = { source = "home/zsh", mode = "symlink" }
 "~/.zshrc"                          = { source = "home/zshrc", mode = "symlink" }
 "~/.zshenv"                         = { source = "home/zshenv", mode = "symlink" }
@@ -87,6 +96,22 @@ if [ "$(uname -m)" = "arm64" ] && ! grep -q "/opt/homebrew/bin" /etc/paths 2>/de
   printf '%s\n' "/opt/homebrew/bin" "$(cat /etc/paths)" | sudo tee /etc/paths >/dev/null
 fi
 '''
+
+# mise renders dotfiles 0755, which is wrong for anything holding credentials —
+# a kubeconfig embeds client certs and tokens. A hook rather than a line in each
+# [tasks.bootstrap] because same-named hooks ACCUMULATE across configs, so this
+# one runs on the Macs and in the container alike (the tasks do not: neko
+# overrides the shared one).
+[bootstrap.hooks.post-dotfiles]
+run = """
+for f in "$HOME/.kube/main.yaml" "$HOME/.kube/edge.yaml" "$HOME/.ssh/config" \
+	"$HOME/.config/wireguard/wg0.home.conf"; do
+	[ -f "$f" ] && chmod 600 "$f"
+done
+[ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh"
+[ -d "$HOME/.kube" ] && chmod 700 "$HOME/.kube"
+true
+"""
 
 # Common packages (formulae, casks, mas). mise drives real Homebrew.
 # os = "macos" on every entry: this file is the *shared* config, so it is also
