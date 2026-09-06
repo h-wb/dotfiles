@@ -60,8 +60,10 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 8. **macOS `defaults` are scalar-only.** Arrays / nested dicts / ByHost values can't
    be expressed in `[bootstrap.macos.defaults.*]`; they live in the
    `[bootstrap.hooks.post-defaults]` shell hook (Dock array, symbolichotkeys, battery %).
-9. **Hooks fire only on a full `mise bootstrap`.** Sub-commands like
-   `mise bootstrap macos defaults apply` do NOT run pre/post hooks.
+9. **Hooks fire on a full `mise bootstrap`, and with `--only <step>`.** They do
+   NOT fire for the sub-commands (`mise bootstrap macos defaults apply`). So
+   `mise bootstrap --only dotfiles` DOES run pre/post-dotfiles, which is how the
+   permission hook below stays effective without a whole bootstrap.
 10. **A LaunchAgent must set `PATH` before invoking fnox.** fnox shells out to
     `pass-cli`, and launchd's default PATH has no mise shims — get this wrong and
     every secret fails with "CLI tool 'pass-cli' not found" while the agent looks
@@ -212,6 +214,26 @@ is macOS-only. That choice is what keeps `home/bin/neko-bootstrap` a straight li
 instead of an fnox/preflight/fallback ladder. If that changes, wire up
 `PROTON_PASS_KEY_PROVIDER=fs` plus a one-time `pass-cli login` (the session dir
 lives on the PVC) rather than reaching for Unconfined seccomp.
+
+## mise renders dotfiles 0755
+
+Which is wrong for anything holding credentials — a kubeconfig embeds client certs,
+and `~/.ssh/config` and `wg0.home.conf` were world-readable and executable for
+months. `[dotfiles]` has no permission field, so `[bootstrap.hooks.post-dotfiles]`
+in `mise.toml` chmods them to 600 (and their directories to 700). It is a *hook*
+rather than a line in `[tasks.bootstrap]` because same-named hooks accumulate
+across configs, so one copy covers the Macs and the container; the tasks do not,
+since `mise.neko.toml` overrides the shared one. Add any new credential-bearing
+dotfile to that list.
+
+## Kubeconfigs
+
+`~/.kube/main.yaml` + `~/.kube/edge.yaml`, rendered from the `Kubeconfig` item in
+the Dev vault (one custom field per cluster), with `[env] KUBECONFIG` listing both
+so kubectl merges them — no YAML merging anywhere. `~/.kube/config` is deliberately
+left out of that list and unmanaged: keeping the default path out means a stale
+hand-written file cannot silently win a context-name collision. Contexts are
+`main`, `edge` and `steamdeck`.
 
 ## Secrets: the silent-overwrite trap (macOS)
 

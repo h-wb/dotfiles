@@ -63,15 +63,17 @@ FNOX="$("$MISE" which fnox 2>/dev/null || true)"
 if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
 	DOTFILES_NO_LOGIN=1 "${HOME}/.dotfiles/scripts/pass-preflight"; then
 	MODE=secrets
-elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null; then
+elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
+	[ ! -s "${HOME}/.kube/main.yaml" ]; then
 	# No session, but nothing to lose. The test is for secret-DERIVED content, not
-	# for the file: ~/.ssh/config always exists after one run (the template still
+	# for the files: ~/.ssh/config always exists after one run (the template still
 	# emits `HashKnownHosts no`), so keying on existence would pin the box in
-	# `protect` forever and freeze every unrelated dotfile with it.
+	# `protect` forever and freeze every unrelated dotfile with it. The kubeconfig
+	# has no such preamble, so -s (non-empty) is the equivalent test there.
 	MODE=fresh
 else
-	# The ssh config carries a real Host block and there is no session to
-	# regenerate it: rendering now would replace it with the bare stub.
+	# A secret-derived file (ssh Host block, or a non-empty kubeconfig) exists and
+	# there is no session to regenerate it: rendering now would blank it.
 	MODE=protect
 fi
 

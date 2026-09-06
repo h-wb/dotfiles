@@ -20,3 +20,9 @@ WG0_HOME_CONF    = { provider = "protonpass", value = "pass://Dev/wg0.conf/note"
 K8S_GATEWAY_IP   = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
 K8S_GATEWAY_HOST = { provider = "protonpass", value = "pass://Dev/k8s gateway/hostname" }
 
+# One whole kubeconfig per cluster, kept as custom fields on a single item.
+# kubectl merges them through the KUBECONFIG list (see [env] in mise.toml), which
+# is why they stay two files rather than being merged into ~/.kube/config.
+KUBECONFIG_MAIN  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/main" }
+KUBECONFIG_EDGE  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/edge" }
+
