@@ -183,11 +183,30 @@ for style in "Regular" "Bold" "Italic" "Bold Italic"; do
 done
 command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONTDIR" >/dev/null 2>&1 || true
 
-# Log `gh` in so it works in a terminal later, where GH_TOKEN is not in the
-# environment. gh stores the token under ~/.config/gh, which is on the PVC, so
-# this is a one-time cost rather than a per-session one.
+# Persist the token into gh's own config (~/.config/gh, on the PVC) so `gh` works
+# in a terminal later, where GH_TOKEN is not in the environment.
+#
+# Both `env -u` are load-bearing. While GH_TOKEN is set, `gh auth status` reports
+# "logged in (GH_TOKEN)" — so the obvious `! gh auth status` guard is always false
+# and this block never runs — and `gh auth login` refuses outright: "The value of
+# the GH_TOKEN environment variable is being used for authentication ... first
+# clear the value from the environment."
 if [ -n "${GH_TOKEN:-}" ] && command -v gh >/dev/null 2>&1 &&
-  ! gh auth status >/dev/null 2>&1; then
-  printf %s "$GH_TOKEN" | gh auth login --with-token && echo "[info] gh authenticated"
+  ! env -u GH_TOKEN -u GITHUB_TOKEN gh auth status >/dev/null 2>&1; then
+  if printf %s "$GH_TOKEN" | env -u GH_TOKEN -u GITHUB_TOKEN gh auth login --with-token; then
+    echo "[info] gh authenticated and stored"
+  else
+    echo "[warn] gh auth login failed"
+  fi
+fi
+
+# The image is UTC and /etc resets on every pod roll, so this is re-applied each
+# session. mise [env] TZ covers mise-run processes; this covers the desktop apps
+# and any plain shell, which never see mise's env.
+WANT_TZ="America/New_York"
+if [ -f "/usr/share/zoneinfo/$WANT_TZ" ] &&
+  [ "$(readlink /etc/localtime 2>/dev/null)" != "/usr/share/zoneinfo/$WANT_TZ" ]; then
+  sudo ln -sf "/usr/share/zoneinfo/$WANT_TZ" /etc/localtime &&
+    echo "[info] timezone set to $WANT_TZ"
 fi
 '''
