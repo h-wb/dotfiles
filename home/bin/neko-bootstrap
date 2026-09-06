@@ -7,10 +7,10 @@
 # image state, so every pod roll loses the apt packages and the login shell,
 # while $HOME (mise, [tools], dotfiles) comes back intact.
 #
-# There is deliberately NO secret handling here: pass-cli cannot run in this
-# container (the kernel keyring is blocked by seccomp), so the secret-gated
-# dotfiles live in mise.personal.toml and never reach this box. That is what
-# keeps this script a straight line.
+# Secrets come from Proton Pass, exactly as on the Macs. The container-specific
+# part is PROTON_PASS_KEY_PROVIDER=fs (mise.neko.toml), because pass-cli's default
+# keyring backend needs add_key(2), which this pod's seccomp profile blocks; and
+# PASS_CLI_PAT, because a session start has no TTY to log in through.
 #
 # It is also just a normal script: run `neko-bootstrap` by hand any time.
 set -u
@@ -41,15 +41,56 @@ cd "${HOME}/.dotfiles" || exit 0
 # exist. Idempotent, so it is cheap to redo on every session start.
 "${HOME}/.dotfiles/scripts/link-mise-config"
 
-# --force-dotfiles: apps write their own defaults before we get here (fish
-# creates ~/.config/fish/config.fish the moment any fish shell starts), and mise
-# will not replace a regular file with a symlink without it — which fails the
-# whole dotfiles step. Safe here because every dotfile this box applies is
-# checked into the repo; nothing is generated from secrets.
-if timeout 900 "$MISE" bootstrap --yes --force-dotfiles; then
-	echo "[ok] bootstrap applied"
+# Pick the mode first, then run bootstrap exactly ONCE. Chaining the three cases
+# on each other's exit status looks tidier but is wrong: an unrelated failure
+# (one tool with no asset for this platform) makes a mode that already applied
+# the dotfiles look failed, and the next branch re-runs the whole bootstrap.
+#
+# --force-dotfiles where dotfiles are applied: apps write their own defaults
+# before we get here (fish creates ~/.config/fish/config.fish on first shell) and
+# mise will not replace a regular file with a symlink without it.
+#
+# DOTFILES_NO_LOGIN so a session start never blocks on a prompt; the preflight
+# still logs in non-interactively when PASS_CLI_PAT is set.
+FNOX="$("$MISE" which fnox 2>/dev/null || true)"
+if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
+	DOTFILES_NO_LOGIN=1 "${HOME}/.dotfiles/scripts/pass-preflight"; then
+	MODE=secrets
+elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null; then
+	# No session, but nothing to lose. The test is for secret-DERIVED content, not
+	# for the file: ~/.ssh/config always exists after one run (the template still
+	# emits `HashKnownHosts no`), so keying on existence would pin the box in
+	# `protect` forever and freeze every unrelated dotfile with it.
+	MODE=fresh
 else
-	echo "[error] bootstrap failed — see above"
+	# The ssh config carries a real Host block and there is no session to
+	# regenerate it: rendering now would replace it with the bare stub.
+	MODE=protect
+fi
+
+case "$MODE" in
+secrets)
+	timeout 900 "$FNOX" --if-missing error exec -c fnox.toml -- \
+		"$MISE" bootstrap --yes --force-dotfiles
+	STATUS=$?
+	[ $STATUS -eq 0 ] && echo "[ok] bootstrap applied with secrets"
+	;;
+fresh)
+	timeout 900 "$MISE" bootstrap --yes --force-dotfiles
+	STATUS=$?
+	[ $STATUS -eq 0 ] &&
+		echo "[ok] bootstrap applied without secrets (set PASS_CLI_PAT, or run \`pass-cli login\` then \`mise run apply\`)"
+	;;
+protect)
+	timeout 900 "$MISE" bootstrap --yes --skip dotfiles
+	STATUS=$?
+	[ $STATUS -eq 0 ] &&
+		echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies"
+	;;
+esac
+
+if [ "${STATUS:-1}" -ne 0 ]; then
+	echo "[error] bootstrap failed in mode '$MODE' — see above"
 	command -v notify-send >/dev/null 2>&1 &&
 		notify-send -u critical "neko-bootstrap failed" "see $LOG" || true
 	exit 1
