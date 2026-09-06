@@ -34,6 +34,8 @@ SSH_AUTH_SOCK = false
 # PVC, so both survive a pod roll. (`env` is the other option: the key would then
 # come from PROTON_PASS_ENCRYPTION_KEY.)
 PROTON_PASS_KEY_PROVIDER = "fs"
+# The image is UTC; timestamps in logs and editors should match the Macs.
+TZ = "America/New_York"
 # EDITOR is inherited as `code --wait` — valid here because conf.d/neko-apps
 # installs VS Code into ~/.local/opt. Drop that fragment and override this too.
 
@@ -115,6 +117,43 @@ run = """
 fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
 """
 
+# ── Repos ───────────────────────────────────────────────────────────────────
+# Cloned to the same paths as on the Macs, so muscle memory and any absolute
+# path in a note still works. Deliberately NOT in the shared config: on a Mac
+# these directories already exist with real work in them, and a bootstrap that
+# tries to converge them is a good way to lose an afternoon.
+#
+# `mise bootstrap` re-runs this every session start, so neko-bootstrap passes
+# --skip-dirty: without it a single repo with uncommitted changes fails the whole
+# bootstrap, which on this box means the desktop stops provisioning entirely.
+[bootstrap.repos]
+"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
+"~/Repositories/codex"               = { url = "https://github.com/h-wb/codex.git" }
+"~/Repositories/sync-anilist"        = { url = "https://github.com/h-wb/codex-plugins.git" }
+"~/Repositories/sento"               = { url = "https://github.com/h-wb/sento.git" }
+"~/Repositories/main-go-brrr"        = { url = "https://github.com/h-wb/main-go-brrr.git" }
+"~/Repositories/dlt"                 = { url = "https://github.com/h-wb/pipelines.git" }
+# upstreams and references, read-only in practice
+"~/Repositories/dawarich"            = { url = "https://github.com/Freika/dawarich.git" }
+"~/Repositories/onedr0p"             = { url = "https://github.com/onedr0p/home-ops.git" }
+"~/Repositories/jory"                = { url = "https://github.com/joryirving/home-ops.git" }
+"~/Repositories/vrozaksen"           = { url = "https://github.com/vrozaksen/home-ops.git" }
+
+# Git auth has to exist BEFORE the repos step, and the bootstrap order makes that
+# awkward: repos are step 7, dotfiles step 8, tools step 14. So on a fresh PVC
+# there is no gh yet and no rendered git config — hence a plain credentials file
+# written here from the fnox-injected token, which needs nothing but shell.
+# `gh` itself is logged in later, in the bootstrap task, for interactive use.
+[bootstrap.hooks.pre-repos]
+run = """
+[ -n "${GH_TOKEN:-}" ] || { echo "[info] no GH_TOKEN; private repos will not clone"; exit 0; }
+umask 077
+printf 'https://x-access-token:%s@github.com\n' "$GH_TOKEN" > "$HOME/.git-credentials"
+git config --global credential.helper store
+echo "[info] git credentials configured from GH_TOKEN"
+"""
+
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
 # merge, so the shared body's ssh chmod is repeated here; only its /etc/resolver
@@ -143,4 +182,12 @@ for style in "Regular" "Bold" "Italic" "Bold Italic"; do
   curl -fsSL "$url" -o "$target" || rm -f "$target"
 done
 command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONTDIR" >/dev/null 2>&1 || true
+
+# Log `gh` in so it works in a terminal later, where GH_TOKEN is not in the
+# environment. gh stores the token under ~/.config/gh, which is on the PVC, so
+# this is a one-time cost rather than a per-session one.
+if [ -n "${GH_TOKEN:-}" ] && command -v gh >/dev/null 2>&1 &&
+  ! gh auth status >/dev/null 2>&1; then
+  printf %s "$GH_TOKEN" | gh auth login --with-token && echo "[info] gh authenticated"
+fi
 '''
