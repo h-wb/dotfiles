@@ -173,6 +173,85 @@ keep_alive = true
 # (verbose and rarely edited — split out to keep this file scannable). Global
 # mise settings (auto_update) live in conf.d/settings.toml.
 
+# ── Doctor checks ───────────────────────────────────────────────────────────
+# `mise doctor project` (2026.9.6) runs these. Each one is an invariant this repo
+# has broken at least once, so a check is cheaper than remembering. Fields are
+# `description`, `run` and `hint` — mise rejects anything else.
+#
+# They address $HOME/.dotfiles explicitly rather than the cwd: mise.toml is the
+# GLOBAL config here (install.sh symlinks it), so these are in scope from any
+# directory, and a check that inspected the current project's git would be
+# reporting on the wrong repo.
+[doctor.checks.file-modes]
+description = "no dotfile source is committed executable"
+hint = "git update-index --chmod=-x <file> — a 100755 template renders 0755, which is how ~/.ssh/config ended up world-readable"
+run = '''
+cd "$HOME/.dotfiles" || exit 0
+bad="$(git ls-files -s | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|home/bin/)' || true)"
+[ -z "$bad" ] || { echo "unexpectedly executable:"; echo "$bad"; exit 1; }
+'''
+
+[doctor.checks.lockfiles]
+description = "every locked platform entry carries a checksum"
+hint = "run `mise lock` (and for pinned http: tools, bump the version + both URLs first)"
+run = '''
+cd "$HOME/.dotfiles" || exit 0
+python3 - <<'EOF'
+import sys, os
+bad = []
+for path in ("mise.lock", "mise.neko.lock"):
+    if not os.path.exists(path):
+        bad.append(f"{path}: missing entirely"); continue
+    section, has_sum = None, False
+    for line in open(path).read().splitlines() + ["[end]"]:
+        if line.startswith("["):
+            if section and not has_sum:
+                bad.append(f"{path}: {section}")
+            section = line if ".platforms." in line else None
+            has_sum = False
+        elif line.startswith("checksum ="):
+            has_sum = True
+if bad:
+    print("\n".join(bad)); sys.exit(1)
+EOF
+'''
+
+[doctor.checks.credential-perms]
+description = "rendered credential dotfiles are not group/world readable"
+hint = "re-run `mise bootstrap --only dotfiles`; the post-dotfiles hook chmods them"
+run = '''
+rc=0
+for f in "$HOME/.kube/main.yaml" "$HOME/.kube/edge.yaml" "$HOME/.ssh/config" \
+	"$HOME/.config/wireguard/wg0.home.conf"; do
+	[ -f "$f" ] || continue
+	# GNU stat first, BSD/macOS second. Note the fallback has to be on the
+	# ASSIGNMENT, not inside the substitution: GNU `stat -f` exits 1 but still
+	# prints filesystem info to stdout, so `a || b` inside $() concatenates both.
+	mode="$(stat -c %a "$f" 2>/dev/null)" || mode="$(stat -f %Lp "$f" 2>/dev/null)"
+	case "$mode" in
+	600 | 400) ;;
+	*)
+		echo "$f is $mode, want 600"
+		rc=1
+		;;
+	esac
+done
+exit $rc
+'''
+
+[doctor.checks.mise-wiring]
+description = "~/.config/mise points at this repo"
+hint = "run scripts/link-mise-config — without it conf.d fragments and env overlays never load"
+run = '''
+target="$(readlink "$HOME/.config/mise/config.toml" || true)"
+case "$target" in
+*/.dotfiles/mise.toml) ;;
+*) echo "~/.config/mise/config.toml -> ${target:-<not a symlink>}"; exit 1 ;;
+esac
+[ -L "$HOME/.config/mise/conf.d" ] || { echo "~/.config/mise/conf.d is not a symlink"; exit 1; }
+[ -f "$HOME/.config/mise/miserc.toml" ] || { echo "no miserc.toml — no env is selected"; exit 1; }
+'''
+
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # Runs at the end of `mise bootstrap`. Secret env vars come from fnox (bootstrap
 # is invoked under `fnox exec`); the resolver step is skipped if they're absent.
