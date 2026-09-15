@@ -155,9 +155,16 @@ mise's package managers were each checked against this box before settling on
 
 ## More mise behaviour worth knowing (verified, not guessed)
 
-- **`os` filters exist for `[tools]` and `[bootstrap.packages]`, but NOT `[dotfiles]`.**
-  That's why the shared `mise.toml` tags every cask `os = "macos"`, while the
-  macOS-only BetterTouchTool *dotfile* had to move into `mise.personal.toml`.
+- **`[dotfiles]` takes no `os` key, but `variants` is the filter** (mise 2026.9.5).
+  `[tools]` and `[bootstrap.packages]` take a plain `os =`; `[dotfiles]` entries
+  instead carry `variants = [{ os = "macos", target = "..." }]`, where the target
+  path moves into the variant. Verified on 2026.9.9: an entry whose selectors all
+  fail and which has no `default = true` applies **nothing**, which is what makes
+  this a filter and not just a per-OS path map. Selectors are `os` (or os/arch),
+  `profile` (the active `MISE_ENV`) and `default`; scoring is profile 2 / os 1 /
+  arch 1, highest wins, ties error. This is why `mise.personal.toml` no longer has
+  a `[dotfiles]` section — BetterTouchTool and wg0.home.conf were only exiled
+  there because the filter did not exist.
 - **Same-named hooks ACCUMULATE across configs; same-named tasks OVERRIDE.** The
   container runs `mise.toml`'s macOS `pre-packages` hook *and* `mise.neko.toml`'s
   (the first exits on `uname != Darwin`), but `mise.neko.toml`'s `[tasks.bootstrap]`

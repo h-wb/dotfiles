@@ -130,10 +130,10 @@ sudo apt-get update -qq
 '''
 
 # ── Dotfiles ────────────────────────────────────────────────────────────────
-# On top of the shared set in mise.toml (git, ssh, wireguard — and the zsh ones,
-# which land here too because [dotfiles] takes no `os` filter. They cost nothing:
-# zsh is not installed in this container, so nothing ever sources them, and
-# leaving them shared keeps the zsh config in one place for the Macs.)
+# On top of the shared set in mise.toml — which is now only the four entries that
+# genuinely belong on both machine classes (git, ssh, the two kubeconfigs). The
+# zsh files used to land here too and be ignored; they are scoped `os = "macos"`
+# with `variants` now, so the container no longer collects them.
 [dotfiles]
 "~/.config/fish/config.fish" = { source = "home/fish/config.fish", mode = "symlink" }
 # symlink-each, not symlink: fish writes fish_variables and its own generated
