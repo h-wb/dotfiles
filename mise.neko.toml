@@ -12,13 +12,68 @@
 #     again every time the pod is rescheduled;
 #   - real tooling goes in [tools], which installs under ~/.local/share/mise and
 #     therefore survives (this is why the inherited tool list is left alone);
-#   - GUI apps are $HOME tarballs, not apt (conf.d/neko-apps.neko.toml);
+#   - GUI apps are [tools] entries too, not apt (see the tools section below);
 #   - ~/.config/autostart/mise-bootstrap.desktop re-runs bootstrap at every XFCE
 #     session start, which is what makes a fresh container reprovision itself.
 #     That is the launchd-agent equivalent for this box.
 
+# ── Tools, including the GUI apps ───────────────────────────────────────────
+# The GUI apps are ordinary [tools] entries: mise picks the asset for the
+# architecture, downloads, verifies, extracts, records a checksum in mise.neko.lock
+# and puts the binary on PATH as a shim. Installs land in ~/.local/share/mise,
+# which is on the PVC, so they survive a pod roll like every other tool.
+#
+# Why not the other managers:
+#   brew      installs into /home/linuxbrew/.linuxbrew — not on the PVC — and on
+#             Linux `brew-cask` is font-casks only. No GUI apps that way.
+#   apt       /usr is image state, so it is a fresh download every pod roll.
+#   flatpak   needs bubblewrap to create a user namespace (blocked here), and a
+#             sandboxed VS Code cannot see the mise toolchain without
+#             --filesystem grants and flatpak-spawn.
+#
+# These lived in conf.d/neko-apps.neko.toml until the lockfile arrived. mise
+# writes one lockfile per config FILE, but groups every conf.d fragment into a
+# single lockfile at ~/.config/mise/mise.lock — outside the repo, so a fragment's
+# tools can never be checksummed in git. These are the pinned `http:` vendor URLs,
+# which are exactly what most needs a recorded checksum, so they moved here where
+# the lockfile is mise.neko.lock and is committed.
+#
+# ADDING AN APP (one file now — this one)
+#   1. a [tools] entry below — `github:` with extract_all for a release archive,
+#      or `http:` with a [platforms] table for a vendor URL;
+#   2. a .desktop file in home/xfce/applications/, and its [dotfiles] line below.
+#   The .desktop Exec points at ~/.local/share/mise/shims/<name>, which is stable
+#   across version bumps, so upgrading an app never means touching the menu entry.
+#
+# `http:` entries are PINNED — bumping one is editing the version and its two
+# URLs, then `mise lock`. `github:` entries track latest by themselves.
+#
+# Obsidian has to be `http:` even though it lives on GitHub: that repo publishes
+# Android APK releases as "latest", and the github backend then fails with "could
+# not find a release asset after filtering for archive files from *.apk".
+#
+# os = "linux" on each app: a stray MISE_ENV=neko on a Mac would otherwise try to
+# install them and fail with "No URL for platform macos-arm64".
 [tools]
 starship = "latest"   # fish prompt; p10k is zsh-only (see home/starship.toml)
+"github:zen-browser/desktop" = { version = "latest", extract_all = true, exe = "zen", os = "linux" }
+
+[tools."http:vscode"]
+os = "linux"
+version = "1.136.1"
+strip_components = 1
+bin_path = "bin"                  # the launcher is bin/code, next to a bin/ dir of helpers
+[tools."http:vscode".platforms]
+linux-x64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-x64/stable" }
+linux-arm64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-arm64/stable" }
+
+[tools."http:obsidian"]
+os = "linux"
+version = "1.13.7"
+strip_components = 1
+[tools."http:obsidian".platforms]
+linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
+linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
 
 [env]
 # Debian ships C.UTF-8 without the `locales` package; enough for tmux -u.
@@ -36,13 +91,13 @@ SSH_AUTH_SOCK = false
 PROTON_PASS_KEY_PROVIDER = "fs"
 # The image is UTC; timestamps in logs and editors should match the Macs.
 TZ = "America/New_York"
-# EDITOR is inherited as `code --wait` — valid here because conf.d/neko-apps
-# installs VS Code into ~/.local/opt. Drop that fragment and override this too.
+# EDITOR is inherited as `code --wait` — valid here because the [tools] below
+# install VS Code into ~/.local/share/mise. Drop that entry and override this too.
 
 # ── System packages ─────────────────────────────────────────────────────────
 # Everything here is reinstalled on each container start. Keep it to things that
-# genuinely cannot live in $HOME. Runtime libs for the ~/.local/opt apps are in
-# conf.d/neko-apps.neko.toml so the two lists can be trimmed independently.
+# genuinely cannot live in $HOME — either base tooling, or a shared library one
+# of the GUI apps above needs and the neko base image lacks.
 [bootstrap.packages]
 "apt:git" = "latest"       # not in the neko base image; needed to clone this repo
 "apt:fish" = "latest"      # the shell here; the Macs stay on zsh + z4h
@@ -52,6 +107,16 @@ TZ = "America/New_York"
 "apt:xz-utils" = "latest"  # .tar.xz app tarballs
 "apt:xdg-utils" = "latest" # xdg-open / default browser
 "apt:fontconfig" = "latest" # fc-cache, for the Nerd Font the bootstrap task drops in $HOME
+# Shared libraries the neko base image lacks, for the GUI apps in [tools].
+# (Verified against Debian trixie — hence the t64 suffix on libasound.)
+"apt:libnss3" = "latest"          # Electron (VS Code, Obsidian)
+"apt:libnspr4" = "latest"
+"apt:libasound2t64" = "latest"
+"apt:libgbm1" = "latest"
+"apt:libxkbfile1" = "latest"
+"apt:libxss1" = "latest"
+"apt:libsecret-1-0" = "latest"    # VS Code keyring
+"apt:libdbus-glib-1-2" = "latest" # Zen (Gecko)
 
 # The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
 # NOTE: hooks with the same name in different configs ACCUMULATE, they do not
@@ -109,14 +174,6 @@ run = """
 fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes --force-dotfiles
 """
 
-[tasks.diff]
-description = "Preview what bootstrap would change"
-dir = "{{env.HOME}}/.dotfiles"
-run = """
-./scripts/pass-preflight || exit 1
-fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
-"""
-
 # ── Repos ───────────────────────────────────────────────────────────────────
 # Cloned to the same paths as on the Macs, so muscle memory and any absolute
 # path in a note still works. Deliberately NOT in the shared config: on a Mac
@@ -141,7 +198,7 @@ fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
 "~/Repositories/vrozaksen"           = { url = "https://github.com/vrozaksen/home-ops.git" }
 
 # Git auth has to exist BEFORE the repos step, and the bootstrap order makes that
-# awkward: repos are step 7, dotfiles step 8, tools step 14. So on a fresh PVC
+# awkward: repos are step 10, dotfiles step 11, tools step 17. So on a fresh PVC
 # there is no gh yet and no rendered git config — hence a plain credentials file
 # written here from the fnox-injected token, which needs nothing but shell.
 # `gh` itself is logged in later, in the bootstrap task, for interactive use.

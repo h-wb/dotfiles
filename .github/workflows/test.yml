@@ -89,5 +89,37 @@ jobs:
           mise trust
           mise config | tee /tmp/cfg
           grep -q 'conf.d/xfce.neko.toml' /tmp/cfg
-          grep -q 'conf.d/neko-apps.neko.toml' /tmp/cfg
           mise tasks --all | grep -q 'neko:xfce'
+
+      # Lockfiles are written per config FILE, but every conf.d fragment shares one
+      # at ~/.config/mise/mise.lock — outside the repo. That is why the GUI apps
+      # live in mise.neko.toml and not a fragment: it is the only way their pinned
+      # vendor URLs get a checksum that is committed. Guard both halves.
+      - name: Lockfiles cover the pinned tools
+        run: |
+          test -f mise.lock && test -f mise.neko.lock
+          for tool in http:vscode http:obsidian github:zen-browser/desktop; do
+            grep -q "\[\[tools.\"$tool\"\]\]" mise.neko.lock \
+              || { echo "::error::$tool missing from mise.neko.lock"; exit 1; }
+          done
+          # every platform entry in either lockfile must carry a checksum, or the
+          # lockfile is decorative — this is what catches a bumped `http:` version
+          # whose author forgot to re-run `mise lock`
+          python3 - <<'EOF'
+          import re, sys
+          bad = []
+          for path in ("mise.lock", "mise.neko.lock"):
+              section, has_sum = None, False
+              for line in open(path).read().splitlines() + ["[end]"]:
+                  if line.startswith("["):
+                      if section and not has_sum:
+                          bad.append(f"{path}: {section}")
+                      section = line if ".platforms." in line else None
+                      has_sum = False
+                  elif line.startswith("checksum ="):
+                      has_sum = True
+          if bad:
+              print("::error::platform entries with no checksum:")
+              print("\n".join(bad)); sys.exit(1)
+          print("all platform entries carry a checksum")
+          EOF

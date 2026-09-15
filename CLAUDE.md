@@ -71,7 +71,8 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 11. **Templated dotfiles never name a secret source.** They read `{{ vars.x }}`;
     `mise.toml`'s `[vars]` default each one to `get_env(...)` (the fnox path on
     macOS), and an untracked `mise.local.toml` overrides the same names with
-    literals (the neko path, since fnox cannot run there). Local wins over env.
+    literals (a machine that prefers a literal; fnox runs in the container too,
+    see the secrets section below). Local wins over env.
     **`mise`'s own `[env]` does NOT feed `get_env()`** — that reads the real
     process environment — which is why the indirection is `[vars]`, not `[env]`.
     On the container a third source needs no file: a value in the `neko` BWS
@@ -101,7 +102,7 @@ over WebRTC.
     over `/usr` leaves the container with no binaries, and it pins a stale copy of the
     image. Consequences that shape the config: `[bootstrap.packages]` (apt) is a
     *per-start* cost, so it stays tiny; `[tools]` is free (`~/.local/share/mise` is on
-    the PVC); GUI apps are `~/.local/opt` tarballs, not apt.
+    the PVC); GUI apps are `[tools]` entries under `~/.local/share/mise`, not apt.
 14. **`[bootstrap.linux.systemd.units]` is useless there** — mise writes those with
     `systemctl --user`, and there is no systemd. The launchd-agent equivalent is
     `~/.config/autostart/mise-bootstrap.desktop` → `home/bin/neko-bootstrap`, which
@@ -165,8 +166,7 @@ mise's package managers were each checked against this box before settling on
   only through the global config dir (`~/.config/mise/conf.d`), which is why CI has to
   set up the symlink + miserc to test them.
 - **`mise run <task> -- --flag` does NOT become `$1` in a multi-line `run` script** —
-  mise appends it to the last line, which is a syntax error. Use an env var instead
-  (`NEKO_APPS_UPGRADE=1 mise run neko:apps`).
+  mise appends it to the last line, which is a syntax error. Use an env var instead.
 - **`[vars]` cannot hold nested tables.** `[vars.apps.obsidian]` fails with
   "Environment variable 'apps' has no value", so a Tera `{% for %}` over a vars table
   is not a way to drive a task — hence the app catalog being a here-doc table.
@@ -176,10 +176,12 @@ mise's package managers were each checked against this box before settling on
 ## Don'ts
 
 - **Don't add GUI apps to the neko container with apt** — /usr is ephemeral, so it is a
-  re-download on every pod roll. Tarball into `~/.local/opt` (see
-  `conf.d/neko-apps.neko.toml`), or bake a derived image.
+  re-download on every pod roll. Add a `[tools]` entry in `mise.neko.toml` (they land
+  in `~/.local/share/mise`, on the PVC), or bake a derived image.
 - **Never run `chezmoi apply`** — chezmoi is removed and its source layout is dismantled.
 - Don't add `MISE_EXPERIMENTAL` removal blindly — `bootstrap` needed it through 2026.8.x.
+  (A dotfiles+tools `--dry-run` on 2026.9.9 ran clean without it, but that did not
+  exercise launchd or macos-defaults. Test those before dropping it.)
 - Don't change a launchd agent's plist name expectations — mise forces `dev.mise.<key>`
   and rejects `Label`/`EnvironmentVariables`/`Standard*Path`.
 
@@ -204,9 +206,14 @@ and the Ceph image with it. The backstop there is kopiur, which snapshots
 /home/neko to the NAS daily at 04:45 — verify with
 `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.
 
-## The container has no secrets — by choice, not because it cannot
+## The container DOES have secrets, via PROTON_PASS_KEY_PROVIDER=fs
 
-The default pass-cli setup does not work in the neko container: it keeps its local
+(It did not, once. `mise.neko.toml` now runs `scripts/pass-preflight` and
+`fnox --if-missing error` exactly like the Macs — see the `apply` task there and
+the `secrets`/`fresh`/`protect` modes in `home/bin/neko-bootstrap`. The section
+below is why that took a detour.)
+
+The *default* pass-cli setup does not work in the neko container: it keeps its local
 encryption key in the **kernel keyring**, and the container runtime's seccomp
 profile blocks `add_key`/`keyctl`/`request_key`. In the pod, `keyctl add user probe
 v @u` fails with EPERM **even as root** (`/proc/1/status` → `Seccomp: 2`), so it
@@ -228,24 +235,41 @@ normal not-logged-in state. `env` instead takes the key from
 `PROTON_PASS_ENCRYPTION_KEY`, which in k8s could come straight from the BWS secret
 via `envFrom`, leaving no key material on the PVC.
 
-So secrets in the container are **possible**; we simply chose not to. The
-container has nothing that needs them: `~/.ssh/config` gets its values through
-`[vars]` (gotcha #11) from `mise.local.toml` or a plain env var, and `wg0.home.conf`
-is macOS-only. That choice is what keeps `home/bin/neko-bootstrap` a straight line
-instead of an fnox/preflight/fallback ladder. If that changes, wire up
-`PROTON_PASS_KEY_PROVIDER=fs` plus a one-time `pass-cli login` (the session dir
-lives on the PVC) rather than reaching for Unconfined seccomp.
+That is what the container uses. `PROTON_PASS_KEY_PROVIDER=fs` is set in
+`mise.neko.toml`'s `[env]`, which keeps the key beside the session under
+`~/.local/share/proton-pass-cli` — on the PVC, so both survive a pod roll. The one
+remaining difference from the Macs is how a session *starts*: a session-start
+bootstrap has no TTY, so `scripts/pass-preflight` logs in from `PASS_CLI_PAT` (a
+Proton Pass Personal Access Token delivered by the k8s secret) instead of
+prompting. Never reach for `seccompProfile: Unconfined` to solve this.
 
-## mise renders dotfiles 0755
+`home/bin/neko-bootstrap` is therefore not a straight line — it picks one of three
+modes (`secrets` / `fresh` / `protect`) so that a box with no session never renders
+secret-derived dotfiles empty over good copies. `[vars]` (gotcha #11) still works
+as a third source and still wins over fnox, which is what `mise.local.toml` is for.
 
-Which is wrong for anything holding credentials — a kubeconfig embeds client certs,
-and `~/.ssh/config` and `wg0.home.conf` were world-readable and executable for
-months. `[dotfiles]` has no permission field, so `[bootstrap.hooks.post-dotfiles]`
-in `mise.toml` chmods them to 600 (and their directories to 700). It is a *hook*
-rather than a line in `[tasks.bootstrap]` because same-named hooks accumulate
-across configs, so one copy covers the Macs and the container; the tasks do not,
-since `mise.neko.toml` overrides the shared one. Add any new credential-bearing
-dotfile to that list.
+## Dotfile permissions: mise copies the SOURCE's mode
+
+It does **not** render 0755, which this file claimed for a long time. Verified on
+2026.9.1 and 2026.9.9: `mode = "template"` gives the target the source file's
+permissions, and a later apply *repairs* a changed target mode.
+
+    source 600 → rendered 600      source 644 → rendered 644
+    chmod 777 the target, re-apply → back to 600
+
+The real cause of the world-readable `~/.ssh/config` and `wg0.home.conf` was this
+repo: `home/ssh/config.tmpl`, `home/wireguard/wg0.home.conf.tmpl` and
+`home/git/config.tmpl` were committed **100755**. They are 100644 now, and
+`git ls-files -s | awk '$1!="100644"'` should only ever list the four real scripts
+(`install.sh`, `scripts/*`, `home/bin/neko-bootstrap`).
+
+`[bootstrap.hooks.post-dotfiles]` in `mise.toml` still chmods the credential
+dotfiles to 600 and their directories to 700, and still has to: **git only records
+the executable bit**, so a source cannot be committed 600 — a fresh clone gives
+644. The hook is what turns 644 into 600. It is a *hook* rather than a line in
+`[tasks.bootstrap]` because same-named hooks accumulate across configs, so one copy
+covers the Macs and the container; the tasks do not, since `mise.neko.toml`
+overrides the shared one. Add any new credential-bearing dotfile to that list.
 
 ## Kubeconfigs
 

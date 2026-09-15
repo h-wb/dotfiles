@@ -51,7 +51,7 @@ A browser-accessible XFCE desktop ([neko](https://github.com/m1k1o/neko),
 
 | macOS | neko container |
 | --- | --- |
-| Homebrew casks | `~/.local/opt` unpacked apps — one catalog line each (`conf.d/neko-apps.neko.toml`) |
+| Homebrew casks | `[tools]` entries under `~/.local/share/mise` (`mise.neko.toml`) |
 | `defaults write` | `xfconf-query` (`conf.d/xfce.neko.toml`) |
 | LaunchAgents | `~/.config/autostart/mise-bootstrap.desktop` → `home/bin/neko-bootstrap` |
 | zsh + z4h + p10k | fish + starship (`home/fish/`, `home/starship.toml`) |
@@ -60,7 +60,7 @@ A browser-accessible XFCE desktop ([neko](https://github.com/m1k1o/neko),
 are wiped on every pod roll. Do *not* mount volumes over those — an empty volume over
 `/usr` leaves the container with no binaries, and it freezes a stale copy of the image.
 Instead: everything durable lives in `$HOME` (mise itself, all `[tools]`, dotfiles, the
-`~/.local/opt` apps), and the small apt list is reinstalled automatically at each
+GUI apps), and the small apt list is reinstalled automatically at each
 session start by the autostart entry. If that list ever grows expensive, bake a derived
 image (`FROM ghcr.io/m1k1o/neko/xfce`) rather than persisting more paths.
 
@@ -71,14 +71,13 @@ There is no systemd and no launchd in that container (supervisord is pid 1), so
 # first run, inside the container's terminal
 sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"
 tail -f ~/.local/state/neko-bootstrap.log   # what the autostart run did
-NEKO_APPS_UPGRADE=1 mise run neko:apps      # force-reinstall the GUI apps at latest
 ```
 
 ### Adding a GUI app
 
 Homebrew is not usable for this — on Linux `brew-cask` handles font casks only, and
 mise's brew prefix (`/home/linuxbrew/.linuxbrew`) isn't on the PVC. So the apps are
-ordinary `[tools]` entries in `conf.d/neko-apps.neko.toml`, installed into
+ordinary `[tools]` entries in `mise.neko.toml`, installed into
 `~/.local/share/mise` (which *is* on the PVC):
 
 ```toml
@@ -97,9 +96,9 @@ linux-arm64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7-arm64.t
 
 mise handles the architecture, download, extraction, checksum and PATH shim. For a
 menu entry, drop a `.desktop` file in `home/xfce/applications/` and add its
-`[dotfiles]` line in `mise.neko.toml` — its `Exec` points at the mise shim, which
-does not change when the version does. `http:` versions are pinned by hand;
-`github:` ones track latest.
+`[dotfiles]` line in the same file — its `Exec` points at the mise shim, which
+does not change when the version does. `http:` versions are pinned by hand (bump
+the version, both URLs, then `mise lock`); `github:` ones track latest.
 
 ### Where values come from
 
@@ -114,8 +113,9 @@ ways to supply one:
 | a real env var from the environment (e.g. k8s `envFrom`) | the neko container |
 
 Nothing set renders empty, and the templates gate their blocks on that, so a
-machine that supplies only some values still gets a valid file. This is why the
-neko container needs no fnox, no pass-cli and no keyring.
+machine that supplies only some values still gets a valid file. The neko container
+runs fnox and pass-cli too — `PROTON_PASS_KEY_PROVIDER=fs` sidesteps the kernel
+keyring its seccomp profile blocks, and `PASS_CLI_PAT` logs in without a TTY.
 
 ## Everyday use
 

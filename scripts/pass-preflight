@@ -33,10 +33,12 @@ pass_cli() {
 }
 
 # `info` reports on the stored session and fails when there is none. Deliberately
-# not `test`: that subcommand exists in 2.1.2 (what the Macs have) but is gone in
-# 2.3.3 (what the container installs), where it fails as an unknown argument —
-# which looks exactly like "no session", so the caller silently falls back to a
-# PAT login that then refuses with "Client is already authenticated".
+# not `test` — here or in the post-login check below: that subcommand exists in
+# 2.1.2 (what the Macs have) but is gone in 2.3.3 (what the container installs),
+# where it fails as an unknown argument. At this call site that looks exactly like
+# "no session", so the caller silently falls back to a PAT login that then refuses
+# with "Client is already authenticated"; at the post-login one it made a
+# successful interactive login report "still no usable session" and exit 1.
 if PASS_LOG_LEVEL=error pass_cli info >/dev/null 2>&1; then
 	exit 0
 fi
@@ -64,7 +66,7 @@ if ! pass_cli login; then
 	exit 1
 fi
 
-if PASS_LOG_LEVEL=error pass_cli test >/dev/null 2>&1; then
+if PASS_LOG_LEVEL=error pass_cli info >/dev/null 2>&1; then
 	echo "[preflight] session established." >&2
 	exit 0
 fi
