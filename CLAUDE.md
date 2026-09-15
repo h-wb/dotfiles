@@ -57,9 +57,18 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
    name from env, so keep multi-word names hyphenated (`macos-defaults.toml`).
 7. **`[settings]` is ignored (and warns) when a config is read as project/local.**
    Machine-global settings (e.g. `auto_update`) live in `conf.d/settings.toml`.
-8. **macOS `defaults` are scalar-only.** Arrays / nested dicts / ByHost values can't
-   be expressed in `[bootstrap.macos.defaults.*]`; they live in the
-   `[bootstrap.hooks.post-defaults]` shell hook (Dock array, symbolichotkeys, battery %).
+8. **`[bootstrap.macos.defaults.*]` is scalar-only — use `defaults_entries` for
+   the rest.** Arrays, nested dicts and ByHost values still cannot go in the
+   scalar table, but since mise 2026.9.5 they do not need a shell hook either:
+   `[[bootstrap.macos.defaults_entries]]` takes `domain`, `key`, `value` (real
+   TOML types, `[]` included), `path` (a list of literal keys addressing a nested
+   value without replacing its siblings — dots are NOT separators) and
+   `host = "current"` (= `defaults -currentHost`). Those five are the whole field
+   set; mise rejects anything else as a parse error, which is a cheap way to check
+   a spelling. The Dock array, the symbolichotkeys entry and the battery % moved
+   there and `[bootstrap.hooks.post-defaults]` is gone. Not verified ON macOS —
+   this box is Linux — only that mise accepts the schema; CI's macOS job does not
+   apply defaults either.
 9. **Hooks fire on a full `mise bootstrap`, and with `--only <step>`.** They do
    NOT fire for the sub-commands (`mise bootstrap macos defaults apply`). So
    `mise bootstrap --only dotfiles` DOES run pre/post-dotfiles, which is how the

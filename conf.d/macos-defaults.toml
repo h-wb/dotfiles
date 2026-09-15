@@ -104,14 +104,56 @@ onboardingCompleted = true
 raycastGlobalHotkey = "Command-49"           # Cmd-Space
 "NSStatusItem Visible raycastIcon" = false
 
-# After defaults: the values mise's scalar-only writer can't express.
-# No killall here: Dock/Finder/SystemUIServer respawn, but Raycast/AltTab/BTT
-# would just be quit and left dead. Changes take effect on next relaunch/login.
-[bootstrap.hooks.post-defaults]
-run = '''
-[ "$(uname)" = "Darwin" ] || exit 0
-defaults write com.apple.dock persistent-apps -array
-defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 64 \
-  "<dict><key>enabled</key><false/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>32</integer><integer>49</integer><integer>1048576</integer></array></dict></dict>"
-defaults -currentHost write com.apple.controlcenter BatteryShowPercentage -bool true
-'''
+# ── The three values [bootstrap.macos.defaults] above cannot express ────────
+# That table is scalar-only, so an array, a nested dict and a ByHost value used to
+# live in a `[bootstrap.hooks.post-defaults]` shell hook shelling out to
+# `defaults`. mise 2026.9.5 added [[bootstrap.macos.defaults_entries]], which
+# covers all three declaratively: `value` takes real TOML types (arrays included),
+# `path` addresses a nested key inside a shared dictionary without replacing its
+# siblings, and `host = "current"` is `defaults -currentHost`.
+#
+# Still no killall anywhere: Dock/Finder/SystemUIServer respawn, but
+# Raycast/AltTab/BTT would just be quit and left dead. Changes take effect on the
+# next relaunch or login.
+
+# Empty the Dock. `value = []` is the array `defaults write -array` wrote.
+[[bootstrap.macos.defaults_entries]]
+domain = "com.apple.dock"
+key = "persistent-apps"
+value = []
+
+# Disable the Cmd-Space Spotlight hotkey so Raycast can have it. Hotkey 64 is one
+# entry in the shared AppleSymbolicHotKeys dict, hence `path` — writing the whole
+# key would drop every other shortcut. Each path component is a literal key (dots
+# are not separators) and missing parents are created.
+#
+# The `value` sub-dict is written as well as `enabled`, exactly as the old plist
+# blob did: it keeps the binding itself intact (standard, Cmd-Space) while
+# disabled, so toggling Spotlight back on in System Settings restores Cmd-Space
+# rather than an unbound entry.
+[[bootstrap.macos.defaults_entries]]
+domain = "com.apple.symbolichotkeys"
+key = "AppleSymbolicHotKeys"
+path = ["64", "enabled"]
+value = false
+
+[[bootstrap.macos.defaults_entries]]
+domain = "com.apple.symbolichotkeys"
+key = "AppleSymbolicHotKeys"
+path = ["64", "value", "type"]
+value = "standard"
+
+[[bootstrap.macos.defaults_entries]]
+domain = "com.apple.symbolichotkeys"
+key = "AppleSymbolicHotKeys"
+path = ["64", "value", "parameters"]
+value = [32, 49, 1048576]
+
+# Battery percentage in the menu bar is a per-host preference — the scalar table
+# above has no way to say `defaults -currentHost`, which is why this one entry
+# needed the hook. (The Bluetooth item next to it is not ByHost; it stays above.)
+[[bootstrap.macos.defaults_entries]]
+domain = "com.apple.controlcenter"
+key = "BatteryShowPercentage"
+value = true
+host = "current"
