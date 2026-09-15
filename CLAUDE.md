@@ -30,6 +30,13 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 - `mise run apply` — installs everything. Runs `scripts/pass-preflight`, then
   `fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes`.
 - `mise run diff` — same, `--dry-run` (changes nothing).
+- `mise doctor project` — runs the `[doctor.checks.*]` in `mise.toml` (+
+  `mise.neko.toml` on the container). Each check is an invariant this repo has
+  broken before: source files committed executable, a lockfile entry with no
+  checksum, credential dotfiles that are not 600, `~/.config/mise` not symlinked
+  here, a container whose autostart entry is missing or parked on `~/.neko-hold`.
+  Fields are `description`/`run`/`hint`; mise rejects any other key. Add one
+  whenever you catch a regression by hand.
 - Both tasks set `dir = ~/.dotfiles` (see gotcha #3) and both refuse to run without
   secrets (see gotcha #12) — that guard is deliberate, don't drop it to "just apply".
 

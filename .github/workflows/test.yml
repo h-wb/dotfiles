@@ -110,6 +110,18 @@ jobs:
           grep -q 'conf.d/xfce.neko.toml' /tmp/cfg
           mise tasks --all | grep -q 'neko:xfce'
 
+      # The repo's own invariants, declared as [doctor.checks.*]. Same checks the
+      # machines run locally via `mise doctor project`. neko-hold and the two that
+      # inspect a provisioned $HOME cannot pass on a bare runner, so this asserts
+      # the repo-state ones by name rather than the whole exit code.
+      - name: Repo invariants (mise doctor project)
+        run: |
+          mise doctor project 2>&1 | tee /tmp/doctor || true
+          for check in file-modes lockfiles; do
+            grep -q "^PASS $check" /tmp/doctor \
+              || { echo "::error::doctor check '$check' did not pass"; exit 1; }
+          done
+
       # Lockfiles are written per config FILE, but every conf.d fragment shares one
       # at ~/.config/mise/mise.lock — outside the repo. That is why the GUI apps
       # live in mise.neko.toml and not a fragment: it is the only way their pinned
