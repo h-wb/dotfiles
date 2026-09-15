@@ -29,6 +29,19 @@ jobs:
           echo "--- ~/.config/git/config ---"; cat "$HOME/.config/git/config"
           echo "--- ~/.ssh/config ---"; cat "$HOME/.ssh/config"
 
+          # The macOS half of the `variants` migration. These four used to be
+          # unconditional (so they also landed in the container) and these two
+          # used to live in mise.personal.toml purely because [dotfiles] had no
+          # `os` filter. They must all still arrive on a Mac.
+          test -L "$HOME/.config/zsh"
+          test -L "$HOME/.zshrc"
+          test -L "$HOME/.zshenv"
+          test -L "$HOME/.p10k.zsh"
+          test -L "$HOME/Library/Application Support/BetterTouchTool/Default.bttpreset"
+          # secret-gated, so with no secrets in CI it renders empty — but the
+          # variant must still have selected it, so the file has to exist
+          test -f "$HOME/.config/wireguard/wg0.home.conf"
+
   # The neko/xfce container config. Linux runner, `neko` env active: this catches
   # the things the macOS job cannot — a Linux-only [dotfiles] entry that fails to
   # render, an overlay that stops parsing, a task that disappears.
@@ -63,6 +76,12 @@ jobs:
           # the ssh template renders from vars: empty with no source...
           grep -qx 'HashKnownHosts no' "$HOME/.ssh/config"
           test "$(grep -c 'Host TN1' "$HOME/.ssh/config")" = 0
+          # ...and the Linux half of the `variants` migration: the mac-only
+          # entries must NOT land here. Before variants the zsh files did.
+          for f in .config/zsh .zshrc .zshenv .p10k.zsh \
+                   .config/wireguard/wg0.home.conf "Library"; do
+            test ! -e "$HOME/$f" || { echo "::error::$f leaked onto linux"; exit 1; }
+          done
 
       # The same template, fed from the environment instead of fnox: this is the
       # container's path, and it must produce the same file the Macs get.

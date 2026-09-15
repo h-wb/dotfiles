@@ -67,18 +67,39 @@ KUBECONFIG = "{{env.HOME}}/.kube/main.yaml:{{env.HOME}}/.kube/edge.yaml"
 # template mode renders Tera ({{ vars.x }}, {{ env.x }}, {% if %}); symlink mode
 # links the source. The mise config itself is symlinked by install.sh, not here.
 # Entries here read [vars], so they work on both machine classes: fnox supplies
-# the values on macOS, mise.local.toml on the container. wg0.home.conf stays in
-# mise.personal.toml — a WireGuard tunnel into the home network is meaningless
-# from inside the cluster it would tunnel to.
+# the values on macOS, mise.local.toml on the container.
+#
+# `variants` (mise 2026.9.5) is what lets this be the ONE dotfiles list. Entries
+# used to have no `os` filter, so anything mac-only had to be exiled to
+# mise.personal.toml and the zsh files landed in the container as harmless
+# clutter. A variant list carries the target path per selector — and, verified on
+# 2026.9.9, an entry whose selectors ALL fail and which has no `default = true`
+# applies nothing at all. That is the filter. Selectors are `os` (optionally
+# os/arch), `profile` (the active MISE_ENV) and `default`; they score
+# profile 2 / os 1 / arch 1, highest wins, ties are an error.
+#
+# Prefer `os` over `profile` for anything that is about the platform rather than
+# the machine class, so a future mac env inherits it without being listed.
 [dotfiles]
-"~/.config/git/config"              = { source = "home/git/config.tmpl", mode = "template" }
-"~/.ssh/config"                     = { source = "home/ssh/config.tmpl", mode = "template" }
-"~/.kube/main.yaml"                 = { source = "home/kube/main.yaml.tmpl", mode = "template" }
-"~/.kube/edge.yaml"                 = { source = "home/kube/edge.yaml.tmpl", mode = "template" }
-"~/.config/zsh"                     = { source = "home/zsh", mode = "symlink" }
-"~/.zshrc"                          = { source = "home/zshrc", mode = "symlink" }
-"~/.zshenv"                         = { source = "home/zshenv", mode = "symlink" }
-"~/.p10k.zsh"                       = { source = "home/p10k.zsh", mode = "symlink" }
+# Both machine classes.
+"~/.config/git/config" = { source = "home/git/config.tmpl", mode = "template" }
+"~/.ssh/config"        = { source = "home/ssh/config.tmpl", mode = "template" }
+"~/.kube/main.yaml"    = { source = "home/kube/main.yaml.tmpl", mode = "template" }
+"~/.kube/edge.yaml"    = { source = "home/kube/edge.yaml.tmpl", mode = "template" }
+
+# macOS only — zsh + z4h + p10k are the Macs' shell; the container is fish +
+# starship (mise.neko.toml). Before variants these applied everywhere.
+"zsh-config-dir" = { source = "home/zsh", mode = "symlink", variants = [{ os = "macos", target = "~/.config/zsh" }] }
+"zshrc"          = { source = "home/zshrc", mode = "symlink", variants = [{ os = "macos", target = "~/.zshrc" }] }
+"zshenv"         = { source = "home/zshenv", mode = "symlink", variants = [{ os = "macos", target = "~/.zshenv" }] }
+"p10k"           = { source = "home/p10k.zsh", mode = "symlink", variants = [{ os = "macos", target = "~/.p10k.zsh" }] }
+
+# macOS only, and previously stranded in mise.personal.toml purely because there
+# was no `os` filter here. A WireGuard tunnel into the home network is meaningless
+# from inside the cluster it would tunnel to, and BetterTouchTool is mac software;
+# the value still comes from vars.wg0_home_conf like everything else.
+"wg0-home" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template", variants = [{ os = "macos", target = "~/.config/wireguard/wg0.home.conf" }] }
+"btt-preset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink", variants = [{ os = "macos", target = "~/Library/Application Support/BetterTouchTool/Default.bttpreset" }] }
 
 # ── Bootstrap: system provisioning ──────────────────────────────────────────
 # Before packages: Rosetta + Homebrew (which also installs the Command Line

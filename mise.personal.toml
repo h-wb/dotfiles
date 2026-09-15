@@ -15,12 +15,9 @@
 # mac app store
 "mas:1451685025" = "latest"          # WireGuard
 
-# macOS-only: [dotfiles] entries take no `os` filter, and this overlay only loads
-# on machines running env = ["personal"], so parking it here keeps the neko
-# container from growing a stray ~/Library.
-[dotfiles]
-# macOS-only: a WireGuard config for the home network is pointless inside the
-# cluster, so this one does not go in the shared list. The value still comes from
-# vars.wg0_home_conf like everything else.
-"~/.config/wireguard/wg0.home.conf" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template" }
-"~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }
+# No [dotfiles] here any more. Both entries that used to live in this file
+# (wg0.home.conf, the BetterTouchTool preset) were only here because [dotfiles]
+# had no `os` filter — they are in mise.toml's list now, scoped with
+# `variants = [{ os = "macos", ... }]`. Packages are still overlaid here because
+# they are about this machine CLASS, not the platform: a work Mac would want a
+# different list on the same OS.
