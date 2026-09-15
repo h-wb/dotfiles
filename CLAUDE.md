@@ -96,9 +96,37 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
     loses the truenas host; `wg0.home.conf` truncates to 0 bytes). Every fnox call in
     this repo therefore passes **`--if-missing error`** (it is a *global* flag —
     `fnox --if-missing error exec ...`, before the subcommand), and `apply`/`diff` run
-    `scripts/pass-preflight` first, which `pass-cli test`s the session and offers a
+    `scripts/pass-preflight` first, which `pass-cli info`s the session and offers a
     `pass-cli login` when stdin is a TTY. `fnox check` does NOT help here — it only
     validates config shape and reports "healthy" with no session at all.
+
+### Why NOT `[bootstrap.secrets]` (evaluated 2026-09-15, rejected)
+
+mise 2026.9.7 added `[bootstrap.secrets]` + `{{ secret(name="x") }}`, which looks
+like a drop-in replacement for the `[vars]` + `get_env` indirection in #11 and the
+`--if-missing error` guard in #12. It is not, and the reason is worth keeping.
+
+Verified on 2026.9.9:
+
+- A declared secret that is **missing or empty** makes the entry fail to render,
+  and mise **does not write the file** — the good copy on disk survives. That part
+  is genuinely better than what we have: it protects the file no matter how
+  bootstrap was invoked, where `--if-missing error` only covers runs that go
+  through fnox.
+- But the failure takes down the **whole dotfiles step**. A single unresolved
+  secret stopped an unrelated non-secret dotfile from being applied at all.
+
+That second property is fatal here. On a fresh PVC with no Proton Pass session
+yet, `home/bin/neko-bootstrap`'s `fresh` mode deliberately applies dotfiles with
+no secrets — the templates gate on presence and render their empty fallback — and
+that is what gives a new container its fish config, its autostart entry and its
+menu entries. Under `[bootstrap.secrets]` that machine would get **no dotfiles at
+all** and never finish provisioning.
+
+The three modes in `neko-bootstrap` (`secrets` / `fresh` / `protect`) already
+cover the same ground more precisely: they only withhold dotfiles when there is
+secret-DERIVED content on disk that a secretless render would blank. Keep them.
+If mise ever makes a failed secret skip just its own entry, revisit this.
 
 ## The neko/xfce container (env `neko`)
 
