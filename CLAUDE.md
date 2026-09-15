@@ -223,6 +223,13 @@ mise's package managers were each checked against this box before settling on
   is not a way to drive a task — hence the app catalog being a here-doc table.
 - **Bare `mise bootstrap` really bootstraps.** It is not a help/list command; running it
   to "see what it does" converges the machine. Use `--dry-run`.
+- **`--from` / `--adopt` do NOT replace `install.sh`** (evaluated 2026-09-15).
+  `mise bootstrap --from <url>` clones a repo and bootstraps from its config, and
+  `--adopt` adopts it as the global config. Neither writes the per-machine
+  `miserc.toml` that selects the env (`scripts/link-mise-config` auto-detects
+  `neko` from `/etc/neko`), symlinks `conf.d`, or maps `mise.<env>.toml` to the
+  `config.<env>.toml` names mise looks for. That wiring is most of what the
+  installer does, so it stays.
 
 ## Don'ts
 
