@@ -6,8 +6,9 @@
 # Templated dotfiles read {{ vars.x }} and never name a source. mise.toml
 # defaults every one of those vars to `get_env(...)`, which is the macOS path:
 # `fnox exec` injects the ProtonPass secrets and the templates pick them up. On a
-# machine where fnox cannot run — the neko container, where pass-cli needs the
-# kernel keyring and container seccomp blocks it — put the literals here instead.
+# machine where you would rather pin a literal than reach for Proton Pass, put it
+# here instead. (The neko container runs fnox too, via PROTON_PASS_KEY_PROVIDER=fs;
+# this file still wins over it.)
 # Same templates, same var names, different source.
 #
 # A var that is neither in the environment nor here renders empty, and the
