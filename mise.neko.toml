@@ -223,6 +223,12 @@ f="$HOME/.config/autostart/mise-bootstrap.desktop"
 # there is no gh yet and no rendered git config — hence a plain credentials file
 # written here from the fnox-injected token, which needs nothing but shell.
 # `gh` itself is logged in later, in the bootstrap task, for interactive use.
+#
+# The `git config --global` below only matters on that first fresh-PVC run: git
+# picks ~/.config/git/config once it exists, which is the dotfile rendered at
+# step 11 — one step after this — so the write is erased on every subsequent
+# bootstrap. The helper is therefore declared in home/git/config.tmpl too, and
+# that is the copy that actually survives. Don't "dedupe" the two.
 [bootstrap.hooks.pre-repos]
 run = """
 [ -n "${GH_TOKEN:-}" ] || { echo "[info] no GH_TOKEN; private repos will not clone"; exit 0; }
