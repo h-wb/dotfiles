@@ -223,6 +223,20 @@ mise's package managers were each checked against this box before settling on
   is not a way to drive a task — hence the app catalog being a here-doc table.
 - **Bare `mise bootstrap` really bootstraps.** It is not a help/list command; running it
   to "see what it does" converges the machine. Use `--dry-run`.
+- **A hook that writes into a file the dotfiles step renders is erased by it**
+  (found 2026-09-20). `[bootstrap.hooks.pre-repos]` in `mise.neko.toml` ran
+  `git config --global credential.helper store` at step 10; git resolves
+  `--global` to `~/.config/git/config` whenever that file exists, and that is the
+  dotfile rendered at step 11 — so the helper was wiped by every bootstrap and
+  `~/.git-credentials` sat unused for days, with `git push` failing on a box whose
+  `gh` was perfectly logged in. Anything a hook must make stick belongs in the
+  *source template*, not in a `git config`/`defaults write` against a managed path.
+- **Dotfile templates can branch on the OS: `{% if os() == "linux" %}`** (verified
+  2026-09-20 by rendering into a throwaway HOME — `os()` → `linux`, `os_family()`
+  → `unix`, `arch()` → `x64`). This is the per-*content* counterpart to `variants`,
+  which only picks a target path. `home/git/config.tmpl` uses it to give the
+  container `credential.helper = store` without putting plaintext credentials on
+  the Macs.
 - **`--from` / `--adopt` do NOT replace `install.sh`** (evaluated 2026-09-15).
   `mise bootstrap --from <url>` clones a repo and bootstraps from its config, and
   `--adopt` adopts it as the global config. Neither writes the per-machine

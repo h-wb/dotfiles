@@ -42,3 +42,13 @@
 	wd = diff --patience --word-diff
 [init]
    defaultBranch = main
+{% if os() == "linux" %}
+# Container only. ~/.git-credentials is written by mise.neko.toml's pre-repos
+# hook from the fnox-injected GH_TOKEN, but that hook's `git config --global`
+# lands in THIS file, and the dotfiles step (11) renders over it immediately
+# after the repos step (10) that needed it — so the helper has to be declared
+# here to survive a bootstrap. Not on the Macs: there `store` would mean
+# plaintext credentials on disk.
+[credential]
+	helper = store
+{% endif %}
