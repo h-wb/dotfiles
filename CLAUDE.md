@@ -223,6 +223,16 @@ mise's package managers were each checked against this box before settling on
   is not a way to drive a task — hence the app catalog being a here-doc table.
 - **Bare `mise bootstrap` really bootstraps.** It is not a help/list command; running it
   to "see what it does" converges the machine. Use `--dry-run`.
+- **`mise env` in a `#!/bin/sh` script needs `--shell bash`** (found 2026-09-20).
+  It honours an inherited `MISE_SHELL`, so `neko-bootstrap` run by hand from a
+  fish session got `set -gx FOO bar` — and because `set` is a POSIX *special
+  builtin*, dash EXITS on the usage error rather than continuing past the
+  `|| true`. The script died at the eval with status 2: past the `~/.neko-hold`
+  check, before choosing a mode, and without reaching its own `notify-send`, so
+  the only evidence was an empty exit code. `--shell bash` emits plain
+  `export FOO='bar'`, which dash evals happily. There is no `--shell sh` (values
+  are bash/zsh/fish/nu/elvish/xonsh/pwsh). Session-start runs were unaffected —
+  `MISE_SHELL` is unset there — which is exactly why it went unnoticed.
 - **A hook that writes into a file the dotfiles step renders is erased by it**
   (found 2026-09-20). `[bootstrap.hooks.pre-repos]` in `mise.neko.toml` ran
   `git config --global credential.helper store` at step 10; git resolves
