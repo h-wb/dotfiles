@@ -60,7 +60,15 @@ cd "${HOME}/.dotfiles" || exit 0
 # in particular PROTON_PASS_KEY_PROVIDER=fs, whose absence sends pass-cli back to
 # the kernel keyring that seccomp blocks, and the whole secrets path fails with
 # no obvious cause.
-eval "$("$MISE" env 2>/dev/null)" || true
+#
+# --shell bash is load-bearing, and `|| true` does NOT cover its absence. Bare
+# `mise env` honours an inherited MISE_SHELL, so running this by hand from a fish
+# session emits `set -gx FOO bar`; `set` is a POSIX *special builtin*, so dash
+# exits on the usage error instead of continuing — the script died here with
+# status 2, past the hold check but before choosing a mode, and never reached its
+# own notify-send. bash's `export FOO='bar'` is plain POSIX and dash evals it
+# fine. There is no `--shell sh`; the accepted values are bash/zsh/fish/nu/....
+eval "$("$MISE" env --shell bash 2>/dev/null)" || true
 
 # Pick the mode first, then run bootstrap exactly ONCE. Chaining the three cases
 # on each other's exit status looks tidier but is wrong: an unrelated failure
