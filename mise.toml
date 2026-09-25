@@ -6,7 +6,7 @@
 # install.sh symlinks this file to ~/.config/mise/config.toml (and conf.d/ →
 # ~/.config/mise/conf.d) so mise uses it globally for tools/env; [dotfiles]/
 # [bootstrap] only act during `mise bootstrap`. Verbose/global bits are split into
-# conf.d/ (macos-defaults.toml, settings.toml). Profile packages: mise.personal.toml.
+# conf.d/ (macos-defaults.toml, settings.toml, zen-history.toml). Profile packages: mise.personal.toml.
 
 # git_email is personal, so it is NOT committed — it lives in an untracked
 # mise.local.toml ([vars] git_email = "..."); see mise.local.toml.example. The
@@ -170,7 +170,8 @@ run_at_load = true
 keep_alive = true
 
 # macOS defaults + their post-defaults hook live in conf.d/macos-defaults.toml
-# (verbose and rarely edited — split out to keep this file scannable). Global
+# (verbose and rarely edited — split out to keep this file scannable). The Zen
+# history snapshot agent lives in conf.d/zen-history.toml. Global
 # mise settings (auto_update) live in conf.d/settings.toml.
 
 # ── Doctor checks ───────────────────────────────────────────────────────────
