@@ -1,0 +1,5 @@
+# iMessage history → (pipeline TBD). MacBook only (`.personal`): the Messages
+# database only exists on macOS.
+
+[tools]
+"github:ReagentX/imessage-exporter" = "latest"
