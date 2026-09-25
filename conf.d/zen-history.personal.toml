@@ -1,4 +1,5 @@
 # Zen browser history → Nextcloud → dlt `browser_history` pipeline (~/Repositories/dlt).
+# MacBook only (`.personal`): the neko container has no Zen and no launchd.
 # Run by hand with `mise run zen-history-snapshot`; the agent below runs it every
 # 6h (launchd runs a missed interval once on wake).
 
