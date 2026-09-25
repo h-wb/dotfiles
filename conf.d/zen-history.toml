@@ -1,0 +1,38 @@
+# Zen browser history → Nextcloud → dlt `browser_history` pipeline (~/Repositories/dlt).
+# Run by hand with `mise run zen-history-snapshot`; the agent below runs it every
+# 6h (launchd runs a missed interval once on wake).
+
+# Zen keeps an exclusive lock on the live places.sqlite, so `sqlite3 .backup`
+# against it fails ("database is locked"). Copy the DB + its WAL instead, let
+# sqlite replay the WAL on the copy, check it (a write can land mid-copy; the
+# next run retries), then VACUUM INTO one clean file. The gzip is renamed into
+# the synced folder in one step, so Nextcloud never uploads a partial file.
+[tasks.zen-history-snapshot]
+description = "Snapshot Zen's history DB into ~/Nextcloud/Backups/browser"
+run = '''
+set -eu
+src="$(ls -t "$HOME/Library/Application Support/zen/Profiles"/*/places.sqlite | head -1)"
+dst="$HOME/Nextcloud/Backups/browser"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+cp "$src" "$tmp/places.sqlite"
+[ -f "$src-wal" ] && cp "$src-wal" "$tmp/places.sqlite-wal"
+check="$(/usr/bin/sqlite3 "$tmp/places.sqlite" 'PRAGMA quick_check;')"
+[ "$check" = "ok" ] || { echo "$(date -u +%FT%TZ) copy not consistent, skipping: $check" >&2; exit 1; }
+/usr/bin/sqlite3 "$tmp/places.sqlite" "VACUUM INTO '$tmp/zen-places.sqlite';"
+gzip -9 "$tmp/zen-places.sqlite"
+mkdir -p "$dst"
+mv "$tmp/zen-places.sqlite.gz" "$dst/zen-places.sqlite.gz"
+echo "$(date -u +%FT%TZ) snapshot ok: $src"
+'''
+
+# Same no-templating / logging-in-sh-c rules as the pass-cli-ssh-agent agent in
+# mise.toml. mise is called by absolute path: launchd has no PATH to it.
+[bootstrap.macos.launchd.agents.zen-history-snapshot]
+program = "/bin/sh"
+args = [
+  "-c",
+  "exec \"$HOME/.local/bin/mise\" run --quiet zen-history-snapshot >> \"$HOME/Library/Logs/zen-history-snapshot.log\" 2>&1",
+]
+run_at_load = true
+start_interval = 21600
