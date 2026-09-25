@@ -8,11 +8,11 @@
 # next run retries), then VACUUM INTO one clean file. The gzip is renamed into
 # the synced folder in one step, so Nextcloud never uploads a partial file.
 [tasks.zen-history-snapshot]
-description = "Snapshot Zen's history DB into ~/Nextcloud/Backups/browser"
+description = "Snapshot Zen's history DB into ~/Nextcloud/Hugo/Documents/data/browser"
 run = '''
 set -eu
 src="$(ls -t "$HOME/Library/Application Support/zen/Profiles"/*/places.sqlite | head -1)"
-dst="$HOME/Nextcloud/Backups/browser"
+dst="$HOME/Nextcloud/Hugo/Documents/data/browser"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 cp "$src" "$tmp/places.sqlite"
