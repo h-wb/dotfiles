@@ -3,32 +3,36 @@
 # Run by hand with `mise run zen-history-snapshot`; the agent below runs it every
 # 6h (launchd runs a missed interval once on wake).
 
+[tools]
+sqlite = "latest"
+
 # Zen keeps an exclusive lock on the live places.sqlite, so `sqlite3 .backup`
 # against it fails ("database is locked"). Copy the DB + its WAL instead, let
 # sqlite replay the WAL on the copy, check it (a write can land mid-copy; the
 # next run retries), then VACUUM INTO one clean file. The gzip is renamed into
 # the synced folder in one step, so Nextcloud never uploads a partial file.
 [tasks.zen-history-snapshot]
-description = "Snapshot Zen's history DB into ~/Nextcloud/Hugo/Documents/data/browser"
+description = "Snapshot Zen's history DB into Nextcloud"
+env = { ZEN_PROFILES = "{{env.HOME}}/Library/Application Support/zen/Profiles", ZEN_SNAPSHOT_DIR = "{{env.HOME}}/Nextcloud/Hugo/Documents/data/browser" }
 run = '''
 set -eu
-src="$(ls -t "$HOME/Library/Application Support/zen/Profiles"/*/places.sqlite | head -1)"
-dst="$HOME/Nextcloud/Hugo/Documents/data/browser"
+src="$(ls -t "$ZEN_PROFILES"/*/places.sqlite | head -1)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 cp "$src" "$tmp/places.sqlite"
 [ -f "$src-wal" ] && cp "$src-wal" "$tmp/places.sqlite-wal"
-check="$(/usr/bin/sqlite3 "$tmp/places.sqlite" 'PRAGMA quick_check;')"
+check="$(sqlite3 "$tmp/places.sqlite" 'PRAGMA quick_check;')"
 [ "$check" = "ok" ] || { echo "$(date -u +%FT%TZ) copy not consistent, skipping: $check" >&2; exit 1; }
-/usr/bin/sqlite3 "$tmp/places.sqlite" "VACUUM INTO '$tmp/zen-places.sqlite';"
+sqlite3 "$tmp/places.sqlite" "VACUUM INTO '$tmp/zen-places.sqlite';"
 gzip -9 "$tmp/zen-places.sqlite"
-mkdir -p "$dst"
-mv "$tmp/zen-places.sqlite.gz" "$dst/zen-places.sqlite.gz"
+mkdir -p "$ZEN_SNAPSHOT_DIR"
+mv "$tmp/zen-places.sqlite.gz" "$ZEN_SNAPSHOT_DIR/zen-places.sqlite.gz"
 echo "$(date -u +%FT%TZ) snapshot ok: $src"
 '''
 
 # Same no-templating / logging-in-sh-c rules as the pass-cli-ssh-agent agent in
-# mise.toml. mise is called by absolute path: launchd has no PATH to it.
+# mise.toml. mise is called by absolute path: launchd has no PATH to it; mise
+# then puts the configured tools (sqlite) on PATH for the task.
 [bootstrap.macos.launchd.agents.zen-history-snapshot]
 program = "/bin/sh"
 args = [
