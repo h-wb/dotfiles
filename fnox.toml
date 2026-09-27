@@ -17,8 +17,14 @@ vault = "Dev"
 SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://Dev/Truenas/host" }
 SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://Dev/Truenas/username" }
 WG0_HOME_CONF    = { provider = "protonpass", value = "pass://Dev/wg0.conf/note" }
-K8S_GATEWAY_IP   = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
-K8S_GATEWAY_HOST = { provider = "protonpass", value = "pass://Dev/k8s gateway/hostname" }
+# One k8s-gateway IP per cluster. conf.d/k8s-dns.personal.toml declares both as
+# [vars] and its template picks one by `k8s_dns_cluster` — only one cluster can
+# resolve the internal zone at a time. These stay secrets because they are internal
+# addresses and this repo is public; the ZONE does not, because a [bootstrap.files]
+# key cannot be templated and so had to become a literal there. (K8S_GATEWAY_HOST
+# is gone with the inline resolver step that used it.)
+K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
+K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address edge" }
 
 # One whole kubeconfig per cluster, kept as custom fields on a single item.
 # kubectl merges them through the KUBECONFIG list (see [env] in mise.toml), which

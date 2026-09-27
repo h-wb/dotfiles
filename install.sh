@@ -43,5 +43,10 @@ DOTFILES_DIR="${DOTFILES_DIR}" "${DOTFILES_DIR}/scripts/link-mise-config"
 #    dotfiles empty. On a machine without secrets, run `mise bootstrap` directly.
 "${MISE}" trust
 MISE="${MISE}" "${DOTFILES_DIR}/scripts/pass-preflight" || exit 1
-exec "${MISE}" exec github:jdx/fnox@latest -- \
-	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --yes
+# --skip files, then the privileged resolver write afterwards: [bootstrap.files] is
+# phase 3 but the file it sources is rendered by [dotfiles] in phase 4, and a
+# missing source is fatal to the WHOLE bootstrap — on a fresh machine that would
+# abort before anything got provisioned. See conf.d/k8s-dns.personal.toml.
+"${MISE}" exec github:jdx/fnox@latest -- \
+	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --skip files --yes || exit 1
+exec "${MISE}" run dns:apply

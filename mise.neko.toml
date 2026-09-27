@@ -239,14 +239,14 @@ echo "[info] git credentials configured from GH_TOKEN"
 """
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
-# Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
-# merge, so anything the shared body does that matters here has to be repeated.
-# Right now nothing is: its /etc/resolver block is macOS-only, and its `chmod 700
-# ~/.ssh` moved into the shared [dotfiles] as a permissions-only entry, which DOES
-# reach this box (configs merge; only same-named tasks override). Also pulls in
-# the two fragments. `mise bootstrap` runs this at step 15, after
-# packages/dotfiles/tools, so xfconf can rely on everything else already being in
-# place.
+# The only `bootstrap` task in the repo now — mise.toml no longer defines one.
+# (It used to, and this overrode it; same-named tasks replace rather than merge, so
+# anything the shared body did that mattered here had to be repeated. Nothing did
+# in the end: its `chmod 700 ~/.ssh` became a permissions-only [dotfiles] entry,
+# which DOES reach this box because configs merge, and its /etc/resolver block was
+# macOS-only and is now conf.d/k8s-dns.personal.toml.) Also pulls in the two
+# fragments. `mise bootstrap` runs this at step 15, after packages/dotfiles/tools,
+# so xfconf can rely on everything else already being in place.
 [tasks.bootstrap]
 depends = ["neko:xfce"]
 run = '''

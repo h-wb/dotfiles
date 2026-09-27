@@ -258,24 +258,12 @@ esac
 '''
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
-# Runs at the end of `mise bootstrap`. Secret env vars come from fnox (bootstrap
-# is invoked under `fnox exec`); the resolver step is skipped if they're absent.
-[tasks.bootstrap]
-run = '''
-if [ "$(uname)" = "Darwin" ] && [ -n "${K8S_GATEWAY_IP:-}" ] && [ -n "${K8S_GATEWAY_HOST:-}" ]; then
-  resolver="/etc/resolver/${K8S_GATEWAY_HOST}"
-  want="nameserver ${K8S_GATEWAY_IP}"
-  # only sudo when the file is missing or stale, so routine applies don't prompt
-  if [ ! -f "$resolver" ] || [ "$(cat "$resolver" 2>/dev/null)" != "$want" ]; then
-    sudo mkdir -p /etc/resolver
-    printf "%s\n" "$want" | sudo tee "$resolver" >/dev/null
-    echo "[info] installed $resolver"
-  else
-    echo "[info] $resolver already current"
-  fi
-fi
-'''
-
+# There is no shared [tasks.bootstrap] any more (mise.neko.toml still has its own).
+# Its only job was writing /etc/resolver from a hardcoded gateway IP. That whole
+# feature — vars, template, privileged file, tasks and doctor check — is now one
+# self-contained fragment: conf.d/k8s-dns.personal.toml. `dns:apply` below comes
+# from there (tasks in conf.d fragments load through the global config dir).
+#
 # dir = the repo, so `mise bootstrap` loads THIS file as the project config and
 # resolves [dotfiles] sources relative to the repo (not ~/.config/mise, where the
 # global symlink lives). This also lets fnox find fnox.toml by relative path.
@@ -292,7 +280,11 @@ description = "Install everything (packages, macOS, dotfiles, tools) with secret
 dir = "{{env.HOME}}/.dotfiles"
 run = """
 ./scripts/pass-preflight || exit 1
-fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap --skip files --yes
+# dns:apply comes from conf.d/k8s-dns.personal.toml, so it only exists on the Macs.
+# Safe because mise.neko.toml overrides this whole task — if that override is ever
+# dropped, this line has to move behind a guard.
+mise run dns:apply
 """
 
 [tasks.diff]
@@ -300,5 +292,13 @@ description = "Preview what bootstrap would change"
 dir = "{{env.HOME}}/.dotfiles"
 run = """
 ./scripts/pass-preflight || exit 1
-fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap --skip files --dry-run
+# Preview the skipped phase separately. Deliberately plain: unlike `apply`, this
+# task is NOT overridden in mise.neko.toml, so it also runs in the container —
+# where the dns:* tasks and k8s_dns_* vars do not exist and a Tera reference to one
+# would fail to render — including inside a comment like this one, since the whole
+# body is templated before any shell sees it. `status` exits 1 until rendered,
+# which is expected, not a diff failure.
+mise bootstrap files status 2>/dev/null || true
 """
+
