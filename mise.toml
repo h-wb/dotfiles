@@ -51,6 +51,7 @@ claude = "latest"
 "github:protonpass/pass-cli" = "latest"   # Proton Pass CLI (ssh-agent + fnox backend)
 "github:jdx/fnox" = "latest"              # injects ProtonPass secrets as env vars
 usage = "latest"
+"npm:@metabase/cli" = "latest"
 
 [env]
 EDITOR = "code --wait"
