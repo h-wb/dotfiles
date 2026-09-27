@@ -42,23 +42,40 @@ jobs:
           # variant must still have selected it, so the file has to exist
           test -f "$HOME/.config/wireguard/wg0.home.conf"
 
-          # The k8s-gateway resolver source MUST render EXACTLY 0 bytes with no
-          # secrets. This regressed once: the template emitted a lone trailing
-          # newline, which is "non-empty", so a size test would have installed a
-          # resolver file with no nameserver line in it and broken the whole zone.
-          # (dns:apply now greps for the directive, but keep the template honest.)
-          test -f "$HOME/.config/k8s-dns/resolver"
-          test ! -s "$HOME/.config/k8s-dns/resolver"
-
       # The DNS switch. k8s_dns_cluster picks which gateway IP the resolver source
       # gets, and only one cluster can serve the zone at a time. Uses the
       # $K8S_DNS_CLUSTER source (the default/ad-hoc one); the persistent source is
       # mise.local.toml, which is untracked and therefore absent in CI.
+      #
+      # This needs MISE_CONFIG_DIR + the conf.d symlink, exactly like the neko
+      # fragment step below: the whole feature lives in conf.d/k8s-dns.personal.toml
+      # and fragments load ONLY through the global config dir. Moving HOME is not
+      # enough — mise-action pins the config dir for the job, so without this the
+      # fragment is silently absent and nothing renders at all. (That is how this
+      # step first failed.)
       - name: k8s-gateway DNS switch selects per cluster
         run: |
+          export MISE_CONFIG_DIR="$(mktemp -d)/mise"
+          mkdir -p "$MISE_CONFIG_DIR"
+          ln -sfn "$PWD/conf.d" "$MISE_CONFIG_DIR/conf.d"
+          printf 'env = ["personal"]\nenv_conf_d = true\n' > "$MISE_CONFIG_DIR/miserc.toml"
           export HOME="$(mktemp -d)"
-          export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
           res="$HOME/.config/k8s-dns/resolver"
+          mise trust
+
+          # the fragment must actually be loaded, or every assertion below is vacuous
+          mise config | grep -q 'k8s-dns.personal.toml'
+
+          # no secrets: EXACTLY 0 bytes. This regressed once — the template emitted
+          # a lone trailing newline, which is "non-empty", so a size test would have
+          # installed a resolver file with no nameserver line in it and broken the
+          # whole zone. (dns:apply greps for the directive now, but keep the template
+          # honest.)
+          mise bootstrap dotfiles apply --yes
+          test -f "$res"
+          test ! -s "$res"
+
+          export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
           mise bootstrap dotfiles apply --yes                          # default
           grep -qx 'nameserver 10.1.1.1' "$res"
           K8S_DNS_CLUSTER=edge mise bootstrap dotfiles apply --yes

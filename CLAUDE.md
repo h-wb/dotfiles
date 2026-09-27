@@ -261,9 +261,18 @@ mise's package managers were each checked against this box before settling on
   `mise.toml`'s `apply` call the Mac-only `dns:apply`. `diff` has no such override,
   so it must stay portable. (`bootstrap` used to be the example here; `mise.toml`
   no longer defines one, so `mise.neko.toml`'s is now the only one in the repo.)
-- **Tasks defined in `conf.d/` fragments do load** and can be `depends`-ed on — but
-  only through the global config dir (`~/.config/mise/conf.d`), which is why CI has to
-  set up the symlink + miserc to test them.
+- **`conf.d/` fragments load ONLY through the global config dir**
+  (`~/.config/mise/conf.d`) — never from a `conf.d/` sitting next to the project
+  config. So tasks in a fragment do load and can be `depends`-ed on, but any CI step
+  touching a fragment has to set up `MISE_CONFIG_DIR` + the symlink + a miserc first;
+  moving `HOME` is not enough. Getting this wrong is silent: the fragment is simply
+  absent and its `[dotfiles]` entries never render (which is how the k8s-dns CI step
+  first failed — and why that step now asserts `mise config` lists the fragment
+  before testing anything). **Verifying this on a Mac needs a real sandbox**: with
+  this repo installed, `~/.config/mise/conf.d` already exists, so an
+  `MISE_CONFIG_DIR` override still picked the fragment up from the live config dir
+  and the test passed locally while CI failed. Clone into a temp dir with a temp
+  `HOME`.
 - **`mise run <task> -- --flag` does NOT become `$1` in a multi-line `run` script** —
   mise appends it to the last line, which is a syntax error. Use an env var instead.
 - **`[vars]` cannot hold nested tables.** `[vars.apps.obsidian]` fails with
