@@ -81,12 +81,31 @@ KUBECONFIG = "{{env.HOME}}/.kube/main.yaml:{{env.HOME}}/.kube/edge.yaml"
 #
 # Prefer `os` over `profile` for anything that is about the platform rather than
 # the machine class, so a future mac env inherits it without being listed.
+#
+# `permissions` (mise 2026.9.13) is why there is no post-dotfiles chmod hook any
+# more. mise gives a rendered target its SOURCE file's mode, and git only records
+# the executable bit — so a template holding credentials could never be committed
+# 600 and a fresh clone always produced 644. That is what the hook existed to
+# repair. `permissions = "0600"` states the target mode directly, independent of
+# the source, and a later apply REPAIRS a mode changed by hand (verified 2026-09-24
+# in a throwaway HOME: source 644 -> target 600; chmod 777 the target, re-apply,
+# back to 600; `dotfiles status` reports the drift as "differs (permissions
+# differ)" in between, so `--missing` catches it too).
+# It works on `template`, `copy` and inline `content`, NOT on `symlink`/
+# `symlink-each` (a link has no mode of its own) or `track`.
 [dotfiles]
 # Both machine classes.
 "~/.config/git/config" = { source = "home/git/config.tmpl", mode = "template" }
-"~/.ssh/config"        = { source = "home/ssh/config.tmpl", mode = "template" }
-"~/.kube/main.yaml"    = { source = "home/kube/main.yaml.tmpl", mode = "template" }
-"~/.kube/edge.yaml"    = { source = "home/kube/edge.yaml.tmpl", mode = "template" }
+"~/.ssh/config"        = { source = "home/ssh/config.tmpl", mode = "template", permissions = "0600" }
+"~/.kube/main.yaml"    = { source = "home/kube/main.yaml.tmpl", mode = "template", permissions = "0600" }
+"~/.kube/edge.yaml"    = { source = "home/kube/edge.yaml.tmpl", mode = "template", permissions = "0600" }
+
+# Permissions-only entries: no source, no content. mise only fixes the mode of a
+# target that already exists and never creates one — a missing target is a WARN
+# and `status` counts it applied, so these are safe on a box that has neither
+# directory. This is the other half of the old chmod hook.
+"~/.ssh"  = { permissions = "0700" }
+"~/.kube" = { permissions = "0700" }
 
 # macOS only — zsh + z4h + p10k are the Macs' shell; the container is fish +
 # starship (mise.neko.toml). Before variants these applied everywhere.
@@ -99,7 +118,7 @@ KUBECONFIG = "{{env.HOME}}/.kube/main.yaml:{{env.HOME}}/.kube/edge.yaml"
 # was no `os` filter here. A WireGuard tunnel into the home network is meaningless
 # from inside the cluster it would tunnel to, and BetterTouchTool is mac software;
 # the value still comes from vars.wg0_home_conf like everything else.
-"wg0-home" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template", variants = [{ os = "macos", target = "~/.config/wireguard/wg0.home.conf" }] }
+"wg0-home" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template", permissions = "0600", variants = [{ os = "macos", target = "~/.config/wireguard/wg0.home.conf" }] }
 "btt-preset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink", variants = [{ os = "macos", target = "~/Library/Application Support/BetterTouchTool/Default.bttpreset" }] }
 
 # ── Bootstrap: system provisioning ──────────────────────────────────────────
@@ -118,22 +137,6 @@ if [ "$(uname -m)" = "arm64" ] && ! grep -q "/opt/homebrew/bin" /etc/paths 2>/de
   printf '%s\n' "/opt/homebrew/bin" "$(cat /etc/paths)" | sudo tee /etc/paths >/dev/null
 fi
 '''
-
-# mise renders dotfiles 0755, which is wrong for anything holding credentials —
-# a kubeconfig embeds client certs and tokens. A hook rather than a line in each
-# [tasks.bootstrap] because same-named hooks ACCUMULATE across configs, so this
-# one runs on the Macs and in the container alike (the tasks do not: neko
-# overrides the shared one).
-[bootstrap.hooks.post-dotfiles]
-run = """
-for f in "$HOME/.kube/main.yaml" "$HOME/.kube/edge.yaml" "$HOME/.ssh/config" \
-	"$HOME/.config/wireguard/wg0.home.conf"; do
-	[ -f "$f" ] && chmod 600 "$f"
-done
-[ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh"
-[ -d "$HOME/.kube" ] && chmod 700 "$HOME/.kube"
-true
-"""
 
 # Common packages (formulae, casks, mas). mise drives real Homebrew.
 # os = "macos" on every entry: this file is the *shared* config, so it is also
@@ -220,7 +223,7 @@ EOF
 
 [doctor.checks.credential-perms]
 description = "rendered credential dotfiles are not group/world readable"
-hint = "re-run `mise bootstrap --only dotfiles`; the post-dotfiles hook chmods them"
+hint = "re-run `mise bootstrap --only dotfiles`; the entries' `permissions` key repairs them"
 run = '''
 rc=0
 for f in "$HOME/.kube/main.yaml" "$HOME/.kube/edge.yaml" "$HOME/.ssh/config" \
@@ -259,7 +262,6 @@ esac
 # is invoked under `fnox exec`); the resolver step is skipped if they're absent.
 [tasks.bootstrap]
 run = '''
-[ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh" || true
 if [ "$(uname)" = "Darwin" ] && [ -n "${K8S_GATEWAY_IP:-}" ] && [ -n "${K8S_GATEWAY_HOST:-}" ]; then
   resolver="/etc/resolver/${K8S_GATEWAY_HOST}"
   want="nameserver ${K8S_GATEWAY_IP}"

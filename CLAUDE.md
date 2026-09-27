@@ -78,8 +78,9 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
    apply defaults either.
 9. **Hooks fire on a full `mise bootstrap`, and with `--only <step>`.** They do
    NOT fire for the sub-commands (`mise bootstrap macos defaults apply`). So
-   `mise bootstrap --only dotfiles` DOES run pre/post-dotfiles, which is how the
-   permission hook below stays effective without a whole bootstrap.
+   `mise bootstrap --only dotfiles` DOES run pre/post-dotfiles. (The permission
+   hook that used to rely on this is gone — see the `permissions` section below —
+   but the rule still holds for any hook added later.)
 10. **A LaunchAgent must set `PATH` before invoking fnox.** fnox shells out to
     `pass-cli`, and launchd's default PATH has no mise shims — get this wrong and
     every secret fails with "CLI tool 'pass-cli' not found" while the agent looks
@@ -134,6 +135,40 @@ The three modes in `neko-bootstrap` (`secrets` / `fresh` / `protect`) already
 cover the same ground more precisely: they only withhold dotfiles when there is
 secret-DERIVED content on disk that a secretless render would blank. Keep them.
 If mise ever makes a failed secret skip just its own entry, revisit this.
+
+### Why NOT `mode = "track"` (evaluated 2026-09-24, rejected)
+
+`track` reads like a fifth deployment mode next to `symlink`/`copy`/`template`.
+It is not one — it is not even in mise's modes table. It is a **version-history**
+feature for people who do *not* have a dotfiles repo:
+
+```toml
+[dotfiles]
+"~/.zshrc" = { mode = "track" }   # no source
+```
+
+The file stays exactly where it is; mise saves **checkpoints into a separate local
+Git history repo** (`mise dot save` / `track` / `rollback` / `undo`, or the
+`[bootstrap.services.mise-history] builtin = "history-watch"` watcher). Sharing
+across machines is a *second* Git remote (`mise dot origin set`, `history.sync`).
+
+It does not replace anything here, for three reasons:
+
+1. **No rendering step.** Half of `[dotfiles]` is `mode = "template"` precisely
+   because `~/.ssh/config`, the kubeconfigs and `wg0.home.conf` must differ per
+   machine and come from fnox. `track` would sync the *rendered* bytes — i.e.
+   push Proton Pass secrets into a git history. (`history` has an `encrypt`
+   option; that is still the wrong shape.)
+2. **No `variants`.** Tracking variants select separate history *streams* at one
+   path and do not accept a `target` override, so they cannot do what
+   `variants = [{ os = "macos", target = ... }]` does.
+3. **Wrong bootstrap order.** A fresh machine would need the history remote and
+   its Git credentials *before* anything is provisioned — the same chicken-and-egg
+   the container's `secrets`/`fresh`/`protect` modes exist to avoid.
+
+`symlink` already gives the in-place editing that makes `track` attractive, and
+`git log` in this repo already gives the history. `track` entries *can* coexist
+with managed ones if some unmanaged file ever wants snapshots; nothing here does.
 
 ## The neko/xfce container (env `neko`)
 
@@ -330,28 +365,57 @@ modes (`secrets` / `fresh` / `protect`) so that a box with no session never rend
 secret-derived dotfiles empty over good copies. `[vars]` (gotcha #11) still works
 as a third source and still wins over fnox, which is what `mise.local.toml` is for.
 
-## Dotfile permissions: mise copies the SOURCE's mode
+## Dotfile permissions: state them with `permissions`, not a chmod hook
 
-It does **not** render 0755, which this file claimed for a long time. Verified on
-2026.9.1 and 2026.9.9: `mode = "template"` gives the target the source file's
-permissions, and a later apply *repairs* a changed target mode.
+Two facts, in order.
 
-    source 600 → rendered 600      source 644 → rendered 644
-    chmod 777 the target, re-apply → back to 600
+**mise copies the SOURCE's mode** (it does *not* render 0755, which this file
+claimed for a long time — verified 2026.9.1, 2026.9.9): `mode = "template"` gives
+the target the source file's permissions, and a later apply *repairs* a changed
+target mode. That is why the world-readable `~/.ssh/config` and `wg0.home.conf`
+were this repo's fault, not mise's: `home/ssh/config.tmpl`,
+`home/wireguard/wg0.home.conf.tmpl` and `home/git/config.tmpl` were committed
+**100755**. They are 100644 now, and `git ls-files -s | awk '$1!="100644"'` should
+only ever list the four real scripts (`install.sh`, `scripts/*`,
+`home/bin/neko-bootstrap`).
 
-The real cause of the world-readable `~/.ssh/config` and `wg0.home.conf` was this
-repo: `home/ssh/config.tmpl`, `home/wireguard/wg0.home.conf.tmpl` and
-`home/git/config.tmpl` were committed **100755**. They are 100644 now, and
-`git ls-files -s | awk '$1!="100644"'` should only ever list the four real scripts
-(`install.sh`, `scripts/*`, `home/bin/neko-bootstrap`).
+**But a source can never be committed 600** — git only records the executable bit,
+so a fresh clone gives 644 and 644 is what the target got. A
+`[bootstrap.hooks.post-dotfiles]` chmod loop used to repair that afterwards.
 
-`[bootstrap.hooks.post-dotfiles]` in `mise.toml` still chmods the credential
-dotfiles to 600 and their directories to 700, and still has to: **git only records
-the executable bit**, so a source cannot be committed 600 — a fresh clone gives
-644. The hook is what turns 644 into 600. It is a *hook* rather than a line in
-`[tasks.bootstrap]` because same-named hooks accumulate across configs, so one copy
-covers the Macs and the container; the tasks do not, since `mise.neko.toml`
-overrides the shared one. Add any new credential-bearing dotfile to that list.
+**`permissions` (mise 2026.9.13) replaced the hook.** An octal string on the entry
+states the target mode directly, independent of the source:
+
+```toml
+"~/.ssh/config" = { source = "home/ssh/config.tmpl", mode = "template", permissions = "0600" }
+"~/.ssh"        = { permissions = "0700" }   # permissions-only: no source, no content
+```
+
+Verified 2026-09-24 in a throwaway HOME:
+
+    source 644 + permissions "0600" → target 600
+    chmod 777 the target, re-apply    → back to 600
+    in between, `dotfiles status` says `differs (permissions differ)`
+
+Worth knowing:
+
+- Works on `template`, `copy` and inline `content`. **Not** on `symlink` /
+  `symlink-each` (a link has no mode of its own), not on `track`, not on a
+  directory source — mise rejects those combinations.
+- A **permissions-only** entry (no `source`, no `content`) manages the mode of a
+  path that already exists and **never creates it**. A missing target is a WARN,
+  and `status` counts it `applied (target absent; permissions not applied)`, so
+  `status --missing` does not fail — which is what makes `~/.kube` safe to declare
+  in the shared config even though the container has no such directory.
+- `variants` works on permissions-only entries too, and a variant that matches
+  nothing skips silently (no warning).
+- Because these are `[dotfiles]` entries in the shared `mise.toml`, they reach the
+  Macs *and* the container — configs merge; only same-named **tasks** override.
+  That is why the `chmod 700 ~/.ssh` lines are gone from both `[tasks.bootstrap]`
+  bodies as well as from the hook.
+
+Add any new credential-bearing dotfile as a `permissions = "0600"` entry, and add
+it to `[doctor.checks.credential-perms]`, which still checks the mode on disk.
 
 ## Kubeconfigs
 
