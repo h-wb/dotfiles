@@ -240,15 +240,16 @@ echo "[info] git credentials configured from GH_TOKEN"
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # Overrides mise.toml's `bootstrap` task — same-named tasks replace rather than
-# merge, so the shared body's ssh chmod is repeated here; only its /etc/resolver
-# block is dropped, which was macOS-only. Also pulls in the two fragments. `mise bootstrap` runs this at step 15,
-# after packages/dotfiles/tools, so xfconf can rely on everything else already
-# being in place.
+# merge, so anything the shared body does that matters here has to be repeated.
+# Right now nothing is: its /etc/resolver block is macOS-only, and its `chmod 700
+# ~/.ssh` moved into the shared [dotfiles] as a permissions-only entry, which DOES
+# reach this box (configs merge; only same-named tasks override). Also pulls in
+# the two fragments. `mise bootstrap` runs this at step 15, after
+# packages/dotfiles/tools, so xfconf can rely on everything else already being in
+# place.
 [tasks.bootstrap]
 depends = ["neko:xfce"]
 run = '''
-[ -d "$HOME/.ssh" ] && chmod 700 "$HOME/.ssh" || true
-
 # Login shell for `kubectl exec` shells. /etc/passwd is image state, so this is
 # re-applied every roll; the terminal emulator gets fish from terminalrc instead.
 FISH="$(command -v fish || true)"
