@@ -13,7 +13,7 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 - `mise.neko.toml` — env overlay for the **neko/xfce container** (Debian trixie, user
   `neko`, fish shell, XFCE). Active env there is `neko`. Companion fragments:
   `conf.d/xfce.neko.toml` (xfconf settings) and `conf.d/neko-apps.neko.toml` (GUI apps).
-- `conf.d/` — fragments merged into the global config: `macos-defaults.toml` + `settings.toml` (always load), `xfce.neko.toml` / `neko-apps.neko.toml` (env-scoped). Symlinked to `~/.config/mise/conf.d`.
+- `conf.d/` — fragments merged into the global config: `macos-defaults.toml` + `settings.toml` (always load), `xfce.neko.toml` / `neko-apps.neko.toml` / `k8s-dns.personal.toml` (env-scoped). Symlinked to `~/.config/mise/conf.d`. A fragment can hold **any** section — `[vars]`, `[dotfiles]`, `[bootstrap.*]`, `[tasks]` and `[doctor.checks]` all load from one (verified 2026-09-27), which is what lets a whole feature live in a single file.
 - `miserc.toml.example` → per-machine `~/.config/mise/miserc.toml` (untracked): picks active `env` + `env_conf_d`.
 - `mise.local.toml` (gitignored) — per-machine values, e.g. `[vars] git_email`.
 - `fnox.toml` — Proton Pass secret *references* only (no values). Safe to commit.
@@ -28,17 +28,27 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 ## Commands
 
 - `mise run apply` — installs everything. Runs `scripts/pass-preflight`, then
-  `fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes`.
-- `mise run diff` — same, `--dry-run` (changes nothing).
-- `mise doctor project` — runs the `[doctor.checks.*]` in `mise.toml` (+
-  `mise.neko.toml` on the container). Each check is an invariant this repo has
-  broken before: source files committed executable, a lockfile entry with no
-  checksum, credential dotfiles that are not 600, `~/.config/mise` not symlinked
-  here, a container whose autostart entry is missing or parked on `~/.neko-hold`.
+  `fnox --if-missing error exec -c fnox.toml -- mise bootstrap --skip files --yes`,
+  then `mise run dns:apply`. The two steps are not optional — see the k8s-gateway
+  DNS section for why `files` cannot run in its own phase here.
+- `mise run diff` — same, `--dry-run` (changes nothing). Unlike `apply` this task is
+  NOT overridden in `mise.neko.toml`, so it runs in the container too and must stay
+  free of macOS-only tasks and vars.
+- `mise doctor project` — runs the `[doctor.checks.*]` in `mise.toml`,
+  `conf.d/k8s-dns.personal.toml` and (on the container) `mise.neko.toml`. Each check
+  is an invariant this repo has broken before: source files committed executable, a
+  lockfile entry with no checksum, credential dotfiles that are not 600,
+  `~/.config/mise` not symlinked here, `/etc/resolver` disagreeing with the selected
+  cluster, a container whose autostart entry is missing or parked on `~/.neko-hold`.
   Fields are `description`/`run`/`hint`; mise rejects any other key. Add one
-  whenever you catch a regression by hand.
+  whenever you catch a regression by hand. A check's `run` is **not** templated
+  (unlike a task's), so anything needing `[vars]` has to be a task the check calls —
+  that is what `dns:check` is.
 - Both tasks set `dir = ~/.dotfiles` (see gotcha #3) and both refuse to run without
   secrets (see gotcha #12) — that guard is deliberate, don't drop it to "just apply".
+- `mise run dns:main` / `dns:edge` / `dns:status` — pick which cluster resolves the
+  internal zone. See the k8s-gateway DNS section below; `dns:apply` is the privileged
+  write that `apply` and `install.sh` call after the dotfiles step.
 
 ## mise gotchas that WILL bite you (learned the hard way)
 
@@ -246,8 +256,11 @@ mise's package managers were each checked against this box before settling on
   there because the filter did not exist.
 - **Same-named hooks ACCUMULATE across configs; same-named tasks OVERRIDE.** The
   container runs `mise.toml`'s macOS `pre-packages` hook *and* `mise.neko.toml`'s
-  (the first exits on `uname != Darwin`), but `mise.neko.toml`'s `[tasks.bootstrap]`
-  fully replaces the shared one.
+  (the first exits on `uname != Darwin`), while `mise.neko.toml`'s `[tasks.apply]`
+  fully replaces `mise.toml`'s. That override is load-bearing: it is what lets
+  `mise.toml`'s `apply` call the Mac-only `dns:apply`. `diff` has no such override,
+  so it must stay portable. (`bootstrap` used to be the example here; `mise.toml`
+  no longer defines one, so `mise.neko.toml`'s is now the only one in the repo.)
 - **Tasks defined in `conf.d/` fragments do load** and can be `depends`-ed on — but
   only through the global config dir (`~/.config/mise/conf.d`), which is why CI has to
   set up the symlink + miserc to test them.
@@ -282,6 +295,45 @@ mise's package managers were each checked against this box before settling on
   which only picks a target path. `home/git/config.tmpl` uses it to give the
   container `credential.helper = store` without putting plaintext credentials on
   the Macs.
+- **`[bootstrap.files]` is the ONLY way mise writes a root-owned path** (verified
+  2026-09-27). `[dotfiles]` applies as the invoking user and never sudos, so a
+  `/etc/resolver/...` target dies with `Permission denied`. `[bootstrap.files]` is
+  bootstrap **phase 3**, keyed by absolute path (a relative one is rejected:
+  "managed system path must be absolute"), and the whole field set is `content`,
+  `source`, `mode`, `owner`, `group`, `state` — **no `variants` and no `os`**, so
+  platform scoping has to come from which config the entry lives in.
+- **Neither the `[bootstrap.files]` key NOR its `content` is templated** (verified
+  2026-09-27) — a third instance of the gotcha #1/#2 asymmetry. `content =
+  "nameserver {{ vars.x }}"` writes those 29 bytes literally. `source` **does**
+  accept a `~`-relative path that honours `$HOME`, which is the escape hatch: render
+  a normal `[dotfiles]` template and point `source` at it, and secrets stay in fnox.
+- **A `[bootstrap.files]` entry with a missing `source` is fatal to the WHOLE
+  bootstrap** (verified 2026-09-27: exit 1, and the dotfiles phase *never ran*).
+  Since phase 3 precedes the phase-4 dotfiles that render such a source, a fresh
+  machine would abort before provisioning anything — the same failure shape that got
+  `[bootstrap.secrets]` rejected above. Hence `mise bootstrap --skip files` followed
+  by an explicit `mise bootstrap files apply`, in both `[tasks.apply]` and
+  `install.sh`.
+- **`MISE_ENV` is an additive LIST and env overlays merge last-wins** (verified
+  2026-09-27). `MISE_ENV=a,b` loads both overlays, and a same-path
+  `[bootstrap.files]` entry or same-named `[vars]` in the later one **overrides**
+  the earlier. So a toggle layered on top of a machine class is possible — but
+  order is literal, and `["b", "a"]` silently selects `a`'s value. That footgun is
+  why the DNS switch is a plain var and not an extra env; see that section.
+- **`[vars]` STRING overrides via `mise.<env>.toml` DO work** (verified 2026-09-27),
+  which narrows gotcha #11's warning: that caveat is specific to **booleans**.
+- **A `[doctor.checks.*]` `run` is NOT templated, but a `[tasks.*]` `run` IS**
+  (verified 2026-09-27: a check body received the literal `{{ vars.x }}`). So a
+  check that needs a `[vars]` value has to delegate to a task — the check becomes
+  one line, `run = "mise run dns:check"`.
+- **A task body is templated in full BEFORE any shell sees it — comments included.**
+  A `{{ ... }}` inside a `#` comment in a `run` script is still parsed by Tera and a
+  malformed one fails the whole task with "invalid task script template" (hit
+  2026-09-27 while writing a comment *about* Tera references). `mise tasks info
+  <task>` validates a body without running it, which is the cheap way to check.
+- **`[doctor.checks]`, `[tasks]`, `[vars]`, `[dotfiles]` and `[bootstrap.*]` all
+  load from a `conf.d/` fragment** (verified 2026-09-27), so a whole feature can be
+  one env-scoped file instead of being spread across the root configs.
 - **`--from` / `--adopt` do NOT replace `install.sh`** (evaluated 2026-09-15).
   `mise bootstrap --from <url>` clones a repo and bootstraps from its config, and
   `--adopt` adopts it as the global config. Neither writes the per-machine
@@ -411,11 +463,74 @@ Worth knowing:
   nothing skips silently (no warning).
 - Because these are `[dotfiles]` entries in the shared `mise.toml`, they reach the
   Macs *and* the container — configs merge; only same-named **tasks** override.
-  That is why the `chmod 700 ~/.ssh` lines are gone from both `[tasks.bootstrap]`
-  bodies as well as from the hook.
+  That is why the `chmod 700 ~/.ssh` lines are gone from the hook and from both
+  `[tasks.bootstrap]` bodies — one of which, `mise.toml`'s, no longer exists at all.
 
 Add any new credential-bearing dotfile as a `permissions = "0600"` entry, and add
 it to `[doctor.checks.credential-perms]`, which still checks the mode on disk.
+
+## k8s-gateway DNS: one zone, two clusters, pick one
+
+Both clusters run `k8s-gateway` **authoritative for the same zone** (`wlab.ovh`),
+with no `fallthrough` in either Corefile. So the cluster that answers first
+returns an authoritative NXDOMAIN for a route that only exists on the other, and
+mDNSResponder stops there. **A second `nameserver` line in `/etc/resolver/<zone>`
+buys nothing** — this is a switch, not a merge.
+
+```
+mise run dns:edge     mise run dns:main     mise run dns:status
+```
+
+**The whole feature is `conf.d/k8s-dns.personal.toml`** — `[vars]`, the
+`[dotfiles]` wiring, the `[bootstrap.files]` privileged write, five tasks and the
+doctor check — plus `home/k8s-dns/resolver.tmpl` and two `fnox.toml` lines.
+`.personal.toml` is the scope, because `/etc/resolver` is macOS-only and
+`[bootstrap.files]` accepts no `os` key; the env suffix is the only filter there
+is. Things worth knowing:
+
+- **The selection is a var with three sources**, lowest priority first: the
+  `"main"` default; `$K8S_DNS_CLUSTER` (ad-hoc, one command, and what CI drives);
+  and `[vars]` in the untracked `mise.local.toml`, written by `dns:select`. Local
+  outranks both (gotcha #11), which is what makes a switch survive
+  `mise run apply` — the old inline resolver step hardcoded one IP and silently
+  reverted every switch. An unknown cluster name falls back to main rather than
+  rendering empty.
+- **`dns:select` unsets `$K8S_DNS_CLUSTER` before re-rendering.** Otherwise the
+  render would pick the right IP from the environment even if the write to
+  `mise.local.toml` had failed — the switch would look like it worked and then
+  revert on the next apply.
+- **It is NOT an extra active env.** That was tried and works: `MISE_ENV` is an
+  additive list, so `env = ["personal", "edge"]` plus a `mise.edge.toml` overlay
+  switches the var. But it puts a per-moment toggle into the file that drives
+  config *discovery* (gotcha #5), spreads the feature over three more files, and
+  adds a footgun — `["edge", "personal"]` silently selects main, because last-wins
+  is literal. A plain var needed none of that.
+- **`source = "../home/..."`** on the `[dotfiles]` entry, because a fragment's
+  source resolves relative to `~/.config/mise/conf.d` (gotcha #2), not the repo.
+  Not a hack: `conf.d` is a symlink into the repo, so the kernel follows it and
+  `..` lands on the repo root. A bare `home/...` fails, and `~/...` is not expanded
+  for a `[dotfiles]` source at all.
+- **Four things cannot be templated, so they are literals that `dns:check`
+  asserts**: the `[bootstrap.files]` key and its `source`, checked against
+  `vars.k8s_dns_zone` and `vars.k8s_dns_source`. That is why the duplication is
+  safe — it cannot drift without failing `mise doctor project`.
+- **The zone is public, the IPs are not.** A `[bootstrap.files]` key cannot be
+  templated, so `wlab.ovh` had to be committed — but `source` points at a rendered
+  template, so both IPs stay fnox secrets (`K8S_GATEWAY_IP_MAIN` / `_EDGE`, two
+  fields on the one `k8s gateway` item).
+- **`--skip files` then `dns:apply`** — not a style choice. `[bootstrap.files]` is
+  phase 3 and the source it reads is rendered by `[dotfiles]` in phase 4, and a
+  missing source is fatal to the entire bootstrap, so a fresh Mac would abort
+  before provisioning anything. `apply` and `install.sh` both use the two-step;
+  `apply` can call the Mac-only `dns:apply` because `mise.neko.toml` overrides that
+  whole task.
+- **`dns:apply` refuses an empty source** (`[ -s ]`). The template renders 0 bytes
+  when the chosen cluster has no IP, and a nameserver-less resolver file would
+  break the zone as thoroughly as a wrong IP — the same silent-overwrite rule as
+  the rest of this repo, applied to `/etc/resolver`.
+
+Not a `[dotfiles]` entry: mise applies dotfiles as the invoking user and never
+sudos, so a `/etc/resolver` target fails with `Permission denied`.
 
 ## Kubeconfigs
 

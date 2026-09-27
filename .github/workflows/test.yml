@@ -42,6 +42,35 @@ jobs:
           # variant must still have selected it, so the file has to exist
           test -f "$HOME/.config/wireguard/wg0.home.conf"
 
+          # The k8s-gateway resolver source MUST render EXACTLY 0 bytes with no
+          # secrets. This regressed once: the template emitted a lone trailing
+          # newline, which is "non-empty", so a size test would have installed a
+          # resolver file with no nameserver line in it and broken the whole zone.
+          # (dns:apply now greps for the directive, but keep the template honest.)
+          test -f "$HOME/.config/k8s-dns/resolver"
+          test ! -s "$HOME/.config/k8s-dns/resolver"
+
+      # The DNS switch. k8s_dns_cluster picks which gateway IP the resolver source
+      # gets, and only one cluster can serve the zone at a time. Uses the
+      # $K8S_DNS_CLUSTER source (the default/ad-hoc one); the persistent source is
+      # mise.local.toml, which is untracked and therefore absent in CI.
+      - name: k8s-gateway DNS switch selects per cluster
+        run: |
+          export HOME="$(mktemp -d)"
+          export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
+          res="$HOME/.config/k8s-dns/resolver"
+          mise bootstrap dotfiles apply --yes                          # default
+          grep -qx 'nameserver 10.1.1.1' "$res"
+          K8S_DNS_CLUSTER=edge mise bootstrap dotfiles apply --yes
+          grep -qx 'nameserver 10.9.9.9' "$res"
+          K8S_DNS_CLUSTER=main mise bootstrap dotfiles apply --yes
+          grep -qx 'nameserver 10.1.1.1' "$res"
+          # an unknown cluster must fall back to main, never render empty
+          K8S_DNS_CLUSTER=typo mise bootstrap dotfiles apply --yes
+          grep -qx 'nameserver 10.1.1.1' "$res"
+          # exactly one line, no trailing blank: /etc/resolver takes one directive
+          test "$(wc -l <"$res")" -eq 1
+
   # The neko/xfce container config. Linux runner, `neko` env active: this catches
   # the things the macOS job cannot — a Linux-only [dotfiles] entry that fails to
   # render, an overlay that stops parsing, a task that disappears.

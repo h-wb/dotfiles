@@ -22,6 +22,14 @@
 [vars]
 git_email = "you@example.com"
 
+# Which cluster resolves the internal DNS zone. Written by `mise run dns:edge` /
+# `dns:main` rather than by hand — only one cluster can serve that zone at a time
+# (see conf.d/k8s-dns.personal.toml). Unset means "main". This is the one var here
+# that is a persistent CHOICE rather than a per-machine secret value: it lives in
+# this file because it must survive `mise run apply`, and mise.local.toml is the
+# one source that outranks both the default and $K8S_DNS_CLUSTER.
+# k8s_dns_cluster = "edge"
+
 # Consumed by home/ssh/config.tmpl — the Host block is skipped when unset.
 # ssh_truenas_host = "truenas.lan"
 # ssh_truenas_user = "you"
