@@ -17,6 +17,14 @@
 #     session start, which is what makes a fresh container reprovision itself.
 #     That is the launchd-agent equivalent for this box.
 
+# The apt step needs 2026.9.15+: that is the release where mise simulates the
+# install and runs `apt-get update` itself when the image's empty package lists
+# make it fail, which replaced our own pre-packages hook. mise sits on the PVC
+# and auto_update skips the non-interactive session-start run, so the binary
+# here can lag; this turns that into a clear error (`mise self-update` still
+# runs under it) instead of "has no installation candidate" on every pod start.
+min_version = { hard = "2026.9.15" }
+
 # ── Tools, including the GUI apps ───────────────────────────────────────────
 # The GUI apps are ordinary [tools] entries: mise picks the asset for the
 # architecture, downloads, verifies, extracts, records a checksum in mise.neko.lock
@@ -119,15 +127,9 @@ TZ = "America/New_York"
 "apt:libdbus-glib-1-2" = "latest" # Zen (Gecko)
 
 # The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
-# NOTE: hooks with the same name in different configs ACCUMULATE, they do not
-# override — mise.toml's pre-packages hook still runs here, right before this
-# one. That is fine (it exits immediately on non-Darwin), but it is the opposite
-# of how [tasks.bootstrap] below behaves, which does override.
-[bootstrap.hooks.pre-packages]
-run = '''
-[ "$(uname)" = "Linux" ] || exit 0
-sudo apt-get update -qq
-'''
+# No pre-packages `apt-get update` hook for that any more: since 2026.9.15 mise
+# simulates the install first and refreshes the lists once when it fails (see
+# min_version at the top).
 
 # ── Dotfiles ────────────────────────────────────────────────────────────────
 # On top of the shared set in mise.toml — which is now only the four entries that

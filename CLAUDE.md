@@ -255,8 +255,11 @@ mise's package managers were each checked against this box before settling on
   a `[dotfiles]` section — BetterTouchTool and wg0.home.conf were only exiled
   there because the filter did not exist.
 - **Same-named hooks ACCUMULATE across configs; same-named tasks OVERRIDE.** The
-  container runs `mise.toml`'s macOS `pre-packages` hook *and* `mise.neko.toml`'s
-  (the first exits on `uname != Darwin`), while `mise.neko.toml`'s `[tasks.apply]`
+  container used to run `mise.toml`'s macOS `pre-packages` hook *and*
+  `mise.neko.toml`'s `apt-get update` one (the first exits on `uname != Darwin`;
+  the second is gone — since 2026.9.15 mise refreshes apt lists itself when an
+  install simulation fails, and `mise.neko.toml` now sets `min_version` to match),
+  while `mise.neko.toml`'s `[tasks.apply]`
   fully replaces `mise.toml`'s. That override is load-bearing: it is what lets
   `mise.toml`'s `apply` call the Mac-only `dns:apply`. `diff` has no such override,
   so it must stay portable. (`bootstrap` used to be the example here; `mise.toml`
