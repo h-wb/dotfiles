@@ -3,5 +3,5 @@
 miserc.local.toml
 *.local.toml
 !*.local.toml.example
-# Leftovers of the pre-wire layout (scripts/wire renames it on first run).
+# The pre-2026-10 name of config.local.toml (neko-bootstrap renames it).
 mise.local.toml

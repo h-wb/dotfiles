@@ -14,5 +14,10 @@ env_conf_d = true
 # 2027.6.0). This is what replaced `os = "macos"` on every brew entry.
 auto_env = true
 
-# The machine class (personal / neko / cachyos) is NOT here: it lives in the
-# untracked miserc.local.toml next to this file, written by scripts/wire.
+# The machine class. miserc can only see the OS (no read_file, no exec), but
+# path tests work: /etc/neko is baked into the neko image, the cachyos
+# mirrorlist ships with CachyOS, and any Mac is the MacBook for now. An
+# unrecognised machine gets no class (shared + platform config only — the
+# doctor `wiring` check flags it); pin one in an untracked miserc.local.toml,
+# which overrides this: env = ["personal"].
+env = ["{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif os() == 'macos' %}personal{% endif %}"]

@@ -1,5 +1,5 @@
 # The repo's shell scripts: install.sh plus the extensionless ones under
 # scripts/ and conf.d/*/bin/, which a bare [*.sh] glob would miss.
-[{*.sh,install.sh,pass-preflight,wire,neko-bootstrap}]
+[{*.sh,install.sh,pass-preflight,neko-bootstrap}]
 indent_size = 4
 space_redirects = true

@@ -1,8 +1,9 @@
 # Shared mise config — every machine loads this.
 #
-# This repo IS mise's config dir: install.sh makes ~/.config/mise a symlink to
-# ~/.dotfiles, so mise reads these files under their native names and every
-# relative path resolves inside the repo. What else loads, and when:
+# This repo IS mise's config dir: ~/.config/mise is a symlink to ~/.dotfiles
+# (the first [dotfiles] entry below), so mise reads these files under their
+# native names and every relative path resolves inside the repo. What else
+# loads, and when:
 #
 #   config.macos.toml        auto_env — any Mac (brew, zsh, launchd, ssh agent)
 #   config.personal.toml     env personal — the MacBook's own packages
@@ -10,9 +11,9 @@
 #                            for its env or platform (macos, linux, neko, ...)
 #   config.local.toml        untracked per-machine values (wins over everything)
 #
-# miserc.toml (committed) turns on env_conf_d + auto_env; miserc.local.toml
-# (untracked, written by install.sh) picks the machine class: personal, neko or
-# cachyos.
+# miserc.toml (committed) turns on env_conf_d + auto_env and detects the
+# machine class — personal, neko or cachyos; an untracked miserc.local.toml
+# can override it.
 
 # The newest feature this layout leans on is a global miserc.local.toml
 # (2026.9.17); folder fragments are 2026.9.14, folder tasks running in their
@@ -80,6 +81,12 @@ dfa = "mise run apply"
 # their own next to them. `permissions` states a target's mode outright — git
 # only records the executable bit, so a source can never be committed 0600.
 [dotfiles]
+# mise's own config dir, self-managed. The first run cannot go through a link
+# that does not exist yet, so install.sh and neko-bootstrap point mise at the
+# checkout with MISE_CONFIG_DIR=~/.dotfiles; from then on this keeps it. The
+# source must be the absolute checkout path: relative would resolve through
+# the link itself.
+"~/.config/mise"       = { source = "~/.dotfiles", mode = "symlink" }
 "~/.config/git/config" = { source = "home/git/config.tmpl", mode = "template" }
 "~/.ssh/config"        = { source = "home/ssh/config.tmpl", mode = "template", permissions = "0600" }
 "~/.kube/main.yaml"    = { source = "home/kube/main.yaml.tmpl", mode = "template", permissions = "0600" }
@@ -122,12 +129,12 @@ fnox --if-missing error exec -c fnox.toml -- mise bootstrap --dry-run
 # is) — a check that needs [vars] delegates to a task.
 [doctor.checks.wiring]
 description = "~/.config/mise is this repo and a machine class is selected"
-hint = "run scripts/wire (or install.sh) — without it no env overlay or conf.d folder loads"
+hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; unknown machine: env = [...] in ~/.dotfiles/miserc.local.toml"
 run = '''
 [ -L "$HOME/.config/mise" ] && git -C "$HOME/.config/mise" rev-parse --git-dir >/dev/null 2>&1 \
 	|| { echo "~/.config/mise is not a symlink to the dotfiles checkout"; exit 1; }
-grep -qE '^env *= *\[ *"' "$HOME/.config/mise/miserc.local.toml" 2>/dev/null \
-	|| { echo "no env in ~/.config/mise/miserc.local.toml — no machine class selected"; exit 1; }
+mise config 2>/dev/null | grep -qE '(config|mise)\.(personal|neko|cachyos)\.toml' \
+	|| { echo "no machine class active — miserc.toml did not recognise this machine"; exit 1; }
 '''
 
 [doctor.checks.file-modes]

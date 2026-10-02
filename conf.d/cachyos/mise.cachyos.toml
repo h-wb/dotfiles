@@ -1,5 +1,5 @@
-# The CachyOS desktop (machine class `cachyos`; scripts/wire picks it from
-# /etc/os-release). Config and every source it uses live in this folder.
+# The CachyOS desktop (machine class `cachyos`; miserc.toml detects it from
+# /etc/pacman.d/cachyos-mirrorlist). Config and every source it uses live in this folder.
 #
 # Target: CachyOS (Arch) on KDE Plasma, user `hugo`, fish shell, NVIDIA RTX 2080 Ti,
 # a Dell on DP-1 and a BenQ projector on HDMI-A-1. A real machine with systemd —
