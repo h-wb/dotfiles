@@ -1,0 +1,65 @@
+# Every Mac — loaded by auto_env (platform environment `macos`), whatever the
+# machine class. Nothing in here needs an `os = "macos"` filter or a dotfiles
+# `variants` list any more: the file only exists for mise on macOS.
+# zsh, the defaults and the Zen history agent are folder fragments in conf.d/.
+
+[tools]
+"github:nikolaeu/numi" = "latest"
+
+[env]
+# Served by the Proton Pass ssh-agent LaunchAgent below.
+SSH_AUTH_SOCK = "{{ env.HOME }}/.ssh/proton-pass-agent.sock"
+
+[shell_alias]
+library = "cd {{ env.HOME }}/Library"
+ez = "exec zsh"
+
+# Rosetta + Homebrew before the packages step (Homebrew also pulls in the
+# Command Line Tools). Idempotent.
+[bootstrap.hooks.pre-packages]
+run = '''
+if [ "$(uname -m)" = "arm64" ] && [ ! -f /Library/Apple/usr/share/rosetta/rosetta ]; then
+  softwareupdate --install-rosetta --agree-to-license
+fi
+if ! command -v brew >/dev/null 2>&1; then
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+if [ "$(uname -m)" = "arm64" ] && ! grep -q "/opt/homebrew/bin" /etc/paths 2>/dev/null; then
+  printf '%s\n' "/opt/homebrew/bin" "$(cat /etc/paths)" | sudo tee /etc/paths >/dev/null
+fi
+'''
+
+[bootstrap.packages]
+"brew-cask:zen" = "latest"
+"brew-cask:alt-tab" = "latest"             # windows-style alt-tab switcher
+"brew-cask:anki" = "latest"                # flashcards
+"brew-cask:betterdisplay" = "latest"       # display management
+"brew-cask:bettertouchtool" = "latest"
+"brew-cask:ghostty" = "latest"             # terminal
+"brew-cask:obsidian" = "latest"
+"brew-cask:orbstack" = "latest"            # Docker / Linux VMs
+"brew-cask:plexamp" = "latest"
+"brew-cask:raycast" = "latest"             # launcher (takes Cmd-Space, see macos-defaults)
+"brew-cask:spotify" = "latest"
+"brew-cask:utm" = "latest"
+"brew-cask:visual-studio-code" = "latest"
+
+[dotfiles]
+# Secret-gated: renders empty without vars.wg0_home_conf (fnox).
+"~/.config/wireguard/wg0.home.conf" = { source = "home/wireguard/wg0.home.conf.tmpl", mode = "template", permissions = "0600" }
+"~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "home/Library/Application Support/BetterTouchTool/Default.bttpreset", mode = "symlink" }
+
+[vars]
+wg0_home_conf = "{{ get_env(name='WG0_HOME_CONF', default='') }}"
+
+# The Proton Pass ssh-agent. mise forces the plist label dev.mise.<key> and
+# rejects Label/EnvironmentVariables/Standard*Path, so env and logging are folded
+# into the sh -c string. launchd's PATH has no mise shims, hence `mise which`.
+[bootstrap.macos.launchd.agents.pass-cli-ssh-agent]
+program = "/bin/sh"
+args = [
+  "-c",
+  "exec env PASS_LOG_LEVEL=error \"$(\"$HOME/.local/bin/mise\" which pass-cli)\" ssh-agent start --socket-path \"$HOME/.ssh/proton-pass-agent.sock\" >> \"$HOME/.ssh/proton-pass-agent.log\" 2>&1",
+]
+run_at_load = true
+keep_alive = true

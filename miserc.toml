@@ -1,0 +1,18 @@
+# Early-init mise settings, shared by every machine. ~/.config/mise is this
+# repo, so mise reads this file as its global miserc.toml.
+#
+# These drive config DISCOVERY — which files load at all — so they can only be
+# set here or in the environment; mise.toml/config.toml is read too late.
+
+# A single-file conf.d/<name>.<env>.toml loads only for <env> (default from
+# 2027.8.10). Every fragment here is a folder, which is env-aware regardless;
+# this just keeps a future single-file one from loading everywhere.
+env_conf_d = true
+
+# Platform environments: config.macos.toml, conf.d/*/mise.linux.toml and their
+# lockfiles (mise.macos.lock, ...) load automatically by OS (default from
+# 2027.6.0). This is what replaced `os = "macos"` on every brew entry.
+auto_env = true
+
+# The machine class (personal / neko / cachyos) is NOT here: it lives in the
+# untracked miserc.local.toml next to this file, written by scripts/wire.

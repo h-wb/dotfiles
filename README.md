@@ -8,129 +8,95 @@
 
 ## Overview
 
-Dotfiles and full machine setup managed entirely by [mise](https://mise.jdx.dev)
-— packages (Homebrew formulae/casks + Mac App Store), macOS defaults, LaunchAgents,
-tools, and dotfiles — with secrets injected by [fnox](https://github.com/jdx/fnox)
-from Proton Pass. No chezmoi.
+Dotfiles and full machine setup managed entirely by [mise](https://mise.jdx.dev):
+packages (Homebrew, Mac App Store, pacman, apt, flatpak), macOS defaults,
+LaunchAgents, services, firewall, tools and dotfiles, with secrets injected by
+[fnox](https://github.com/jdx/fnox) from Proton Pass.
 
-- **`mise.toml`** — the single config: `[vars]`, `[tools]`, `[env]`, `[bootstrap.*]`, `[dotfiles]`, `[tasks]`.
-- **`conf.d/`** — split-out fragments merged into the global config: `macos-defaults.toml`, `settings.toml` (always loaded), and env-scoped ones like `xfce.neko.toml` (loaded only when that env is active).
-- **`mise.personal.toml`** — env overlay, loaded when `personal` is an active env.
-- **`mise.neko.toml`** — env overlay for the neko/xfce container (Debian, fish, XFCE); see below.
-- **`mise.cachyos.toml`** — env overlay for the CachyOS KDE gaming desktop (pacman, flatpak, ufw, gamescope); KDE settings in `conf.d/kde.cachyos.toml`.
-- **`miserc.toml.example`** — template for the per-machine `~/.config/mise/miserc.toml` (which env(s) are active + `env_conf_d`); see below.
-- **`fnox.toml`** — Proton Pass secret references (no secret values).
-- **`mise.local.toml`** — untracked per-machine values; see *Where values come from* below.
-- **`home/`** — dotfile sources (symlinked, or `.tmpl` rendered via Tera).
+**This repo is mise's config directory.** `~/.config/mise` is a symlink to
+`~/.dotfiles`, so mise reads every file here under its native name:
 
-### Environments
-
-Which overlays load is decided per machine by `~/.config/mise/miserc.toml` (untracked, copied from `miserc.toml.example` by `install.sh`):
-
-```toml
-env = ["personal"]   # loads mise.personal.toml + conf.d/*.personal.toml
-env_conf_d = true    # enable env-scoped conf.d/<name>.<env>.toml filenames
+```
+config.toml              every machine: tools, env, vars, shell aliases, tasks, doctor checks
+config.macos.toml        every Mac (loaded by platform): brew casks, ssh agent, wireguard
+config.personal.toml     the MacBook's own packages
+miserc.toml              shared early-init settings (env_conf_d, auto_env)
+conf.d/
+  zsh/                   zsh + z4h + p10k (Macs)
+  macos-defaults/        `defaults write`, declaratively (Macs)
+  k8s-dns/               pick which cluster resolves the internal zone (MacBook)
+  zen-history/           Zen history snapshots → Nextcloud (MacBook)
+  neko/                  the neko/xfce container, whole
+  cachyos/               the CachyOS gaming desktop, whole
+home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
+fnox.toml                Proton Pass secret references (no values)
+scripts/                 wire (the symlink + machine class), pass-preflight
 ```
 
-Machines in use: `["personal"]` on the MacBook, `["neko"]` in the neko container, `["cachyos"]` on the CachyOS desktop.
+Each `conf.d/` folder holds its own config and the files it uses; inside it,
+`mise.<env>.toml` loads only for that machine class or platform.
 
-`miserc.toml` must live at `~/.config/mise/` (not in `mise.toml`) because it controls config *discovery*, which runs before `mise.toml` is read. To scope something to this machine class, name its fragment `conf.d/<name>.personal.toml`; plain `conf.d/<name>.toml` always loads.
+### Machines
 
-## Set up a new Mac
+| class | machine | selected by |
+| --- | --- | --- |
+| `personal` | the MacBook | `miserc.local.toml` |
+| `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | auto (`/etc/neko`) |
+| `cachyos` | CachyOS KDE gaming desktop | auto (`/etc/os-release`) |
 
-1. Sign in to iCloud and the App Store.
-2. Run `sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"`
+The class lives in the untracked `miserc.local.toml`, written by `scripts/wire`.
+Platform files (`*.macos.toml`, `*.linux.toml`) load on their own.
 
-This installs mise, clones the repo to `~/.dotfiles`, symlinks its `mise.toml`
-as the global mise config, and runs `mise bootstrap` under fnox.
-
-## The neko/xfce container
-
-A browser-accessible XFCE desktop ([neko](https://github.com/m1k1o/neko),
-`ghcr.io/m1k1o/neko/xfce`) running in k8s. Same repo, same `install.sh`, `env = ["neko"]`
-— but the box is shaped differently, and the config follows that shape:
-
-| macOS | neko container |
-| --- | --- |
-| Homebrew casks | `[tools]` entries under `~/.local/share/mise` (`mise.neko.toml`) |
-| `defaults write` | `xfconf-query` (`conf.d/xfce.neko.toml`) |
-| LaunchAgents | `~/.config/autostart/mise-bootstrap.desktop` → `home/bin/neko-bootstrap` |
-| zsh + z4h + p10k | fish + starship (`home/fish/`, `home/starship.toml`) |
-
-**Only `/home/neko` is persisted** (a PVC); `/usr` and `/etc` come from the image and
-are wiped on every pod roll. Do *not* mount volumes over those — an empty volume over
-`/usr` leaves the container with no binaries, and it freezes a stale copy of the image.
-Instead: everything durable lives in `$HOME` (mise itself, all `[tools]`, dotfiles, the
-GUI apps), and the small apt list is reinstalled automatically at each
-session start by the autostart entry. If that list ever grows expensive, bake a derived
-image (`FROM ghcr.io/m1k1o/neko/xfce`) rather than persisting more paths.
-
-There is no systemd and no launchd in that container (supervisord is pid 1), so
-`[bootstrap.linux.systemd.units]` is not usable there — hence the autostart entry.
+## Set up a machine
 
 ```sh
-# first run, inside the container's terminal
 sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"
-tail -f ~/.local/state/neko-bootstrap.log   # what the autostart run did
 ```
 
-### Adding a GUI app
-
-Homebrew is not usable for this — on Linux `brew-cask` handles font casks only, and
-mise's brew prefix (`/home/linuxbrew/.linuxbrew`) isn't on the PVC. So the apps are
-ordinary `[tools]` entries in `mise.neko.toml`, installed into
-`~/.local/share/mise` (which *is* on the PVC):
-
-```toml
-# a GitHub release archive
-"github:zen-browser/desktop" = { version = "latest", extract_all = true, exe = "zen", os = "linux" }
-
-# a vendor URL, pinned
-[tools."http:obsidian"]
-os = "linux"
-version = "1.13.7"
-strip_components = 1
-[tools."http:obsidian".platforms]
-linux-x64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7.tar.gz" }
-linux-arm64 = { url = "https://github.com/obsidianmd/.../obsidian-1.13.7-arm64.tar.gz" }
-```
-
-mise handles the architecture, download, extraction, checksum and PATH shim. For a
-menu entry, drop a `.desktop` file in `home/xfce/applications/` and add its
-`[dotfiles]` line in the same file — its `Exec` points at the mise shim, which
-does not change when the version does. `http:` versions are pinned by hand (bump
-the version, both URLs, then `mise lock`); `github:` ones track latest.
-
-### Where values come from
-
-Templated dotfiles read `{{ vars.x }}` and never name a source. `mise.toml`
-defaults every such var to `get_env(...)`, so there are three interchangeable
-ways to supply one:
-
-| source | used by |
-| --- | --- |
-| `fnox exec` injecting ProtonPass secrets as env vars | the Macs |
-| an untracked `mise.local.toml` `[vars]` (highest precedence) | any machine without fnox |
-| a real env var from the environment (e.g. k8s `envFrom`) | the neko container |
-
-Nothing set renders empty, and the templates gate their blocks on that, so a
-machine that supplies only some values still gets a valid file. The neko container
-runs fnox and pass-cli too — `PROTON_PASS_KEY_PROVIDER=fs` sidesteps the kernel
-keyring its seccomp profile blocks, and `PASS_CLI_PAT` logs in without a TTY.
+On a Mac, sign in to iCloud and the App Store first. The installer installs mise,
+clones to `~/.dotfiles`, wires `~/.config/mise`, and runs `mise bootstrap` under
+fnox. Override the detected class with `DOTFILES_ENV=personal|neko|cachyos`.
 
 ## Everyday use
 
 ```sh
-mise run diff     # preview what bootstrap would change
-mise run apply    # apply everything (packages, macOS, dotfiles, tools) with secrets via fnox
+mise run diff           # preview what apply would change
+mise run apply          # provision everything, with secrets
+mise doctor project     # the repo's invariants (wiring, lockfiles, file modes, ...)
+mise run dns:edge       # (MacBook) resolve the internal zone via the edge cluster
 ```
 
-Bare `mise bootstrap` works on a machine without secrets (secret-guarded dotfiles
-render empty). Per-machine overrides go in an untracked `mise.local.toml`.
+Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by
+`mise activate` in zsh and fish alike.
 
-## Security & Privacy System Preferences
+### Where values come from
 
-Grant permissions to these apps:
+Templates read `{{ vars.x }}` and never name a source. `config.toml` defaults
+each var to the environment, so a value can come from:
+
+| source | used by |
+| --- | --- |
+| `fnox exec` injecting Proton Pass secrets | every machine (`mise run apply`) |
+| an untracked `config.local.toml` `[vars]` (highest precedence) | a machine that prefers a literal |
+| a real env var (e.g. k8s `envFrom`) | the neko container |
+
+A var with no source renders empty and the templates skip their block, so a
+partial set still produces valid files. The k8s-dns resolver is the exception:
+it reads its IPs as bootstrap secrets, which abort the run instead.
+
+## The neko/xfce container
+
+Only `/home/neko` is persisted (a PVC); `/usr` and `/etc` are wiped on every pod
+roll, and there is no systemd or launchd. So GUI apps are mise `[tools]` (on the
+PVC), the apt list is tiny and reinstalled per start, and
+`~/.config/autostart/mise-bootstrap.desktop` → `conf.d/neko/bin/neko-bootstrap`
+re-provisions the desktop at every session start (`touch ~/.neko-hold` to pause
+it; log at `~/.local/state/neko-bootstrap.log`).
+
+To add a GUI app: a `[tools]` entry in `conf.d/neko/mise.neko.toml`, plus a
+`.desktop` file in `conf.d/neko/xfce/applications/` and its `[dotfiles]` line.
+
+## macOS permissions to grant by hand
 
 - **Full Disk Access:** iTerm
 - **Screen Recording:** AltTab

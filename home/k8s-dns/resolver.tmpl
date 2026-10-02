@@ -1,8 +1,0 @@
-{#- Which cluster resolves the internal zone. One var picks it, two hold the
-    addresses; all three are declared in conf.d/k8s-dns.personal.toml. Renders to
-    NOTHING AT ALL when the chosen cluster has no IP (no fnox session) — note the
-    `-%}` on the last tag, which trims the file's own trailing newline so the empty
-    case is 0 bytes and not 1. `dns:apply` greps for the nameserver line rather
-    than trusting a size test, but keep this exact. -#}
-{% if vars.k8s_dns_cluster == "edge" %}{% set ip = vars.k8s_gateway_ip_edge %}{% else %}{% set ip = vars.k8s_gateway_ip_main %}{% endif %}{% if ip %}nameserver {{ ip }}
-{% endif -%}

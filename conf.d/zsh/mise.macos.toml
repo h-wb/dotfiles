@@ -1,0 +1,9 @@
+# zsh + z4h + p10k — the Macs' shell. (Linux boxes run fish; each machine
+# class's folder brings its own config.) Sources resolve inside this folder.
+# Aliases are not here: they are [shell_alias] in the root configs, which
+# `mise activate zsh` sets.
+[dotfiles]
+"~/.zshrc"      = { source = "zshrc", mode = "symlink" }
+"~/.zshenv"     = { source = "zshenv", mode = "symlink" }
+"~/.p10k.zsh"   = { source = "p10k.zsh", mode = "symlink" }
+"~/.config/zsh" = { source = "config", mode = "symlink" }   # exports.zsh + completions/

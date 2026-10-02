@@ -3,8 +3,9 @@
 #
 # Secrets are injected as environment variables by running mise bootstrap under
 # fnox: `fnox exec -c fnox.toml -- mise bootstrap` (see the `apply` task /
-# install.sh). Templated dotfiles read them with {{ get_env(name="NAME") }} and
-# skip their block when the secret is absent.
+# install.sh). Templates read them through [vars] (get_env) and skip their
+# block when one is absent; conf.d/k8s-dns reads its two as bootstrap secrets,
+# which fail the bootstrap instead.
 #
 # Auth is handled by fnox via the Proton Pass CLI (pass-cli) — the same session
 # the ssh-agent LaunchAgent keeps alive. First use triggers `pass-cli login`.
@@ -17,23 +18,21 @@ vault = "Dev"
 SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://Dev/Truenas/host" }
 SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://Dev/Truenas/username" }
 WG0_HOME_CONF    = { provider = "protonpass", value = "pass://Dev/wg0.conf/note" }
-# One k8s-gateway IP per cluster. conf.d/k8s-dns.personal.toml declares both as
-# [vars] and its template picks one by `k8s_dns_cluster` — only one cluster can
-# resolve the internal zone at a time. These stay secrets because they are internal
-# addresses and this repo is public; the ZONE does not, because a [bootstrap.files]
-# key cannot be templated and so had to become a literal there. (K8S_GATEWAY_HOST
-# is gone with the inline resolver step that used it.)
+# One k8s-gateway IP per cluster. conf.d/k8s-dns declares both as bootstrap
+# secrets and its resolver template picks one by `k8s_dns_cluster` — only one
+# cluster can resolve the internal zone at a time. Secrets because they are
+# internal addresses and this repo is public.
 K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
 K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address edge" }
 
 # One whole kubeconfig per cluster, kept as custom fields on a single item.
-# kubectl merges them through the KUBECONFIG list (see [env] in mise.toml), which
+# kubectl merges them through the KUBECONFIG list (see [env] in config.toml), which
 # is why they stay two files rather than being merged into ~/.kube/config.
 KUBECONFIG_MAIN  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/main" }
 KUBECONFIG_EDGE  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/edge" }
 
 # GIT_EMAIL feeds vars.git_email, so a machine without an untracked
-# mise.local.toml still commits with the right author. GH_TOKEN authenticates git
+# config.local.toml still commits with the right author. GH_TOKEN authenticates git
 # over HTTPS (all the remotes are HTTPS) and `gh`; on macOS the keychain already
 # does that, so it is only really needed in the container.
 GIT_EMAIL        = { provider = "protonpass", value = "pass://Dev/GitHub/email" }
