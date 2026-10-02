@@ -187,9 +187,12 @@ k() { kwriteconfig6 "$@" || echo "[warn] kwriteconfig6 $*"; }
 
 # ── Keyboard ───────────────────────────────────────────────────────────────
 # The Mac modifier layout comes from xremap (xremap/config.yml). The XKB swap
-# that used to do it must go, or the two remaps stack. Takes effect at login.
+# that used to do it must go, or the two remaps stack.
 k --file kxkbrc --group Layout --key Options ""
 k --file kxkbrc --group Layout --key ResetOldOptions true
+# Same signal the keyboard KCM sends, so the running session drops the old swap
+# now instead of stacking it on xremap until the next login.
+dbus-send --session --type=signal /Layouts org.kde.keyboard.reloadConfig 2>/dev/null || true
 
 # Cmd+Tab / Cmd+` must be a held modifier to keep the switcher open, which a
 # remap cannot fake — so Command (which sends Ctrl) is added to KWin's own
