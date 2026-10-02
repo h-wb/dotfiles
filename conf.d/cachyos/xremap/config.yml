@@ -1,0 +1,146 @@
+# macOS keyboard behaviour on the Rainy 75 (KDE Plasma, Wayland) — xremap.
+#
+# The bottom-left row reads Ctrl · Win · Alt. They act as a Mac's
+# Control · Option · Command, by position:
+#
+#   physical   Mac role   sends (GUI apps)   sends (terminals)
+#   Ctrl       Control    Super              Ctrl     <- ^C, ^D, ^R stay real
+#   Win        Option     Alt                Alt
+#   Alt        Command    Ctrl               Super    <- mapped to Ctrl+Shift+…
+#
+# Command sending Ctrl is what makes Cmd+C/V/X/Z/A/T/W/N/Q/F/L/S/P work in every
+# Linux app with no remap at all. Only Mac idioms Linux spells differently are
+# translated below. In terminals Ctrl must stay Ctrl, so Command becomes Super
+# there and gets the terminal's Ctrl+Shift shortcuts — like Terminal.app.
+#
+# Modmaps run first; keymaps then match on what the modmap produced, so below
+# "C-" means Command in GUI apps and "Super-" means Command in terminals.
+# Application names are KWin's resourceClass (list them with a KWin script, see
+# CLAUDE.md). Within each section the first matching entry wins, so
+# app-specific entries come before the general ones.
+#
+# Paired with conf.d/cachyos's cachyos:kde task, which: drops the old XKB
+# modifier swap (this replaces it), adds Ctrl+Tab / Ctrl+` to KWin's window
+# switchers (a held Cmd+Tab needs a real held modifier, which a remap cannot
+# fake), and stops a lone Super tap from opening the launcher.
+
+modmap:
+  - name: terminals — Control stays Control, Command is Super
+    application:
+      only: [org.kde.konsole, Alacritty, kitty, com.mitchellh.ghostty, org.wezfurlong.wezterm]
+    remap:
+      Alt_L: Super_L
+      Super_L: Alt_L
+      Alt_R: Super_R
+      Ctrl_R: Alt_R
+
+  - name: everything else — Command is Ctrl
+    application:
+      # Steam games keep a plain PC layout (Ctrl to crouch, etc.).
+      not: [org.kde.konsole, Alacritty, kitty, com.mitchellh.ghostty, org.wezfurlong.wezterm, /^steam_app_/, gamescope]
+    remap:
+      Alt_L: Ctrl_L
+      Super_L: Alt_L
+      Ctrl_L: Super_L
+      Alt_R: Ctrl_R
+      Ctrl_R: Alt_R
+
+keymap:
+  # ── Terminals (Command = Super, Option = Alt, Control = Ctrl) ─────────────
+  - name: terminal
+    application:
+      only: [org.kde.konsole, Alacritty, kitty, com.mitchellh.ghostty, org.wezfurlong.wezterm]
+    remap:
+      Super-c: C-Shift-c
+      Super-v: C-Shift-v
+      Super-a: C-Shift-a
+      Super-f: C-Shift-f
+      Super-t: C-Shift-t
+      Super-n: C-Shift-n
+      Super-w: C-Shift-w
+      Super-q: C-Shift-q
+      Super-k: C-Shift-k                        # clear scrollback (Konsole)
+      Super-Comma: C-Shift-Comma                # preferences
+      Super-Equal: C-Shift-Equal                # zoom in
+      Super-Minus: C-Minus                      # zoom out
+      Super-Shift-LeftBrace: Shift-Left         # previous tab (Konsole)
+      Super-Shift-RightBrace: Shift-Right       # next tab (Konsole)
+      Super-Left: Home                          # line start
+      Super-Right: End                          # line end
+      Super-Backspace: C-u                      # delete to line start
+      Alt-Left: Alt-b                           # word back
+      Alt-Right: Alt-f                          # word forward
+      Super-space: Alt-space                    # KRunner (Spotlight)
+      # Super-Tab is left alone: KWin's switcher already listens on Meta+Tab.
+
+  # ── Dolphin (Finder) ──────────────────────────────────────────────────────
+  - name: dolphin
+    application:
+      only: [org.kde.dolphin]
+    remap:
+      C-Backspace: Delete                       # move to Trash
+      C-Up: Alt-Up                              # enclosing folder
+      C-Down: Enter                             # open
+      C-LeftBrace: Alt-Left                     # back
+      C-RightBrace: Alt-Right                   # forward
+      C-Shift-Dot: Alt-Dot                      # show hidden files
+      C-Shift-n: F10                            # new folder
+      C-Shift-g: C-l                            # go to folder
+      C-i: Alt-Enter                            # get info
+
+  # ── Browsers ──────────────────────────────────────────────────────────────
+  - name: browsers
+    application:
+      only: [zen, firefox, chromium, google-chrome, brave-browser]
+    remap:
+      C-LeftBrace: Alt-Left                     # back
+      C-RightBrace: Alt-Right                   # forward
+      C-Alt-Left: C-PageUp                      # previous tab
+      C-Alt-Right: C-PageDown                   # next tab
+      C-Alt-i: C-Shift-i                        # developer tools
+      C-y: C-h                                  # history
+
+  # ── Everything else (Command = Ctrl, Option = Alt, Control = Super) ──────
+  - name: macos text editing and system shortcuts
+    application:
+      not: [org.kde.konsole, Alacritty, kitty, com.mitchellh.ghostty, org.wezfurlong.wezterm, /^steam_app_/, gamescope]
+    remap:
+      # Command / Option + arrows
+      C-Left: Home
+      C-Right: End
+      C-Up: C-Home
+      C-Down: C-End
+      C-Shift-Left: Shift-Home
+      C-Shift-Right: Shift-End
+      C-Shift-Up: C-Shift-Home
+      C-Shift-Down: C-Shift-End
+      Alt-Left: C-Left
+      Alt-Right: C-Right
+      Alt-Shift-Left: C-Shift-Left
+      Alt-Shift-Right: C-Shift-Right
+      # Command / Option + Backspace / Delete
+      C-Backspace: [Shift-Home, Backspace]
+      Alt-Backspace: C-Backspace
+      Alt-Delete: C-Delete
+      # Control + letter, the Cocoa text-field bindings
+      Super-a: Home
+      Super-e: End
+      Super-k: [Shift-End, Delete]
+      Super-d: Delete
+      Super-h: Backspace
+      # Tabs: Cmd+Shift+[ ] and Control+Tab. (Plain Ctrl+Tab belongs to KWin's
+      # switcher now, so tabs move with Ctrl+PageUp/Down, which every browser,
+      # Kate and Dolphin accept.)
+      C-Shift-LeftBrace: C-PageUp
+      C-Shift-RightBrace: C-PageDown
+      Super-Tab: C-PageDown
+      Super-Shift-Tab: C-PageUp
+      # System
+      C-space: Alt-space                        # Spotlight → KRunner
+      C-h: Super-PageDown                       # hide → minimize
+      C-m: Super-PageDown                       # minimize
+      C-Comma: C-Shift-Comma                    # preferences (KDE apps)
+      C-Super-q: Super-l                        # lock screen
+      C-Shift-3: Shift-SysRq                    # screenshot: full screen
+      C-Shift-4: Super-Shift-SysRq              # screenshot: region
+      C-Shift-5: SysRq                          # screenshot: Spectacle

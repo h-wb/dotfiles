@@ -18,6 +18,9 @@
 # shim is `ludo`. Bumping is the version here, then `mise lock`.
 [tools]
 "github:rommapp/ludo" = { version = "1.0.0-beta.9", bin = "ludo", os = "linux" }
+# macOS keyboard behaviour — see xremap/config.yml and the xremap unit below.
+# The KDE build is the one that can see which window is focused on Wayland.
+"github:xremap/xremap" = { version = "latest", asset_pattern = "xremap-linux-x86_64-kde.zip", bin = "xremap", os = "linux" }
 
 [env]
 # config.toml sets `code --wait`; there is no VS Code here. micro ships with
@@ -37,6 +40,7 @@ ef = "exec fish"
 "pacman:cachyos-gaming-meta" = "latest"          # wine/proton deps, lib32 drivers
 "pacman:cachyos-gaming-applications" = "latest"  # steam, lutris, heroic, mangohud, gamescope
 "pacman:gamescope-session-cachyos" = "latest"    # the "Steam Big Picture" login session (provides gamescope-session-steam-git)
+"pacman:ghostty" = "latest"                       # same terminal as the Macs
 "pacman:flatpak" = "latest"
 "pacman:jq" = "latest"                           # the Decky installer refuses to run without it
 # RetroDECK is a SYSTEM flatpak (that is how it was installed). Arch's flatpak
@@ -93,6 +97,38 @@ action = "allow"
 # not expand `~`; Exec is the shim, which is stable across version bumps.
 "~/.local/share/applications/ludo.desktop" = { source = "applications/ludo.desktop.tmpl", mode = "template" }
 
+"~/.config/xremap/config.yml" = { source = "xremap/config.yml", mode = "symlink" }
+
+# ── macOS keyboard: xremap ──────────────────────────────────────────────────
+# xremap reads the keyboard's evdev nodes and writes through /dev/uinput. uinput
+# is already this user's (a uaccess ACL from the steam/kdeconnect udev rules);
+# the keyboard nodes are root:input. Rather than joining `input` — which would
+# let every process read every input device — tag just the Rainy 75's nodes
+# `uaccess`, so the active seat user gets an ACL on them and nothing else.
+# Numbered below 73 so systemd's seat rules see the tag. (Its 2.4G dongle names
+# itself "Telink Wireless Gaming Keyboard"; wired or Bluetooth may not.)
+[bootstrap.files."/etc/udev/rules.d/70-xremap-rainy75.rules"]
+content = """SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="Telink Wireless Gaming Keyboard", TAG+="uaccess"
+"""
+owner = "root"
+group = "root"
+mode = "0644"
+
+# Runs with the Plasma session only: part_of/wanted_by plasma-workspace.target,
+# so the gamescope (Big Picture) session gets the plain keyboard — and it stops
+# with Plasma. --watch=device re-grabs the dongle after it reconnects;
+# --watch=config reloads on edits. The shim survives version bumps. On a first
+# apply it fails until the tools phase installs xremap and the udev trigger in
+# [tasks.bootstrap] lands; Restart= keeps retrying until then.
+[bootstrap.linux.systemd.units.xremap]
+description = "xremap: macOS modifiers and shortcuts on the Rainy 75"
+exec_start = '%h/.local/share/mise/shims/xremap --watch=device,config --device "Telink Wireless Gaming Keyboard" %h/.config/xremap/config.yml'
+part_of = ["plasma-workspace.target"]
+after = ["plasma-workspace.target"]
+wanted_by = ["plasma-workspace.target"]
+restart = "always"
+restart_sec = "3s"
+
 # systemd only notices a new/changed drop-in after a reload.
 [bootstrap.hooks.post-dotfiles]
 run = '''
@@ -122,6 +158,17 @@ if [ ! -x "$HOME/homebrew/services/PluginLoader" ]; then
     echo "[skip] Decky Loader: launch Steam once, then re-run"
   fi
 fi
+
+# The xremap udev rule only applies on device add/change, so re-trigger input
+# devices once, when the Rainy 75's nodes do not carry this user's ACL yet.
+for n in /sys/class/input/event*; do
+  [ "$(cat "$n/device/name" 2>/dev/null)" = "Telink Wireless Gaming Keyboard" ] || continue
+  getfacl -p "/dev/input/${n##*/}" 2>/dev/null | grep -q "^user:$(id -un):" && continue
+  echo "[info] applying the xremap udev rule"
+  sudo udevadm control --reload && sudo udevadm trigger --action=change --subsystem-match=input &&
+    systemctl --user try-restart dev.mise.xremap.service
+  break
+done
 '''
 
 # KDE Plasma settings — only keys that differ from what CachyOS ships (theme,
@@ -139,10 +186,39 @@ command -v kwriteconfig6 >/dev/null 2>&1 || { echo "[skip] kwriteconfig6 not ins
 k() { kwriteconfig6 "$@" || echo "[warn] kwriteconfig6 $*"; }
 
 # ── Keyboard ───────────────────────────────────────────────────────────────
-# Mac-style modifiers: swap Left Alt / Left Ctrl / Left Win so Cmd-position
-# shortcuts land where the Macs have them.
-k --file kxkbrc --group Layout --key Options "ctrl:swap_lalt_lctl_lwin"
+# The Mac modifier layout comes from xremap (xremap/config.yml). The XKB swap
+# that used to do it must go, or the two remaps stack. Takes effect at login.
+k --file kxkbrc --group Layout --key Options ""
 k --file kxkbrc --group Layout --key ResetOldOptions true
+
+# Cmd+Tab / Cmd+` must be a held modifier to keep the switcher open, which a
+# remap cannot fake — so Command (which sends Ctrl) is added to KWin's own
+# window switchers, next to Alt and Meta. On Plasma 6 Wayland kglobalaccel lives
+# inside KWin, so editing kglobalshortcutsrc does nothing until re-login (and
+# restarting a kglobalaccel service is a no-op — there is none). Its D-Bus API
+# changes the live registry and persists the file itself. Keys are Qt codes:
+# Ctrl 0x04000000 | Shift 0x02000000 | Tab 0x01000001 / ` 0x60 / ~ 0x7e.
+add_ctrl() { # add_ctrl <kwin action> <Qt keycode of the Ctrl variant>
+  id="['kwin','$1','KWin','$1']"
+  cur="$(gdbus call --session --dest org.kde.kglobalaccel --object-path /kglobalaccel \
+    --method org.kde.KGlobalAccel.shortcutKeys "$id" 2>/dev/null)" ||
+    { echo "[skip] KWin not running — re-run apply from the Plasma session for Cmd+Tab"; return 0; }
+  case "$cur" in *"[$2, "*) return 0 ;; esac
+  keys="$(printf '%s' "$cur" | grep -oE '\[[0-9]+, [0-9]+, [0-9]+, [0-9]+\]' | sed 's/.*/(&,)/' | paste -sd, -)"
+  gdbus call --session --dest org.kde.kglobalaccel --object-path /kglobalaccel \
+    --method org.kde.KGlobalAccel.setForeignShortcutKeys "$id" "[${keys:+$keys, }([$2, 0, 0, 0],)]" >/dev/null &&
+    echo "[info] KWin: $1 += Ctrl"
+}
+add_ctrl "Walk Through Windows" 83886081                                  # Ctrl+Tab
+add_ctrl "Walk Through Windows (Reverse)" 117440513                        # Ctrl+Shift+Tab
+add_ctrl "Walk Through Windows of Current Application" 67108960            # Ctrl+`
+add_ctrl "Walk Through Windows of Current Application (Reverse)" 67108990  # Ctrl+~
+
+# A lone Super tap opens the launcher by default — and Super is what the
+# physical Control key sends in apps (and Command in terminals). Spotlight is
+# Cmd+Space (→ KRunner) instead.
+k --file kwinrc --group ModifierOnlyShortcuts --key Meta ""
+qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
 
 # Natural scrolling on the Telink wireless keyboard's touchpad (the group is
 # libinput's vendor/product id pair, so it only matches that device).

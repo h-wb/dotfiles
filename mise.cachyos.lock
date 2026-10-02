@@ -11,3 +11,16 @@ specifiers = ["1.0.0-beta.9"]
 checksum = "sha256:9b9e5cc9d8816fd2a7dcc1123c7892ad65dafce6c53a59ed48bfe459df55d8e6"
 url = "https://github.com/rommapp/ludo/releases/download/v1.0.0-beta.9/Ludo-v1.0.0-beta.9-x86_64.AppImage"
 url_api = "https://api.github.com/repos/rommapp/ludo/releases/assets/593519076"
+
+[[tools."github:xremap/xremap"]]
+version = "0.15.14"
+backend = "github:xremap/xremap"
+specifiers = ["latest"]
+
+[tools."github:xremap/xremap".options]
+asset_pattern = "xremap-linux-x86_64-kde.zip"
+
+[tools."github:xremap/xremap"."platforms.linux-x64"]
+checksum = "sha256:dd430df3b188a3e110f12094706768d6bb3d2f4ae94d89ce700a173fa8476f08"
+url = "https://github.com/xremap/xremap/releases/download/v0.15.14/xremap-linux-x86_64-kde.zip"
+url_api = "https://api.github.com/repos/xremap/xremap/releases/assets/592603677"

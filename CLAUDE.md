@@ -183,6 +183,10 @@ is v3 (`mise lock --upgrade`).
   Decky plugin zip — a different artifact. `mise.macos.lock`/`personal` are
   macos-arm64, `cachyos` linux-x64, `neko` linux-x64 + arm64; `mise.lock` keeps
   them all. A later plain `mise lock --global` preserves each file's set.
+  `--platform` is the trap: it applies to EVERY loaded lockfile, so locking a
+  Linux tool from the Mac with `MISE_ENV=cachyos mise lock --global --platform
+  linux-x64` also adds a linux-x64 entry for numi to `mise.macos.lock`. Check
+  `git diff mise*.lock` after any lock and revert what does not belong.
 - **The checksum check was vacuous until 2026-10-01**: headers are
   `[tools.x."platforms.linux-x64"]` and the check matched `.platforms.`
   (dot-dot), so it inspected nothing. It matches `"platforms.` now — and
@@ -290,6 +294,23 @@ of the neko constraints: apps are `pacman:` packages.
 - **Decky Loader**: official installer, which cannot be piped to `sh` (`exec
   sudo "$0"`, bash `<<<`) and needs Steam to have run once. The romm-tender
   plugin's settings hold a RomM API token — not managed.
+- **macOS keyboard = xremap** (`conf.d/cachyos/xremap/config.yml`, KDE build
+  via mise, a `dev.mise.xremap` user unit `part_of` plasma-workspace.target so
+  the gamescope session gets a plain keyboard). Rainy 75 Ctrl·Win·Alt act as
+  Control·Option·Command: Command sends Ctrl in apps (so Linux's Ctrl+C/V/… just
+  work), Super in terminals (mapped to Ctrl+Shift+…, physical Control stays a
+  real Ctrl). Steam games (`/^steam_app_/`) are excluded. Key names are evdev
+  (`LeftBrace`, `PageUp`, `SysRq` = Print Screen), not X11 keysyms. App names
+  are KWin's resourceClass — list them with a throwaway KWin script that
+  `print`s `workspace.windowList()` into the journal. Device access is a udev
+  `uaccess` rule for that keyboard only, not the `input` group.
+- **Plasma 6 Wayland global shortcuts: use kglobalaccel's D-Bus, not the file.**
+  kglobalaccel runs inside KWin, so editing `kglobalshortcutsrc` is invisible
+  until re-login (and there is no kglobalaccel service to restart). `cachyos:kde`
+  adds Ctrl+Tab/Ctrl+\` (= Cmd+Tab/\`) to KWin's switchers with
+  `setForeignShortcutKeys`, which applies live and persists the file. A held
+  Cmd+Tab cannot be a remap — xremap would release the modifier — which is why
+  the switcher itself listens on Ctrl.
 - **sudo needs a password there** — anything touching privileged state
   (firewall plan) needs `ssh -t`.
 
