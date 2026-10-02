@@ -41,5 +41,7 @@ export MISE_CONFIG_DIR="${DOTFILES_DIR}"
 MISE="${MISE}" ./scripts/pass-preflight || exit 1
 # --force-dotfiles: the distro writes its own ~/.config/fish/config.fish, and a
 # machine on the old layout has a real ~/.config/mise directory in the way.
-exec "${MISE}" exec github:jdx/fnox@latest -- \
+# fnox's Proton Pass provider shells out to `pass-cli`, so it must be on PATH
+# too — not just fnox. (A Mac with pass-cli already installed hides this.)
+exec "${MISE}" exec github:jdx/fnox@latest github:protonpass/pass-cli@latest -- \
 	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --yes --force-dotfiles
