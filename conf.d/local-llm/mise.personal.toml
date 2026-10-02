@@ -1,0 +1,125 @@
+# Local LLMs on the MacBook (LM Studio) — GPU memory headroom and RAM triage.
+# MacBook only (env `personal`).
+#
+#   mise run llm:status     what is loaded, memory pressure, the GPU wired limit
+#   mise run ram:status     the apps holding the most memory
+#   mise run ram:free       quit every GUI app not in vars.ram_keep_apps (asks first)
+#   mise run llm:big        ram:free + load the big model (Qwen3.8-27B)
+#   mise run llm:small      unload it; LM Studio JIT-loads the small ones again
+#
+# Why: a 24 GB M4 Pro lets the GPU wire ~16 GB by default. Qwen3.8-27B at
+# UD-IQ4_XS is 14.3 GB of weights before any KV cache, so it only loads with the
+# limit raised, and only with little else resident.
+
+# ── The GPU wired limit ─────────────────────────────────────────────────────
+# `iogpu.wired_limit_mb` is a cap, not a reservation: raising it costs nothing
+# until a model actually wires that much. It resets on reboot, so a root
+# LaunchDaemon re-applies it at boot. mise only manages LaunchAgents, hence the
+# plist as a privileged file (the same mechanism as /etc/resolver). 0 restores
+# the macOS default.
+[vars]
+gpu_wired_limit_mb = "{{ get_env(name='GPU_WIRED_LIMIT_MB', default='20480') }}"
+# Comma-separated app names (as in the Dock) that ram:free never quits. Override
+# in config.local.toml.
+ram_keep_apps = "Finder,Ghostty,LM Studio,Claude,Nextcloud,Raycast,BetterTouchTool,AltTab,BetterDisplay,Proton Pass,WireGuard,Zen"
+llm_big_model = "qwen3.8-27b"
+llm_big_context = "32768"
+
+[bootstrap.files."/Library/LaunchDaemons/ovh.wlab.iogpu-wired-limit.plist"]
+template = true
+owner = "root"
+group = "wheel"
+mode = "0644"
+content = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ovh.wlab.iogpu-wired-limit</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/sbin/sysctl</string>
+    <string>iogpu.wired_limit_mb={{ vars.gpu_wired_limit_mb }}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+'''
+
+# The daemon only runs at boot; this applies the same value now.
+[tasks."gpu:wired"]
+description = "Apply the GPU wired-memory limit now (sudo; the LaunchDaemon re-applies it at boot)"
+run = '''
+sudo sysctl iogpu.wired_limit_mb={{ vars.gpu_wired_limit_mb }}
+'''
+
+[tasks."llm:status"]
+description = "Loaded LM Studio models, memory pressure and the GPU wired limit"
+run = '''
+echo "GPU wired limit: $(sysctl -n iogpu.wired_limit_mb) MB (0 = macOS default, ~2/3 of RAM)"
+memory_pressure -Q | tail -1
+"$HOME/.lmstudio/bin/lms" ps
+'''
+
+# Resident memory per app bundle (helpers and renderers folded into their app).
+[tasks."ram:status"]
+description = "The apps holding the most memory"
+run = '''
+ps -axo rss=,comm= | awk '
+  { rss = $1; $1 = ""; path = substr($0, 2)
+    if (match(path, /[^\/]+\.app\//)) name = substr(path, RSTART, RLENGTH - 5)
+    else { n = split(path, p, "/"); name = p[n] }
+    mem[name] += rss }
+  END { for (n in mem) printf "%8.0f MB  %s\n", mem[n] / 1024, n }' | sort -rn | head -15
+memory_pressure -Q | tail -1
+'''
+
+# Quits apps the polite way (AppleScript `quit`), so anything with unsaved work
+# asks rather than losing it. The first run per app triggers macOS's Automation
+# prompt for the terminal. RAM_FREE_YES=1 skips the confirmation (llm:big uses it
+# after its own prompt).
+[tasks."ram:free"]
+description = "Quit GUI apps not in vars.ram_keep_apps and unload LM Studio models"
+run = '''
+keep=",{{ vars.ram_keep_apps }},"
+apps=$(lsappinfo list | awk -F'"' '/^ *[0-9]+\) "/ { name = $2 } /type="Foreground"/ && name { print name; name = "" }' | sort -u)
+victims=$(printf '%s\n' "$apps" | while IFS= read -r a; do
+  [ -n "$a" ] || continue
+  case "$keep" in *",$a,"*) ;; *) printf '%s\n' "$a" ;; esac
+done)
+if [ -z "$victims" ]; then
+  echo "Nothing to quit (keeping: {{ vars.ram_keep_apps }})."
+else
+  echo "Will quit:"; printf '%s\n' "$victims" | sed 's/^/  /'
+  if [ "${RAM_FREE_YES:-0}" != 1 ]; then
+    printf 'Proceed? [y/N] '; read -r ok; [ "$ok" = y ] || { echo "Aborted."; exit 1; }
+  fi
+  printf '%s\n' "$victims" | while IFS= read -r a; do
+    osascript -e "quit app \"$a\"" >/dev/null 2>&1 && echo "quit: $a" || echo "kept (refused or unsaved work): $a"
+  done
+fi
+"$HOME/.lmstudio/bin/lms" unload --all >/dev/null 2>&1 && echo "LM Studio: all models unloaded"
+memory_pressure -Q | tail -1
+'''
+
+[tasks."llm:big"]
+description = "Free RAM and load the big local model (Qwen3.8-27B)"
+run = '''
+limit=$(sysctl -n iogpu.wired_limit_mb)
+if [ "$limit" -lt 18000 ]; then
+  echo "GPU wired limit is $limit MB; the big model needs ~18000. Run: mise run gpu:wired" >&2
+  exit 1
+fi
+printf 'Quit unused apps and swap LM Studio to {{ vars.llm_big_model }}? [y/N] '; read -r ok; [ "$ok" = y ] || exit 1
+RAM_FREE_YES=1 mise run ram:free
+"$HOME/.lmstudio/bin/lms" load "{{ vars.llm_big_model }}" -c {{ vars.llm_big_context }} --gpu max --ttl 3600 -y
+'''
+
+[tasks."llm:small"]
+description = "Unload the big model; LM Studio JIT-loads the small ones on the next request"
+run = '''
+"$HOME/.lmstudio/bin/lms" unload --all
+memory_pressure -Q | tail -1
+'''
