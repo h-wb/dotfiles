@@ -231,6 +231,26 @@ is a switch: `mise run dns:main` / `dns:edge` / `dns:status`.
 - Flush after a switch (`dscacheutil -flushcache; killall -HUP mDNSResponder`)
   or lookups keep the old answer, which reads exactly like the switch failing.
 
+### Local LLMs (`conf.d/local-llm/`)
+
+LM Studio serves models to the cluster's LiteLLM over WireGuard (home-ops
+`kubernetes/apps/main/llm/litellm`). On a 24 GB M4 Pro the GPU may wire only ~16
+GB by default, too little for a 27B model (14.3 GB of weights at UD-IQ4_XS, plus
+KV cache).
+
+- **`iogpu.wired_limit_mb` resets on reboot.** mise manages LaunchAgents only, so
+  the boot-time `sysctl` is a root LaunchDaemon plist written by
+  `[bootstrap.files]`; `gpu:wired` applies it now. It is a cap, not a
+  reservation: nothing is wired until a model loads. `0` restores the default.
+- **`ram:free` quits apps with AppleScript `quit`**, never `kill`, so unsaved work
+  prompts instead of being lost; the first run per app raises the Automation
+  prompt. "Foreground" apps from `lsappinfo` only, so menu-bar utilities are
+  never touched. Keep list: `vars.ram_keep_apps`.
+- **Don't `lms load` a small model by hand** for day-to-day use: a manually
+  loaded model is pinned, and LM Studio's guardrail then refuses to JIT-load the
+  other one instead of swapping (seen 2026-10-02 with qwen3-vl-8b + qwen3.5-9b).
+  `llm:big` loads with `--ttl 3600` so the big model releases itself.
+
 ### Kubeconfigs
 
 `~/.kube/main.yaml` + `~/.kube/edge.yaml` from the `Kubeconfig` item (one field
