@@ -30,7 +30,7 @@ conf.d/
   cachyos/               the CachyOS gaming desktop, whole
 home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
 fnox.toml                Proton Pass secret references (no values)
-scripts/                 wire (the symlink + machine class), pass-preflight
+scripts/                 pass-preflight (gates every apply on a Proton Pass session)
 ```
 
 Each `conf.d/` folder holds its own config and the files it uses; inside it,
@@ -40,12 +40,14 @@ Each `conf.d/` folder holds its own config and the files it uses; inside it,
 
 | class | machine | selected by |
 | --- | --- | --- |
-| `personal` | the MacBook | `miserc.local.toml` |
+| `personal` | the MacBook | auto (macOS) |
 | `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | auto (`/etc/neko`) |
 | `cachyos` | CachyOS KDE gaming desktop | auto (`/etc/os-release`) |
 
-The class lives in the untracked `miserc.local.toml`, written by `scripts/wire`.
-Platform files (`*.macos.toml`, `*.linux.toml`) load on their own.
+`miserc.toml` detects the class; an untracked `miserc.local.toml`
+(`env = ["..."]`) overrides it. Platform files (`*.macos.toml`, `*.linux.toml`)
+load on their own. `~/.config/mise` → `~/.dotfiles` is itself a `[dotfiles]`
+entry in `config.toml`, so mise creates and maintains the link.
 
 ## Set up a machine
 
@@ -54,7 +56,7 @@ sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/m
 ```
 
 On a Mac, sign in to iCloud and the App Store first. The installer installs mise,
-clones to `~/.dotfiles`, wires `~/.config/mise`, and runs `mise bootstrap` under
+clones to `~/.dotfiles` and runs `mise bootstrap` under
 fnox. Override the detected class with `DOTFILES_ENV=personal|neko|cachyos`.
 
 ## Everyday use

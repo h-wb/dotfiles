@@ -8,9 +8,23 @@ machine before touching anything it loads.
 
 ## The layout: this repo IS mise's config dir
 
-`~/.config/mise` is a **symlink to `~/.dotfiles`** (made by `scripts/wire`), so
-mise reads everything here under its native names — no per-file symlink farm,
-and every relative path resolves inside the repo.
+`~/.config/mise` is a **symlink to `~/.dotfiles`**, so mise reads everything
+here under its native names — no per-file symlink farm, and every relative path
+resolves inside the repo. The link is mise's own: the first `[dotfiles]` entry
+in `config.toml` (mise's documented self-managing-config pattern; onedr0p's
+dotfiles do the same per file). A first run cannot go through a link that does
+not exist yet, so `install.sh` and `neko-bootstrap` run with
+`MISE_CONFIG_DIR=~/.dotfiles`; the bootstrap creates the link and maintains it
+like any dotfile (`mise dot status` shows drift; a real directory in the way
+needs `--force-dotfiles`). The entry's source must be the absolute
+`~/.dotfiles` — relative would resolve through the link to itself.
+
+The **machine class is detected in `miserc.toml`**: miserc templates see only
+the OS (no `read_file`/`exec`), but `is exists` path tests work — `/etc/neko`
+(neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS), else `os() ==
+"macos"` → personal. An unrecognised machine gets no class (doctor `wiring`
+flags it); an untracked `miserc.local.toml` overrides (`env = [...]`), which is
+also how CI pins the class per matrix job.
 
 | file | loads when |
 | --- | --- |
@@ -20,7 +34,7 @@ and every relative path resolves inside the repo.
 | `conf.d/<feature>/mise.<env>.toml` | that env or platform — **folder fragments** |
 | `config.local.toml` | always, last (untracked per-machine `[vars]`) |
 | `miserc.toml` | early init, committed: `env_conf_d`, `auto_env` |
-| `miserc.local.toml` | early init, untracked: `env = ["<class>"]` |
+| `miserc.local.toml` | early init, untracked, optional: overrides the detected class |
 
 - **Folder fragments** (mise 2026.9.14): a folder in `conf.d/` reads only
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
@@ -135,9 +149,11 @@ picked, a missing main IP is fine).
 - **`[shell_alias]` is set by `mise activate`** (zsh, bash, fish), templated,
   merged across configs like everything else — and not available in tasks or
   `mise exec`.
-- **`--from` / `--adopt`** were evaluated and are still not used: the
-  config-dir model is effectively `--adopt`, but neither writes
-  `miserc.local.toml` or detects the class, which is what `scripts/wire` is for.
+- **`--adopt`** (clone straight into `~/.config/mise`) is the other native
+  route and would need no link at all. Not used because it runs bootstrap
+  without fnox — on a Mac the resolver's bootstrap secrets would abort it, and
+  elsewhere secret-gated files render empty — and because it would move the
+  checkout off `~/.dotfiles`.
 
 ### Testing a config change without touching the live machine
 

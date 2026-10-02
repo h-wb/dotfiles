@@ -60,10 +60,16 @@ fi
 [ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
 cd "${HOME}/.dotfiles" || exit 0
 
-# On a fresh PVC nobody has run install.sh, so ~/.config/mise is not this repo
-# yet — without it no env overlay loads and the neko:* tasks do not exist.
-# Idempotent, so it is cheap to redo on every session start.
-"${HOME}/.dotfiles/scripts/wire"
+# Point mise at the checkout directly. On a fresh PVC ~/.config/mise is not
+# the repo yet (config.toml's [dotfiles] entry links it during this run), and
+# the `protect` mode below skips dotfiles entirely — this makes every mode load
+# the right config regardless.
+export MISE_CONFIG_DIR="${HOME}/.dotfiles"
+
+# One-time migration from the pre-2026-10 layout; drop once the PVC has run it.
+if [ -f mise.local.toml ] && [ ! -f config.local.toml ]; then
+	mv mise.local.toml config.local.toml && echo "[info] renamed mise.local.toml -> config.local.toml"
+fi
 
 # Apply mise's [env] to THIS shell. Everything below runs as a plain script, not
 # under `mise exec`, so without this the config's env vars simply are not there —

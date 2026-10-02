@@ -1,11 +1,13 @@
 #!/bin/sh
 # Provision a machine from scratch: a Mac, the CachyOS desktop or the neko
-# container. Installs mise, clones this repo to ~/.dotfiles, makes it mise's
-# config dir (scripts/wire), then runs `mise bootstrap` with secrets from fnox.
+# container. Installs mise, clones this repo to ~/.dotfiles, then runs
+# `mise bootstrap` from it with secrets from fnox. That run also links
+# ~/.config/mise -> ~/.dotfiles (a [dotfiles] entry in config.toml), and
+# miserc.toml detects the machine class (DOTFILES_ENV overrides it).
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
-DOTFILES_DIR="${DOTFILES_DIR:-${HOME}/.dotfiles}"
+DOTFILES_DIR="${HOME}/.dotfiles" # fixed: config.toml links ~/.config/mise here
 export PATH="${HOME}/.local/bin:${PATH}"
 
 # 1. mise
@@ -27,15 +29,17 @@ else
 fi
 cd "${DOTFILES_DIR}"
 
-# 3. ~/.config/mise -> this repo, plus the machine class in miserc.local.toml.
-DOTFILES_DIR="${DOTFILES_DIR}" ./scripts/wire
+# 3. Load the config from the checkout for this first run; the bootstrap's
+#    dotfiles step creates the ~/.config/mise link that later runs go through.
+export MISE_CONFIG_DIR="${DOTFILES_DIR}"
+[ -n "${DOTFILES_ENV:-}" ] && printf 'env = ["%s"]\n' "${DOTFILES_ENV}" >miserc.local.toml
 
 # 4. Bootstrap with secrets. The preflight logs into Proton Pass if there is no
 #    session; --if-missing error makes an unresolved secret fatal instead of a
 #    warning that renders the secret-gated dotfiles empty over good copies.
 #    This is `mise run apply`, spelled out because fnox is not installed yet.
 MISE="${MISE}" ./scripts/pass-preflight || exit 1
-FORCE=""
-[ "$(uname)" = "Darwin" ] || FORCE="--force-dotfiles" # distro-written fish config
+# --force-dotfiles: the distro writes its own ~/.config/fish/config.fish, and a
+# machine on the old layout has a real ~/.config/mise directory in the way.
 exec "${MISE}" exec github:jdx/fnox@latest -- \
-	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --yes ${FORCE}
+	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --yes --force-dotfiles
