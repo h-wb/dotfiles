@@ -1,0 +1,124 @@
+# k8s-gateway DNS: one zone, two clusters, pick one.
+#
+#   mise run dns:edge     mise run dns:main     mise run dns:status
+#
+# Both clusters run k8s-gateway AUTHORITATIVE for the same zone with no
+# `fallthrough`, so whichever answers returns an authoritative NXDOMAIN for a
+# route that only exists on the other, and mDNSResponder stops there. A second
+# `nameserver` line buys nothing: this is a switch, not a merge.
+#
+# MacBook only (env `personal`): /etc/resolver is a macOS mechanism, and
+# [bootstrap.files] takes no `os` key, so the env suffix is the filter.
+
+# ── The selection ───────────────────────────────────────────────────────────
+# Three sources, lowest priority first: "main"; $K8S_DNS_CLUSTER (one command,
+# and what CI drives); [vars] in the untracked config.local.toml, written by
+# dns:select. Local beats both, which is what makes a switch survive `apply`.
+[vars]
+k8s_dns_cluster = "{{ get_env(name='K8S_DNS_CLUSTER', default='main') }}"
+k8s_dns_zone    = "wlab.ovh"
+
+# The gateway IPs are internal addresses in a public repo, so they stay fnox
+# secrets. Declared as bootstrap secrets, a missing one is resolved BEFORE any
+# mutation and fails the whole bootstrap — so /etc/resolver can never be
+# rewritten without a nameserver (the empty-render trap the rest of this repo
+# guards against by hand). Only the selected branch is resolved: with edge
+# picked, a missing main IP does not matter.
+[bootstrap.secrets]
+k8s_gateway_ip_main = "K8S_GATEWAY_IP_MAIN"
+k8s_gateway_ip_edge = "K8S_GATEWAY_IP_EDGE"
+
+# The privileged write ([dotfiles] never sudos). The key cannot be templated, so
+# the zone is a literal here — dns:check asserts it matches vars.k8s_dns_zone.
+# An unknown cluster name falls back to main rather than rendering nothing.
+[bootstrap.files."/etc/resolver/wlab.ovh"]
+template = true
+owner = "root"
+group = "wheel"
+mode = "0644"
+content = '''
+{%- if vars.k8s_dns_cluster == "edge" %}nameserver {{ secret(name="k8s_gateway_ip_edge") }}
+{% else %}nameserver {{ secret(name="k8s_gateway_ip_main") }}
+{% endif -%}
+'''
+
+# The resolver used to be rendered here first and copied in a second step.
+[dotfiles]
+"~/.config/k8s-dns/resolver" = { mode = "absent" }
+
+# ── Tasks (run in this folder) ──────────────────────────────────────────────
+# The cluster travels in an env var because `mise run dns:select -- edge`
+# appends the arg to the LAST line of the script instead of making it $1.
+[tasks."dns:main"]
+description = "Resolve the internal zone via the main cluster's k8s-gateway"
+run = "K8S_DNS_CLUSTER=main mise run dns:select"
+
+[tasks."dns:edge"]
+description = "Resolve the internal zone via the edge cluster's k8s-gateway"
+run = "K8S_DNS_CLUSTER=edge mise run dns:select"
+
+# Persist the choice, re-render, flush. The `unset` matters: K8S_DNS_CLUSTER is
+# also a var source, so leaving it set would render the right IP even if the
+# write to config.local.toml had silently failed — the switch would look fine
+# and revert on the next apply. The flush matters too: without it every lookup
+# keeps the old answer, which reads exactly like the switch not working.
+[tasks."dns:select"]
+description = "(internal) persist $K8S_DNS_CLUSTER, install /etc/resolver, flush"
+run = '''
+case "${K8S_DNS_CLUSTER:-}" in
+main | edge) want="$K8S_DNS_CLUSTER" ;;
+*) echo "set K8S_DNS_CLUSTER=main|edge (or use dns:main / dns:edge)" >&2; exit 1 ;;
+esac
+
+cd "{{ vars.repo }}"
+f=config.local.toml
+[ -f "$f" ] || printf '# Per-machine, untracked. Overrides every other config.\n[vars]\n' >"$f"
+grep -q '^\[vars\]' "$f" || printf '\n[vars]\n' >>"$f"
+if grep -q '^k8s_dns_cluster *=' "$f"; then
+	sed -i '' -E "s/^k8s_dns_cluster *=.*/k8s_dns_cluster = \"$want\"/" "$f"
+else
+	sed -i '' -E "s/^(\[vars\])\$/\\1\\nk8s_dns_cluster = \"$want\"/" "$f"
+fi
+
+unset K8S_DNS_CLUSTER
+./scripts/pass-preflight || exit 1
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap files apply --yes || exit 1
+sudo dscacheutil -flushcache
+sudo killall -HUP mDNSResponder
+mise run dns:status
+'''
+
+[tasks."dns:status"]
+description = "Show which cluster resolves the internal zone"
+run = '''
+zone="{{ vars.k8s_dns_zone }}"
+echo "selected: {{ vars.k8s_dns_cluster }}"
+echo "resolver: $(cat "/etc/resolver/$zone" 2>/dev/null || echo '<not installed>')"
+echo "lookup:   k8s-gateway.network.$zone ->$(dscacheutil -q host -a name "k8s-gateway.network.$zone" | awk '/^ip_address:/ { printf " %s", $2 }')"
+echo
+echo "switch:   mise run dns:main | mise run dns:edge"
+'''
+
+# Body of the doctor check below (a check's `run` is not templated; a task's is).
+# The resolver can only be compared against the selection with the secrets in
+# hand, so that half runs only when a Proton Pass session is already live —
+# doctor never prompts.
+[tasks."dns:check"]
+description = "(internal) assert /etc/resolver matches the selected cluster"
+run = '''
+[ "$(uname)" = "Darwin" ] || exit 0
+zone="{{ vars.k8s_dns_zone }}"
+grep -qF "[bootstrap.files.\"/etc/resolver/$zone\"]" mise.personal.toml ||
+	{ echo "the [bootstrap.files] key does not match vars.k8s_dns_zone ($zone)"; exit 1; }
+grep -q '^nameserver ' "/etc/resolver/$zone" 2>/dev/null ||
+	{ echo "/etc/resolver/$zone is missing or has no nameserver"; exit 1; }
+cd "{{ vars.repo }}"
+DOTFILES_NO_LOGIN=1 ./scripts/pass-preflight 2>/dev/null || { echo "(no Proton Pass session; selection not compared)"; exit 0; }
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap files status >/dev/null 2>&1 ||
+	{ echo "/etc/resolver/$zone differs from the {{ vars.k8s_dns_cluster }} selection"; exit 1; }
+'''
+
+[doctor.checks.k8s-dns]
+description = "/etc/resolver matches the selected k8s-gateway"
+hint = "run `mise run dns:main` or `mise run dns:edge`"
+run = "mise run dns:check"

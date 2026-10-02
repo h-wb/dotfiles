@@ -1,0 +1,174 @@
+# The CachyOS desktop (machine class `cachyos`; scripts/wire picks it from
+# /etc/os-release). Config and every source it uses live in this folder.
+#
+# Target: CachyOS (Arch) on KDE Plasma, user `hugo`, fish shell, NVIDIA RTX 2080 Ti,
+# a Dell on DP-1 and a BenQ projector on HDMI-A-1. A real machine with systemd —
+# none of the neko container's ephemeral-/usr constraints apply, so pacman is
+# the right home for apps here, not [tools].
+#
+# SCOPE: only what was added on top of a stock CachyOS KDE install. The installer
+# (Calamares + cachyos-hello) lays down ~1300 packages, the KDE theme, cursor,
+# animation speed and the fish prompt — all left to CachyOS. The pacman log
+# (/var/log/pacman.log) is the record of what came after; package install dates
+# are useless for this, a full -Syu on 2026-09-27 reset every one of them.
+
+# ── Tools ───────────────────────────────────────────────────────────────────
+# Ludo (RomM client) publishes only pre-releases, so `latest` finds nothing — it
+# is pinned. The asset is a bare AppImage; `bin` names the installed file so the
+# shim is `ludo`. Bumping is the version here, then `mise lock`.
+[tools]
+"github:rommapp/ludo" = { version = "1.0.0-beta.9", bin = "ludo", os = "linux" }
+
+[env]
+# config.toml sets `code --wait`; there is no VS Code here. micro ships with
+# CachyOS and works over ssh as well as at the desk.
+EDITOR = "micro"
+
+[shell_alias]
+ef = "exec fish"
+
+# ── System packages ─────────────────────────────────────────────────────────
+# Everything below was installed by hand after the CachyOS installer finished.
+# All from the official/CachyOS repos — nothing here needs an AUR helper. (The
+# lib32-* that `pacman -Qm` lists are orphans the gaming meta-package once pulled
+# in, not something to declare.)
+[bootstrap.packages]
+"pacman:zen-browser-bin" = "latest"              # cachyos repo; default browser (cachyos:kde task)
+"pacman:cachyos-gaming-meta" = "latest"          # wine/proton deps, lib32 drivers
+"pacman:cachyos-gaming-applications" = "latest"  # steam, lutris, heroic, mangohud, gamescope
+"pacman:gamescope-session-cachyos" = "latest"    # the "Steam Big Picture" login session (provides gamescope-session-steam-git)
+"pacman:flatpak" = "latest"
+"pacman:jq" = "latest"                           # the Decky installer refuses to run without it
+# RetroDECK is a SYSTEM flatpak (that is how it was installed). Arch's flatpak
+# package ships /etc/flatpak/remotes.d/flathub.flatpakrepo, so flathub exists as
+# soon as flatpak does — mise "does not configure remotes implicitly", and here
+# it does not need to.
+"flatpak:net.retrodeck.retrodeck" = "latest"
+
+# flatpak must be on PATH before the flatpak: entry is processed, and nothing
+# guarantees pacman entries run first within the packages step. Hooks of the same
+# name accumulate across configs rather than replacing each other.
+[bootstrap.hooks.pre-packages]
+run = '''
+[ -f /etc/arch-release ] || exit 0
+command -v flatpak >/dev/null 2>&1 || sudo pacman -S --needed --noconfirm flatpak
+'''
+
+# ── Services & firewall ─────────────────────────────────────────────────────
+# sshd ships with CachyOS but is NOT enabled by default; enabled so the Mac can
+# reach this box (2026-10-01, see ~/mac-desktop-connection-fix.md on the desktop).
+[bootstrap.services.sshd]
+state = "running"
+enabled = true
+
+# CachyOS enables ufw with default-deny incoming and no allow rules, so every
+# inbound connection is dropped silently (clients time out instead of getting
+# "refused"). One rule lets the home LAN in. The hand-added port-22 rule that
+# preceded it is redundant under this one; not exclusive, so it is left alone.
+[bootstrap.linux.firewall]
+backend = "ufw"
+state = "enabled"
+default_incoming = "deny"
+default_outgoing = "allow"
+
+[[bootstrap.linux.firewall.rules]]
+name = "home-lan"
+source = "192.168.18.0/24"
+action = "allow"
+
+# ── Dotfiles ────────────────────────────────────────────────────────────────
+[dotfiles]
+"~/.config/fish/config.fish" = { source = "fish/config.fish", mode = "symlink" }
+
+# Steam Big Picture on the BenQ projector. Two files, no system changes:
+#   the drop-in pins the gamescope session to HDMI-A-1 (the CachyOS session
+#   script reads OUTPUT_CONNECTOR), and the Lua display script tells gamescope
+#   the projector is SDR Rec.709/D65 — its EDID claims HDR (the 2080 Ti cannot
+#   do it at 4K60 over HDMI, so every flip fails and the screen freezes) and a
+#   bogus white point (orange tint). Full write-up: ~/gamescope-projector-setup.md.
+"~/.config/systemd/user/gamescope-session.service.d/projector.conf" = { source = "systemd/gamescope-projector.conf", mode = "symlink" }
+"~/.config/gamescope/scripts/benq-projector.lua"                     = { source = "gamescope/benq-projector.lua", mode = "symlink" }
+
+# Menu entry for the [tools] AppImage. template mode because .desktop files do
+# not expand `~`; Exec is the shim, which is stable across version bumps.
+"~/.local/share/applications/ludo.desktop" = { source = "applications/ludo.desktop.tmpl", mode = "template" }
+
+# systemd only notices a new/changed drop-in after a reload.
+[bootstrap.hooks.post-dotfiles]
+run = '''
+command -v systemctl >/dev/null 2>&1 || exit 0
+systemctl --user daemon-reload 2>/dev/null || true
+'''
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+# Runs at the end of `mise bootstrap` (phase 8).
+[tasks.bootstrap]
+depends = ["cachyos:kde"]
+run = '''
+# Decky Loader, from its official installer — the AUR decky-loader-bin was tried
+# and removed. It installs to ~/homebrew/services + a root plugin_loader.service.
+# The script re-execs itself via `sudo "$0"` and uses bash-only `<<<`, so it can
+# NOT be piped into sh: download it, then run it with bash. It also expects
+# Steam to have been launched once (it touches ~/.steam/steam/...).
+# Plugins (romm-tender) are installed from Decky's own store, not here — and
+# romm-tender's settings hold a RomM API token, so they stay off git.
+if [ ! -x "$HOME/homebrew/services/PluginLoader" ]; then
+  if [ -d "$HOME/.steam/steam" ]; then
+    tmp="$(mktemp)"
+    curl -fsSL https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/install_release.sh -o "$tmp" &&
+      sudo bash "$tmp" || echo "[warn] Decky Loader install failed"
+    rm -f "$tmp"
+  else
+    echo "[skip] Decky Loader: launch Steam once, then re-run"
+  fi
+fi
+'''
+
+# KDE Plasma settings — only keys that differ from what CachyOS ships (theme,
+# icons, cursor and animation speed come from cachyos-kde-settings' /etc/skel).
+# kwriteconfig6 writes single keys and leaves the rest of each file alone, which
+# is why these are not [dotfiles]: Plasma rewrites these files constantly, and
+# Claude Code adds its own URL handler to mimeapps.list. Unlike xfconf-query it
+# needs no D-Bus session, so it works over ssh; Plasma reads them at next login.
+[tasks."cachyos:kde"]
+description = "Apply KDE Plasma settings (kwriteconfig6) on the CachyOS desktop"
+run = '''
+set -u
+command -v kwriteconfig6 >/dev/null 2>&1 || { echo "[skip] kwriteconfig6 not installed"; exit 0; }
+
+k() { kwriteconfig6 "$@" || echo "[warn] kwriteconfig6 $*"; }
+
+# ── Keyboard ───────────────────────────────────────────────────────────────
+# Mac-style modifiers: swap Left Alt / Left Ctrl / Left Win so Cmd-position
+# shortcuts land where the Macs have them.
+k --file kxkbrc --group Layout --key Options "ctrl:swap_lalt_lctl_lwin"
+k --file kxkbrc --group Layout --key ResetOldOptions true
+
+# Natural scrolling on the Telink wireless keyboard's touchpad (the group is
+# libinput's vendor/product id pair, so it only matches that device).
+k --file kcminputrc --group Libinput --group 12815 --group 20616 \
+  --group "Telink Wireless Gaming Keyboard" --key NaturalScroll true
+
+# ── Default browser ────────────────────────────────────────────────────────
+# zen.desktop is the one zen-browser-bin installs. (The machine used to point at
+# a KDE-generated userapp-Zen-*.desktop wrapper; same binary, but that file is not
+# reproducible.)
+for t in x-scheme-handler/http x-scheme-handler/https x-scheme-handler/chrome \
+  text/html application/xhtml+xml application/x-extension-htm \
+  application/x-extension-html application/x-extension-shtml \
+  application/x-extension-xhtml application/x-extension-xht; do
+  k --file mimeapps.list --group "Default Applications" --key "$t" zen.desktop
+done
+
+echo "[ok] kde settings applied"
+'''
+
+# ── Doctor checks (desktop-specific) ────────────────────────────────────────
+[doctor.checks.gamescope-projector]
+description = "the gamescope session still reads OUTPUT_CONNECTOR"
+hint = "a gamescope-session-cachyos update renamed it — grep /usr/lib/steamos/gamescope-session and update conf.d/cachyos/systemd/gamescope-projector.conf"
+run = '''
+f=/usr/lib/steamos/gamescope-session
+[ -f "$f" ] || { echo "$f missing — is gamescope-session-cachyos installed?"; exit 1; }
+grep -q OUTPUT_CONNECTOR "$f" || { echo "$f no longer mentions OUTPUT_CONNECTOR"; exit 1; }
+'''

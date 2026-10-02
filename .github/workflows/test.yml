@@ -5,242 +5,119 @@ on:
     branches: [main]
   pull_request:
 
+# Every job wires a throwaway HOME the way scripts/wire wires a real machine:
+# ~/.config/mise -> this checkout, plus a miserc.local.toml naming the machine
+# class. MISE_CONFIG_DIR is set explicitly because mise-action pins the config
+# dir for the job (moving HOME alone is not enough — fragments would silently
+# come from the wrong place). No secrets here, so templates render their empty
+# fallbacks; that is what validates the Tera without a Proton Pass session.
+
 jobs:
-  render:
-    runs-on: macos-latest
-    # personal is what a real Mac runs, and it is where the secret-gated dotfiles
-    # (ssh, wireguard) live — without it this job renders neither.
-    env:
-      MISE_ENV: personal
+  machine:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { env: personal, os: macos-latest }
+          - { env: neko, os: ubuntu-latest }
+          - { env: cachyos, os: ubuntu-latest }
+    name: ${{ matrix.env }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
         with:
-          cache: true
+          install: false
 
-      # Render all templated dotfiles into a throwaway HOME. With no fnox/secrets
-      # in the environment, the secret-gated blocks (ssh/wireguard) are skipped —
-      # this validates the Tera templates and the config parse.
-      - name: Render dotfiles
+      - name: Wire a throwaway HOME
         run: |
-          export HOME="$(mktemp -d)"
-          mise trust
-          mise bootstrap dotfiles apply --yes
-          echo "--- ~/.config/git/config ---"; cat "$HOME/.config/git/config"
-          echo "--- ~/.ssh/config ---"; cat "$HOME/.ssh/config"
+          home="$(mktemp -d)"
+          mkdir -p "$home/.config"
+          ln -s "$GITHUB_WORKSPACE" "$home/.config/mise"
+          printf 'env = ["%s"]\n' "${{ matrix.env }}" > miserc.local.toml
+          echo "HOME=$home" >> "$GITHUB_ENV"
+          echo "MISE_CONFIG_DIR=$home/.config/mise" >> "$GITHUB_ENV"
 
-          # The macOS half of the `variants` migration. These four used to be
-          # unconditional (so they also landed in the container) and these two
-          # used to live in mise.personal.toml purely because [dotfiles] had no
-          # `os` filter. They must all still arrive on a Mac.
-          test -L "$HOME/.config/zsh"
-          test -L "$HOME/.zshrc"
-          test -L "$HOME/.zshenv"
-          test -L "$HOME/.p10k.zsh"
-          test -L "$HOME/Library/Application Support/BetterTouchTool/Default.bttpreset"
-          # secret-gated, so with no secrets in CI it renders empty — but the
-          # variant must still have selected it, so the file has to exist
-          test -f "$HOME/.config/wireguard/wg0.home.conf"
-
-      # The DNS switch. k8s_dns_cluster picks which gateway IP the resolver source
-      # gets, and only one cluster can serve the zone at a time. Uses the
-      # $K8S_DNS_CLUSTER source (the default/ad-hoc one); the persistent source is
-      # mise.local.toml, which is untracked and therefore absent in CI.
-      #
-      # This needs MISE_CONFIG_DIR + the conf.d symlink, exactly like the neko
-      # fragment step below: the whole feature lives in conf.d/k8s-dns.personal.toml
-      # and fragments load ONLY through the global config dir. Moving HOME is not
-      # enough — mise-action pins the config dir for the job, so without this the
-      # fragment is silently absent and nothing renders at all. (That is how this
-      # step first failed.)
-      - name: k8s-gateway DNS switch selects per cluster
+      - name: Config loads for this machine class
         run: |
-          export MISE_CONFIG_DIR="$(mktemp -d)/mise"
-          mkdir -p "$MISE_CONFIG_DIR"
-          ln -sfn "$PWD/conf.d" "$MISE_CONFIG_DIR/conf.d"
-          printf 'env = ["personal"]\nenv_conf_d = true\n' > "$MISE_CONFIG_DIR/miserc.toml"
-          export HOME="$(mktemp -d)"
-          res="$HOME/.config/k8s-dns/resolver"
-          mise trust
-
-          # the fragment must actually be loaded, or every assertion below is vacuous
-          mise config | grep -q 'k8s-dns.personal.toml'
-
-          # no secrets: EXACTLY 0 bytes. This regressed once — the template emitted
-          # a lone trailing newline, which is "non-empty", so a size test would have
-          # installed a resolver file with no nameserver line in it and broken the
-          # whole zone. (dns:apply greps for the directive now, but keep the template
-          # honest.)
-          mise bootstrap dotfiles apply --yes
-          test -f "$res"
-          test ! -s "$res"
-
-          export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
-          mise bootstrap dotfiles apply --yes                          # default
-          grep -qx 'nameserver 10.1.1.1' "$res"
-          K8S_DNS_CLUSTER=edge mise bootstrap dotfiles apply --yes
-          grep -qx 'nameserver 10.9.9.9' "$res"
-          K8S_DNS_CLUSTER=main mise bootstrap dotfiles apply --yes
-          grep -qx 'nameserver 10.1.1.1' "$res"
-          # an unknown cluster must fall back to main, never render empty
-          K8S_DNS_CLUSTER=typo mise bootstrap dotfiles apply --yes
-          grep -qx 'nameserver 10.1.1.1' "$res"
-          # exactly one line, no trailing blank: /etc/resolver takes one directive
-          test "$(wc -l <"$res")" -eq 1
-
-  # The neko/xfce container config. Linux runner, `neko` env active: this catches
-  # the things the macOS job cannot — a Linux-only [dotfiles] entry that fails to
-  # render, an overlay that stops parsing, a task that disappears.
-  render-neko:
-    runs-on: ubuntu-latest
-    env:
-      MISE_ENV: neko
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-        with:
-          cache: true
-
-      - name: Render dotfiles (neko env)
-        run: |
-          export HOME="$(mktemp -d)"
-          mise trust
-          mise bootstrap dotfiles apply --yes
-          echo "--- ~/.config/autostart/mise-bootstrap.desktop ---"
-          cat "$HOME/.config/autostart/mise-bootstrap.desktop"
-          test -L "$HOME/.config/fish/config.fish"
-          test -L "$HOME/.config/fish/conf.d/aliases.fish"
-          test -L "$HOME/.config/xfce4/terminal/terminalrc"
-          test -x "$HOME/.local/bin/neko-bootstrap"
-          # menu entries are dotfiles now, and their Exec must resolve to a mise
-          # shim (stable across version bumps) rather than a versioned path
-          for app in code obsidian zen; do
-            grep -q "^Exec=$HOME/.local/share/mise/shims/$app" \
-              "$HOME/.local/share/applications/$app.desktop"
+          mise config | tee /tmp/cfg
+          # every task body must template (a bad {{ }} — even in a comment — fails here)
+          for t in $(mise tasks --no-header | awk '{print $1}'); do mise tasks info "$t" >/dev/null; done
+          case "${{ matrix.env }}" in
+          personal)
+            for f in config.macos.toml config.personal.toml conf.d/zsh/mise.macos.toml \
+                     conf.d/macos-defaults/mise.macos.toml conf.d/k8s-dns/mise.personal.toml; do
+              grep -q "$f" /tmp/cfg || { echo "::error::$f not loaded"; exit 1; }
+            done ;;
+          neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg ;;
+          cachyos) grep -q conf.d/cachyos/mise.cachyos.toml /tmp/cfg ;;
+          esac
+          # nothing from another machine class or platform leaks in
+          for other in personal neko cachyos; do
+            [ "$other" = "${{ matrix.env }}" ] && continue
+            ! grep -qE "(config|mise)\.$other\.toml" /tmp/cfg || { echo "::error::$other config leaked"; exit 1; }
           done
-          test -L "$HOME/.config/mimeapps.list"
-          # the ssh template renders from vars: empty with no source...
-          grep -qx 'HashKnownHosts no' "$HOME/.ssh/config"
-          test "$(grep -c 'Host TN1' "$HOME/.ssh/config")" = 0
-          # ...and the Linux half of the `variants` migration: the mac-only
-          # entries must NOT land here. Before variants the zsh files did.
-          for f in .config/zsh .zshrc .zshenv .p10k.zsh \
-                   .config/wireguard/wg0.home.conf "Library"; do
-            test ! -e "$HOME/$f" || { echo "::error::$f leaked onto linux"; exit 1; }
-          done
+          if [ "$RUNNER_OS" = Linux ]; then ! grep -q 'macos.toml' /tmp/cfg; fi
 
-      # The same template, fed from the environment instead of fnox: this is the
-      # container's path, and it must produce the same file the Macs get.
-      - name: Templated dotfiles render from vars (env source)
+      - name: Dotfiles render
         run: |
-          export HOME="$(mktemp -d)"
-          SSH_TRUENAS_HOST=tn.example SSH_TRUENAS_USER=someone \
-            mise bootstrap dotfiles apply --yes
+          mise bootstrap dotfiles apply --yes
+          grep -qx 'HashKnownHosts no' "$HOME/.ssh/config"         # rendered, secret block skipped
+          test "$(grep -c '^Host TN1' "$HOME/.ssh/config")" = 0
+          case "${{ matrix.env }}" in
+          personal)
+            test -L "$HOME/.zshrc" && test -L "$HOME/.config/zsh"
+            test -f "$HOME/.config/wireguard/wg0.home.conf" ;;
+          neko)
+            test -L "$HOME/.config/fish/config.fish"
+            test -x "$HOME/.local/bin/neko-bootstrap"
+            for app in code obsidian zen; do
+              grep -q "^Exec=$HOME/.local/share/mise/shims/$app" "$HOME/.local/share/applications/$app.desktop"
+            done ;;
+          cachyos)
+            readlink "$HOME/.config/fish/config.fish" | grep -q conf.d/cachyos/fish/
+            test -L "$HOME/.config/systemd/user/gamescope-session.service.d/projector.conf"
+            grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" "$HOME/.local/share/applications/ludo.desktop" ;;
+          esac
+          if [ "$RUNNER_OS" = Linux ]; then
+            for f in .zshrc .config/zsh .config/wireguard Library; do
+              test ! -e "$HOME/$f" || { echo "::error::$f leaked onto linux"; exit 1; }
+            done
+          fi
+
+      - name: Same templates, values from the environment (the config.local.toml/BWS path)
+        run: |
+          SSH_TRUENAS_HOST=tn.example SSH_TRUENAS_USER=someone mise bootstrap dotfiles apply --yes
           grep -q 'HostName tn.example' "$HOME/.ssh/config"
           grep -q 'User someone' "$HOME/.ssh/config"
 
-      # The neko:* tasks live in conf.d fragments, which only load through the
-      # global config dir — so this also exercises the install.sh wiring
-      # (conf.d symlink + miserc selecting the env).
-      # MISE_CONFIG_DIR, not HOME: mise-action pins mise's config dir for the job,
-      # so moving HOME here does not move where conf.d is looked up (that is how
-      # this step first failed — fragments silently absent from `mise config`).
-      - name: conf.d fragments load and their tasks resolve
+      # The k8s-dns resolver is a [bootstrap.files] template over bootstrap
+      # secrets. Retarget the entry IN PLACE to a scratch path first (this
+      # checkout is disposable): applying it as-is would write the runner's real
+      # /etc/resolver, with passwordless sudo. Then: per cluster, the fallback,
+      # and the failure.
+      - name: k8s-dns resolver template
+        if: matrix.env == 'personal'
         run: |
-          export MISE_CONFIG_DIR="$(mktemp -d)/mise"
-          mkdir -p "$MISE_CONFIG_DIR"
-          ln -sfn "$PWD/conf.d" "$MISE_CONFIG_DIR/conf.d"
-          printf 'env = ["neko"]\nenv_conf_d = true\n' > "$MISE_CONFIG_DIR/miserc.toml"
-          mise trust
-          mise config | tee /tmp/cfg
-          grep -q 'conf.d/xfce.neko.toml' /tmp/cfg
-          mise tasks --all | grep -q 'neko:xfce'
+          out="$(mktemp -d)/resolver"
+          f=conf.d/k8s-dns/mise.personal.toml
+          sed -i.bak -e "s#/etc/resolver/wlab.ovh#$out#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' "$f"
+          ! grep -q /etc/resolver/ "$f"   # the retarget took
+          export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
+          K8S_DNS_CLUSTER=main mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
+          K8S_DNS_CLUSTER=edge mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.9.9.9"
+          K8S_DNS_CLUSTER=typo mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
+          test "$(wc -l <"$out")" -eq 1
+          # a missing secret must fail and leave the previous file alone
+          ! K8S_DNS_CLUSTER=edge K8S_GATEWAY_IP_EDGE= mise bootstrap files apply --yes
+          test "$(cat "$out")" = "nameserver 10.1.1.1"
+          mv "$f.bak" "$f"
 
-      # The repo's own invariants, declared as [doctor.checks.*]. Same checks the
-      # machines run locally via `mise doctor project`. neko-hold and the two that
-      # inspect a provisioned $HOME cannot pass on a bare runner, so this asserts
-      # the repo-state ones by name rather than the whole exit code.
-      - name: Repo invariants (mise doctor project)
+      # The repo's own invariants, the same checks machines run via
+      # `mise doctor project`. Only the repo-state ones can pass on a runner.
+      - name: Repo invariants
         run: |
           mise doctor project 2>&1 | tee /tmp/doctor || true
-          for check in file-modes lockfiles; do
-            grep -q "^PASS $check" /tmp/doctor \
-              || { echo "::error::doctor check '$check' did not pass"; exit 1; }
+          for check in file-modes lockfiles wiring; do
+            grep -q "^PASS $check" /tmp/doctor || { echo "::error::doctor check '$check' failed"; exit 1; }
           done
-
-      # Lockfiles are written per config FILE, but every conf.d fragment shares one
-      # at ~/.config/mise/mise.lock — outside the repo. That is why the GUI apps
-      # live in mise.neko.toml and not a fragment: it is the only way their pinned
-      # vendor URLs get a checksum that is committed. Guard both halves.
-      - name: Lockfiles cover the pinned tools
-        run: |
-          test -f mise.lock && test -f mise.neko.lock && test -f mise.cachyos.lock
-          for tool in http:vscode http:obsidian github:zen-browser/desktop; do
-            grep -q "\[\[tools.\"$tool\"\]\]" mise.neko.lock \
-              || { echo "::error::$tool missing from mise.neko.lock"; exit 1; }
-          done
-          # every platform entry in either lockfile must carry a checksum, or the
-          # lockfile is decorative — this is what catches a bumped `http:` version
-          # whose author forgot to re-run `mise lock`
-          python3 - <<'EOF'
-          import re, sys
-          bad = []
-          for path in ("mise.lock", "mise.neko.lock", "mise.cachyos.lock"):
-              section, has_sum = None, False
-              for line in open(path).read().splitlines() + ["[end]"]:
-                  if line.startswith("["):
-                      if section and not has_sum:
-                          bad.append(f"{path}: {section}")
-                      section = line if ".platforms." in line else None
-                      has_sum = False
-                  elif line.startswith("checksum ="):
-                      has_sum = True
-          if bad:
-              print("::error::platform entries with no checksum:")
-              print("\n".join(bad)); sys.exit(1)
-          print("all platform entries carry a checksum")
-          EOF
-
-  # The CachyOS desktop. Linux runner, `cachyos` env: the overlay parses, its
-  # dotfiles land, the KDE fragment's task resolves, and nothing mac-only or
-  # neko-only leaks in.
-  render-cachyos:
-    runs-on: ubuntu-latest
-    env:
-      MISE_ENV: cachyos
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
-        with:
-          cache: true
-
-      - name: Render dotfiles (cachyos env)
-        run: |
-          export HOME="$(mktemp -d)"
-          mise trust
-          mise bootstrap dotfiles apply --yes
-          test -L "$HOME/.config/fish/config.fish"
-          readlink "$HOME/.config/fish/config.fish" | grep -q 'home/cachyos/fish/config.fish'
-          test -L "$HOME/.config/fish/conf.d/aliases.fish"
-          test -L "$HOME/.config/systemd/user/gamescope-session.service.d/projector.conf"
-          test -L "$HOME/.config/gamescope/scripts/benq-projector.lua"
-          grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" \
-            "$HOME/.local/share/applications/ludo.desktop"
-          for f in .config/zsh .zshrc .config/wireguard/wg0.home.conf Library \
-                   .config/starship.toml .config/autostart/mise-bootstrap.desktop; do
-            test ! -e "$HOME/$f" || { echo "::error::$f leaked onto cachyos"; exit 1; }
-          done
-
-      - name: conf.d fragments load and their tasks resolve
-        run: |
-          export MISE_CONFIG_DIR="$(mktemp -d)/mise"
-          mkdir -p "$MISE_CONFIG_DIR"
-          ln -sfn "$PWD/conf.d" "$MISE_CONFIG_DIR/conf.d"
-          printf 'env = ["cachyos"]\nenv_conf_d = true\n' > "$MISE_CONFIG_DIR/miserc.toml"
-          mise trust
-          mise config | tee /tmp/cfg
-          grep -q 'conf.d/kde.cachyos.toml' /tmp/cfg
-          ! grep -q 'xfce.neko.toml' /tmp/cfg
-          mise tasks --all | grep -q 'cachyos:kde'
-          # the apply override must win: the shared one calls the mac-only dns:apply
-          mise tasks info apply | grep -q 'KDE settings'

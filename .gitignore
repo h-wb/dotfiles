@@ -1,2 +1,7 @@
 .DS_Store
+# Per-machine, never committed: the machine class and local [vars].
+miserc.local.toml
+*.local.toml
+!*.local.toml.example
+# Leftovers of the pre-wire layout (scripts/wire renames it on first run).
 mise.local.toml

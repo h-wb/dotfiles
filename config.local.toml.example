@@ -1,0 +1,30 @@
+# Per-machine values: copy to config.local.toml (untracked). mise loads it
+# after every other config, so it is the highest-precedence source for [vars].
+#
+# Templates read {{ vars.x }} and never name a source. config.toml defaults each
+# var to the environment — where `fnox exec` puts the Proton Pass secrets — so
+# this file is for a machine that would rather pin a literal. A var in neither
+# place renders empty, and the templates gate their blocks on that, so a partial
+# file is always safe.
+#
+# On the neko container there is a third source that needs no file: a value in
+# the `neko` BWS secret arrives as a real env var via envFrom. Prefer that for
+# anything genuinely secret; this file is plaintext.
+
+[vars]
+git_email = "you@example.com"
+
+# Which cluster resolves the internal DNS zone (MacBook). Written by
+# `mise run dns:edge` / `dns:main` rather than by hand; unset means "main".
+# It lives here because it must survive `mise run apply`.
+# k8s_dns_cluster = "edge"
+
+# home/ssh/config.tmpl — the Host block is skipped when unset.
+# ssh_truenas_host = "truenas.lan"
+# ssh_truenas_user = "you"
+
+# Whole-file WireGuard config (Macs; config.macos.toml).
+# wg0_home_conf = """
+# [Interface]
+# ...
+# """

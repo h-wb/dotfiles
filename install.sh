@@ -1,30 +1,25 @@
 #!/bin/sh
-# Full-mise bootstrap (Mac, CachyOS desktop or neko container). Installs mise, clones this repo, makes it the global mise
-# config, and runs `mise bootstrap` (packages, macOS, dotfiles, tools) with
-# secrets injected by fnox.
+# Provision a machine from scratch: a Mac, the CachyOS desktop or the neko
+# container. Installs mise, clones this repo to ~/.dotfiles, makes it mise's
+# config dir (scripts/wire), then runs `mise bootstrap` with secrets from fnox.
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
 DOTFILES_DIR="${DOTFILES_DIR:-${HOME}/.dotfiles}"
-
 export PATH="${HOME}/.local/bin:${PATH}"
 
 # 1. mise
-if ! command -v mise >/dev/null 2>&1; then
-	curl -fsSL https://mise.run | sh
-fi
+command -v mise >/dev/null 2>&1 || curl -fsSL https://mise.run | sh
 MISE="${HOME}/.local/bin/mise"
 
-# 1b. the neko/xfce container ships curl but no git, and its /usr is wiped on
-#     every pod roll, so git can be missing on a box that is otherwise set up.
-#     (bootstrap reinstalls it from [bootstrap.packages] afterwards.)
+# 1b. The neko image ships curl but no git, and its /usr is wiped on every pod
+#     roll. (bootstrap reinstalls it from [bootstrap.packages] afterwards.)
 if ! command -v git >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
 	sudo apt-get update -qq
 	sudo apt-get install -y -qq --no-install-recommends git
 fi
 
-# 2. clone/update the repo (git triggers the Command Line Tools install on a
-#    fresh Mac, which is exactly what we want).
+# 2. The repo (git triggers the Command Line Tools install on a fresh Mac).
 if [ -d "${DOTFILES_DIR}/.git" ]; then
 	git -C "${DOTFILES_DIR}" pull --ff-only
 else
@@ -32,28 +27,15 @@ else
 fi
 cd "${DOTFILES_DIR}"
 
-# 3. wire this repo into mise's global config dir (global config, env overlays,
-#    conf.d, per-machine miserc). Shared with the neko container's session-start
-#    bootstrap, which needs the same wiring on a fresh PVC.
-DOTFILES_DIR="${DOTFILES_DIR}" "${DOTFILES_DIR}/scripts/link-mise-config"
+# 3. ~/.config/mise -> this repo, plus the machine class in miserc.local.toml.
+DOTFILES_DIR="${DOTFILES_DIR}" ./scripts/wire
 
-# 4. trust + bootstrap everything (secrets injected by fnox). The preflight logs
-#    into Proton Pass if there is no session yet, and --if-missing error makes an
-#    unresolved secret fatal instead of a warning that renders the secret-gated
-#    dotfiles empty. On a machine without secrets, run `mise bootstrap` directly.
-"${MISE}" trust
-MISE="${MISE}" "${DOTFILES_DIR}/scripts/pass-preflight" || exit 1
-# --skip files, then the privileged resolver write afterwards: [bootstrap.files] is
-# phase 3 but the file it sources is rendered by [dotfiles] in phase 4, and a
-# missing source is fatal to the WHOLE bootstrap — on a fresh machine that would
-# abort before anything got provisioned. See conf.d/k8s-dns.personal.toml.
-# --force-dotfiles off macOS: CachyOS (and the neko image) write their own
-# ~/.config/fish/config.fish before we get here, and mise will not replace a
-# regular file with a symlink without it.
+# 4. Bootstrap with secrets. The preflight logs into Proton Pass if there is no
+#    session; --if-missing error makes an unresolved secret fatal instead of a
+#    warning that renders the secret-gated dotfiles empty over good copies.
+#    This is `mise run apply`, spelled out because fnox is not installed yet.
+MISE="${MISE}" ./scripts/pass-preflight || exit 1
 FORCE=""
-[ "$(uname)" = "Darwin" ] || FORCE="--force-dotfiles"
-"${MISE}" exec github:jdx/fnox@latest -- \
-	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --skip files --yes ${FORCE} || exit 1
-# dns:apply comes from conf.d/k8s-dns.personal.toml and only exists on the Macs.
-[ "$(uname)" = "Darwin" ] || exit 0
-exec "${MISE}" run dns:apply
+[ "$(uname)" = "Darwin" ] || FORCE="--force-dotfiles" # distro-written fish config
+exec "${MISE}" exec github:jdx/fnox@latest -- \
+	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --yes ${FORCE}

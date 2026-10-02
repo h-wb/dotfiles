@@ -1,0 +1,18 @@
+# The MacBook (machine class `personal`). On top of config.macos.toml, which
+# every Mac gets: this is what a work Mac on the same OS would NOT want.
+# Its Mac-only features are folder fragments: conf.d/k8s-dns, conf.d/zen-history.
+
+[tools]
+"github:ReagentX/imessage-exporter" = "latest"   # iMessage history export
+
+[bootstrap.packages]
+"brew:mas" = "latest"                  # Mac App Store CLI
+"brew-cask:beeper" = "latest"
+"brew-cask:crossover" = "latest"       # Windows apps on macOS
+"brew-cask:nextcloud" = "latest"
+"brew-cask:plex" = "latest"
+"brew-cask:protonvpn" = "latest"
+"brew-cask:screenmemory" = "latest"    # screen activity recorder
+"brew-cask:steam" = "latest"
+"brew-cask:whatsapp" = "latest"
+"mas:1451685025" = "latest"            # WireGuard
