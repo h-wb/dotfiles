@@ -1,0 +1,10 @@
+# Keys for the gamescope (Big Picture) session — run by the dev.mise.gamescope-keys
+# unit in conf.d/cachyos/mise.cachyos.toml. xremap only runs in Plasma, so here
+# the Rainy 75's keys are exactly what is printed on them.
+
+# At the desk with the projector off, gamescope is drawing to a screen nobody is
+# looking at: Ctrl+Alt+D goes to the desktop the same way Steam's "Switch to
+# Desktop" does. Autologin happened once at boot, so this lands on the login
+# screen and the desktop still needs the password.
+"steamos-session-select plasma"
+  Control+Alt + d

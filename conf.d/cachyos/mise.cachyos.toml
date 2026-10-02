@@ -42,6 +42,7 @@ ef = "exec fish"
 "pacman:gamescope-session-cachyos" = "latest"    # the "Steam Big Picture" login session (provides gamescope-session-steam-git)
 "pacman:ghostty" = "latest"                       # same terminal as the Macs
 "pacman:flatpak" = "latest"
+"pacman:xbindkeys" = "latest"                    # Ctrl+Alt+D out of Big Picture (gamescope/xbindkeysrc)
 "pacman:jq" = "latest"                           # the Decky installer refuses to run without it
 # RetroDECK is a SYSTEM flatpak (that is how it was installed). Arch's flatpak
 # package ships /etc/flatpak/remotes.d/flathub.flatpakrepo, so flathub exists as
@@ -98,6 +99,7 @@ action = "allow"
 "~/.local/share/applications/ludo.desktop" = { source = "applications/ludo.desktop.tmpl", mode = "template" }
 
 "~/.config/xremap/config.yml" = { source = "xremap/config.yml", mode = "symlink" }
+"~/.config/xbindkeys/gamescope" = { source = "gamescope/xbindkeysrc", mode = "symlink" }   # Ctrl+Alt+D, see the gamescope-keys unit
 
 # ── macOS keyboard: xremap ──────────────────────────────────────────────────
 # xremap reads the keyboard's evdev nodes and writes through /dev/uinput. uinput
@@ -127,6 +129,47 @@ part_of = ["plasma-workspace.target"]
 after = ["plasma-workspace.target"]
 wanted_by = ["plasma-workspace.target"]
 restart = "always"
+restart_sec = "3s"
+
+# ── Boot into Big Picture ───────────────────────────────────────────────────
+# Power on → Steam on the projector, from the couch. gamescope-session-cachyos
+# already ships SteamOS's session switching: steam-set-session writes
+# /etc/plasmalogin.conf.d/zz-steamos-autologin.conf ([Autologin] Session=…),
+# and in its default "oneshot" mode a Plasma login resets that to gamescope, so
+# every boot starts in Big Picture. All it lacked was a User= to log in as.
+#
+# The couch is guarded by Steam's own lock screen, not here: Steam → Settings →
+# Security → Enable lock screen, a 6-digit PIN on the controller, "On system
+# wake and power up" + "When switching to desktop mode". (Steam-side, so mise
+# cannot set it.)
+#
+# Relogin=false: autologin happens once per boot, into gamescope only. "Switch
+# to Desktop" (or Ctrl+Alt+D) ends the session and lands on the login screen,
+# so the desktop still takes the password — and unlocks KWallet with it.
+# Sorts before zz-steamos-autologin.conf, which keeps owning Session=.
+[bootstrap.files."/etc/plasmalogin.conf.d/50-autologin-user.conf"]
+content = """[Autologin]
+User=hugo
+Relogin=false
+"""
+owner = "root"
+group = "root"
+mode = "0644"
+
+# The desk escape hatch. gamescope is pinned to the projector, so a boot with the
+# projector off is a black monitor: Ctrl+Alt+D (gamescope/xbindkeysrc) switches
+# to the desktop. Its own unit rather than the package's gamescope-xbindkeys,
+# which wants a root-owned /etc/xbindkeysrc; the environment file is the one
+# gamescope writes with DISPLAY for its Xwayland. (Its keybinding file is linked
+# in [dotfiles] above.)
+[bootstrap.linux.systemd.units.gamescope-keys]
+description = "Ctrl+Alt+D: leave Big Picture for the desktop"
+exec_start = "/usr/bin/xbindkeys -n -f %h/.config/xbindkeys/gamescope"
+environment_file = ["%t/gamescope-environment"]
+part_of = ["gamescope-session.target"]
+after = ["gamescope-session.target"]
+wanted_by = ["gamescope-session.target"]
+restart = "on-failure"
 restart_sec = "3s"
 
 # systemd only notices a new/changed drop-in after a reload.
