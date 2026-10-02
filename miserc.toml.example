@@ -12,6 +12,7 @@
 # Machines in use:
 #   ["personal"] — the MacBook
 #   ["neko"]     — the neko/xfce container (Debian, no launchd/systemd)
+#   ["cachyos"]  — the CachyOS KDE gaming desktop
 env = ["personal"]
 
 # Opt into environment-scoped conf.d filenames now (default until mise 2027.8.10,

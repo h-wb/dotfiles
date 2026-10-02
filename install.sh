@@ -1,5 +1,5 @@
 #!/bin/sh
-# Full-mise bootstrap. Installs mise, clones this repo, makes it the global mise
+# Full-mise bootstrap (Mac, CachyOS desktop or neko container). Installs mise, clones this repo, makes it the global mise
 # config, and runs `mise bootstrap` (packages, macOS, dotfiles, tools) with
 # secrets injected by fnox.
 set -eu
@@ -47,6 +47,13 @@ MISE="${MISE}" "${DOTFILES_DIR}/scripts/pass-preflight" || exit 1
 # phase 3 but the file it sources is rendered by [dotfiles] in phase 4, and a
 # missing source is fatal to the WHOLE bootstrap — on a fresh machine that would
 # abort before anything got provisioned. See conf.d/k8s-dns.personal.toml.
+# --force-dotfiles off macOS: CachyOS (and the neko image) write their own
+# ~/.config/fish/config.fish before we get here, and mise will not replace a
+# regular file with a symlink without it.
+FORCE=""
+[ "$(uname)" = "Darwin" ] || FORCE="--force-dotfiles"
 "${MISE}" exec github:jdx/fnox@latest -- \
-	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --skip files --yes || exit 1
+	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --skip files --yes ${FORCE} || exit 1
+# dns:apply comes from conf.d/k8s-dns.personal.toml and only exists on the Macs.
+[ "$(uname)" = "Darwin" ] || exit 0
 exec "${MISE}" run dns:apply
