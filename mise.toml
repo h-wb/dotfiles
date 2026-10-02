@@ -204,7 +204,7 @@ cd "$HOME/.dotfiles" || exit 0
 python3 - <<'EOF'
 import sys, os
 bad = []
-for path in ("mise.lock", "mise.neko.lock"):
+for path in ("mise.lock", "mise.neko.lock", "mise.cachyos.lock"):
     if not os.path.exists(path):
         bad.append(f"{path}: missing entirely"); continue
     section, has_sum = None, False

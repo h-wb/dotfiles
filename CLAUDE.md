@@ -3,8 +3,9 @@
 macOS dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi
 was removed — see git history around `refactor: migrate from chezmoi to full-mise`).
 Secrets come from **fnox** backed by **Proton Pass**. Repo lives at `~/.dotfiles`.
-Two machine classes share it: the Macs (env `personal`) and a neko/xfce container
-in k8s (env `neko`) — see the neko section below before touching anything Linux.
+Three machine classes share it: the Macs (env `personal`), a neko/xfce container
+in k8s (env `neko`) and a CachyOS KDE gaming desktop (env `cachyos`) — see the
+neko and CachyOS sections below before touching anything Linux.
 
 ## Layout
 
@@ -13,6 +14,9 @@ in k8s (env `neko`) — see the neko section below before touching anything Linu
 - `mise.neko.toml` — env overlay for the **neko/xfce container** (Debian trixie, user
   `neko`, fish shell, XFCE). Active env there is `neko`. Companion fragments:
   `conf.d/xfce.neko.toml` (xfconf settings) and `conf.d/neko-apps.neko.toml` (GUI apps).
+- `mise.cachyos.toml` — env overlay for the **CachyOS desktop** (Arch, KDE Plasma,
+  fish, systemd). Companion fragment: `conf.d/kde.cachyos.toml` (kwriteconfig6
+  settings); sources under `home/cachyos/`; lockfile `mise.cachyos.lock`.
 - `conf.d/` — fragments merged into the global config: `macos-defaults.toml` + `settings.toml` (always load), `xfce.neko.toml` / `neko-apps.neko.toml` / `k8s-dns.personal.toml` (env-scoped). Symlinked to `~/.config/mise/conf.d`. A fragment can hold **any** section — `[vars]`, `[dotfiles]`, `[bootstrap.*]`, `[tasks]` and `[doctor.checks]` all load from one (verified 2026-09-27), which is what lets a whole feature live in a single file.
 - `miserc.toml.example` → per-machine `~/.config/mise/miserc.toml` (untracked): picks active `env` + `env_conf_d`.
 - `mise.local.toml` (gitignored) — per-machine values, e.g. `[vars] git_email`.
@@ -203,6 +207,39 @@ over WebRTC.
 16. **`chsh` doesn't stick** (it writes `/etc/passwd`, which resets on every roll). It's
     re-applied each bootstrap for exec shells; the terminal gets fish from
     `home/xfce/terminalrc` (`RunCustomCommand`), which *is* on the PVC.
+
+## The CachyOS desktop (env `cachyos`)
+
+A real Arch machine (`hugo@192.168.18.4`, login shell fish, KDE Plasma, NVIDIA,
+systemd) — none of the neko constraints apply: `/usr` persists, so apps are
+`pacman:` packages, not `[tools]`. `link-mise-config` picks the env from
+`ID=cachyos` in `/etc/os-release`.
+
+- **Scope is "what was added after the installer"**, read from
+  `/var/log/pacman.log` (Calamares + cachyos-hello on 2026-04-18, then by hand).
+  Package install dates are useless: a full `-Syu` on 2026-09-27 reset them all.
+  Theme, cursor, animation speed and the fish prompt are CachyOS's own
+  `/etc/skel` defaults (cachyos-kde-settings, cachyos-fish-config) — don't
+  re-declare them. `pacman -Qm` lists lib32 AUR orphans; they are not additions.
+- **No AUR helper needed** — zen-browser-bin and gamescope-session-cachyos are in
+  the cachyos repo. RetroDECK is a *system* flatpak; Arch's flatpak package ships
+  the flathub remote, so the pre-packages hook only ensures flatpak exists.
+- **KDE settings are `kwriteconfig6` keys, not dotfiles**: Plasma and Claude Code
+  rewrite those rc files (and `mimeapps.list`) themselves. kwriteconfig6 needs no
+  D-Bus, unlike xfconf-query, so the task works over ssh.
+- **The projector fix is two symlinked files** (gamescope-session drop-in pinning
+  `OUTPUT_CONNECTOR=HDMI-A-1`, and a gamescope Lua display script forcing SDR
+  Rec.709/D65). `doctor.checks.gamescope-projector` catches a session-script
+  update that renames the variable. Write-up: `~/gamescope-projector-setup.md`
+  on the desktop.
+- **Decky Loader comes from its official installer** (in `[tasks.bootstrap]`),
+  which cannot be piped to `sh` (it `exec sudo "$0"`s and uses bash `<<<`) and
+  needs Steam to have run once. The romm-tender plugin and its settings (RomM API
+  token) are deliberately not managed.
+- **`sudo` needs a password there**, so anything that inspects privileged state
+  (`mise bootstrap plan` → firewall) needs a TTY: `ssh -t`, not a batch ssh.
+- `mise.cachyos.toml` overrides `apply` (the shared one calls the Mac-only
+  `dns:apply`), `EDITOR` (no VS Code) and `SSH_AUTH_SOCK` (no Proton Pass agent).
 
 ## Installing GUI apps in the container (verified, not guessed)
 

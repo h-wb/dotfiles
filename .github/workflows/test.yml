@@ -174,7 +174,7 @@ jobs:
       # vendor URLs get a checksum that is committed. Guard both halves.
       - name: Lockfiles cover the pinned tools
         run: |
-          test -f mise.lock && test -f mise.neko.lock
+          test -f mise.lock && test -f mise.neko.lock && test -f mise.cachyos.lock
           for tool in http:vscode http:obsidian github:zen-browser/desktop; do
             grep -q "\[\[tools.\"$tool\"\]\]" mise.neko.lock \
               || { echo "::error::$tool missing from mise.neko.lock"; exit 1; }
@@ -185,7 +185,7 @@ jobs:
           python3 - <<'EOF'
           import re, sys
           bad = []
-          for path in ("mise.lock", "mise.neko.lock"):
+          for path in ("mise.lock", "mise.neko.lock", "mise.cachyos.lock"):
               section, has_sum = None, False
               for line in open(path).read().splitlines() + ["[end]"]:
                   if line.startswith("["):
@@ -200,3 +200,47 @@ jobs:
               print("\n".join(bad)); sys.exit(1)
           print("all platform entries carry a checksum")
           EOF
+
+  # The CachyOS desktop. Linux runner, `cachyos` env: the overlay parses, its
+  # dotfiles land, the KDE fragment's task resolves, and nothing mac-only or
+  # neko-only leaks in.
+  render-cachyos:
+    runs-on: ubuntu-latest
+    env:
+      MISE_ENV: cachyos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          cache: true
+
+      - name: Render dotfiles (cachyos env)
+        run: |
+          export HOME="$(mktemp -d)"
+          mise trust
+          mise bootstrap dotfiles apply --yes
+          test -L "$HOME/.config/fish/config.fish"
+          readlink "$HOME/.config/fish/config.fish" | grep -q 'home/cachyos/fish/config.fish'
+          test -L "$HOME/.config/fish/conf.d/aliases.fish"
+          test -L "$HOME/.config/systemd/user/gamescope-session.service.d/projector.conf"
+          test -L "$HOME/.config/gamescope/scripts/benq-projector.lua"
+          grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" \
+            "$HOME/.local/share/applications/ludo.desktop"
+          for f in .config/zsh .zshrc .config/wireguard/wg0.home.conf Library \
+                   .config/starship.toml .config/autostart/mise-bootstrap.desktop; do
+            test ! -e "$HOME/$f" || { echo "::error::$f leaked onto cachyos"; exit 1; }
+          done
+
+      - name: conf.d fragments load and their tasks resolve
+        run: |
+          export MISE_CONFIG_DIR="$(mktemp -d)/mise"
+          mkdir -p "$MISE_CONFIG_DIR"
+          ln -sfn "$PWD/conf.d" "$MISE_CONFIG_DIR/conf.d"
+          printf 'env = ["cachyos"]\nenv_conf_d = true\n' > "$MISE_CONFIG_DIR/miserc.toml"
+          mise trust
+          mise config | tee /tmp/cfg
+          grep -q 'conf.d/kde.cachyos.toml' /tmp/cfg
+          ! grep -q 'xfce.neko.toml' /tmp/cfg
+          mise tasks --all | grep -q 'cachyos:kde'
+          # the apply override must win: the shared one calls the mac-only dns:apply
+          mise tasks info apply | grep -q 'KDE settings'

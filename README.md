@@ -17,6 +17,7 @@ from Proton Pass. No chezmoi.
 - **`conf.d/`** — split-out fragments merged into the global config: `macos-defaults.toml`, `settings.toml` (always loaded), and env-scoped ones like `xfce.neko.toml` (loaded only when that env is active).
 - **`mise.personal.toml`** — env overlay, loaded when `personal` is an active env.
 - **`mise.neko.toml`** — env overlay for the neko/xfce container (Debian, fish, XFCE); see below.
+- **`mise.cachyos.toml`** — env overlay for the CachyOS KDE gaming desktop (pacman, flatpak, ufw, gamescope); KDE settings in `conf.d/kde.cachyos.toml`.
 - **`miserc.toml.example`** — template for the per-machine `~/.config/mise/miserc.toml` (which env(s) are active + `env_conf_d`); see below.
 - **`fnox.toml`** — Proton Pass secret references (no secret values).
 - **`mise.local.toml`** — untracked per-machine values; see *Where values come from* below.
@@ -31,7 +32,7 @@ env = ["personal"]   # loads mise.personal.toml + conf.d/*.personal.toml
 env_conf_d = true    # enable env-scoped conf.d/<name>.<env>.toml filenames
 ```
 
-Machines in use: `["personal"]` on the MacBook, `["neko"]` in the neko container.
+Machines in use: `["personal"]` on the MacBook, `["neko"]` in the neko container, `["cachyos"]` on the CachyOS desktop.
 
 `miserc.toml` must live at `~/.config/mise/` (not in `mise.toml`) because it controls config *discovery*, which runs before `mise.toml` is read. To scope something to this machine class, name its fragment `conf.d/<name>.personal.toml`; plain `conf.d/<name>.toml` always loads.
 
