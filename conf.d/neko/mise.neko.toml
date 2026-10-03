@@ -101,6 +101,8 @@ ef = "exec fish"
 "~/.local/share/applications/zen.desktop"      = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
 # Aliases are [shell_alias] now; this was a symlink to the old aliases file.
 "~/.config/fish/conf.d/aliases.fish" = { mode = "absent" }
+# Replaced by bin/git-credential-fnox.
+"~/.git-credentials" = { mode = "absent" }
 
 # ── Repos ───────────────────────────────────────────────────────────────────
 # Cloned to the same paths as on the Macs, so muscle memory and any absolute
@@ -124,26 +126,6 @@ ef = "exec fish"
 "~/Repositories/onedr0p"             = { url = "https://github.com/onedr0p/home-ops.git" }
 "~/Repositories/jory"                = { url = "https://github.com/joryirving/home-ops.git" }
 "~/Repositories/vrozaksen"           = { url = "https://github.com/vrozaksen/home-ops.git" }
-
-# Git auth has to exist BEFORE the repos step, and the bootstrap order makes that
-# awkward: repos run just before dotfiles, and tools (gh) come later. So on a fresh PVC
-# there is no gh yet and no rendered git config — hence a plain credentials file
-# written here from the fnox-injected token, which needs nothing but shell.
-# `gh` itself is logged in later, in the bootstrap task, for interactive use.
-#
-# The `git config --global` below only matters on that first fresh-PVC run: git
-# picks ~/.config/git/config once it exists, which is the dotfile rendered right
-# after this — so the write is erased on every subsequent bootstrap. The helper
-# is therefore declared in the repo's home/git/config.tmpl too, and
-# that is the copy that actually survives. Don't "dedupe" the two.
-[bootstrap.hooks.pre-repos]
-run = """
-[ -n "${GH_TOKEN:-}" ] || { echo "[info] no GH_TOKEN; private repos will not clone"; exit 0; }
-umask 077
-printf 'https://x-access-token:%s@github.com\n' "$GH_TOKEN" > "$HOME/.git-credentials"
-git config --global credential.helper store
-echo "[info] git credentials configured from GH_TOKEN"
-"""
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # `mise bootstrap` runs [tasks.bootstrap] last, after packages/dotfiles/tools,
