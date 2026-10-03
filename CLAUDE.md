@@ -270,7 +270,9 @@ hand-written file cannot win a context-name collision.
   are re-applied each run.
 - **Reprovisioning**: `~/.config/autostart/mise-bootstrap.desktop` →
   `bin/neko-bootstrap` at every XFCE session start (the launchd equivalent;
-  `[bootstrap.linux.systemd.units]` is useless without systemd). It wires
+  `[bootstrap.linux.systemd.units]` is useless without systemd). It
+  fast-forwards `~/.dotfiles` from its upstream first (so a push reaches the
+  desktop at the next session start; skipped under hold), wires
   `~/.config/mise`, picks `secrets`/`fresh`/`protect`, runs bootstrap once with
   `--skip-dirty` (one dirty repo must not stop provisioning), logs to
   `~/.local/state/neko-bootstrap.log`, `notify-send`s on failure.
