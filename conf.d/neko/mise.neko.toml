@@ -212,6 +212,11 @@ command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONTDIR" >/dev/null 2>&1 ||
 # mode. A fresh add-on dir (first install, or a version bump) then has none and
 # stays on localhost until a run with secrets. Anki reads this at start, so a
 # changed key needs an Anki restart.
+#
+# update_enabled=false in every variant: Anki checks AnkiWeb for add-on updates
+# at start, and its installer deletes the add-on dir first — here that is this
+# symlink, and the reinstall then dies on the link's target (FileExistsError),
+# leaving Anki with no AnkiConnect at all. The version is pinned in [tools].
 AC="$("$HOME/.local/bin/mise" where http:anki-connect 2>/dev/null || true)"
 if [ -n "$AC" ] && [ -d "$AC/plugin" ]; then
   ADDON="$HOME/.local/share/Anki2/addons21/2055492159"
@@ -219,8 +224,9 @@ if [ -n "$AC" ] && [ -d "$AC/plugin" ]; then
   ln -sfn "$AC/plugin" "$ADDON"
   if [ -n "${ANKICONNECT_API_KEY:-}" ]; then
     ( umask 077
-      printf '{"config": {"webBindAddress": "0.0.0.0", "apiKey": "%s"}}\n' "$ANKICONNECT_API_KEY" > "$ADDON/meta.json" )
+      printf '{"update_enabled": false, "config": {"webBindAddress": "0.0.0.0", "apiKey": "%s"}}\n' "$ANKICONNECT_API_KEY" > "$ADDON/meta.json" )
   elif [ ! -f "$ADDON/meta.json" ]; then
+    printf '%s\n' '{"update_enabled": false}' > "$ADDON/meta.json"
     echo "[info] no ANKICONNECT_API_KEY; AnkiConnect stays on 127.0.0.1"
   fi
 fi
