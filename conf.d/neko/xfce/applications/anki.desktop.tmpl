@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Anki
+Comment=Spaced repetition flashcards (supervisord keeps it running for AnkiConnect)
+Exec={{ env.HOME }}/.local/bin/anki-session
+Icon={{ env.HOME }}/.local/share/mise/installs/http-anki/latest/anki.png
+Categories=Education;
+StartupNotify=true
+StartupWMClass=anki
+Terminal=false

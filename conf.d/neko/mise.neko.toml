@@ -50,6 +50,25 @@ strip_components = 1
 linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
 linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
 
+# Anki, kept running here (supervisord → bin/anki-session) so automation can reach
+# the collection through AnkiConnect. The tarball is self-contained (its own
+# Python + Qt), so nothing from its install.sh is needed.
+[tools."http:anki"]
+os = "linux"
+version = "26.09.3"
+strip_components = 1
+[tools."http:anki".platforms]
+linux-x64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-x86_64.tar.zst" }
+linux-arm64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-aarch64.tar.zst" }
+
+# The AnkiConnect add-on (AnkiWeb id 2055492159) as a pinned source archive.
+# No executables: [tasks.bootstrap] links its plugin/ dir into Anki's addons21.
+[tools."http:anki-connect"]
+os = "linux"
+version = "25.9.6.0"
+strip_components = 1
+url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
+
 [env]
 LANG = "C.UTF-8"                     # Debian ships C.UTF-8 without `locales`
 TZ = "America/New_York"              # the image is UTC
@@ -81,6 +100,11 @@ ef = "exec fish"
 "apt:libxss1" = "latest"
 "apt:libsecret-1-0" = "latest"    # VS Code keyring
 "apt:libdbus-glib-1-2" = "latest" # Zen (Gecko)
+"apt:libxcb-cursor0" = "latest"      # Anki (Qt 6 xcb platform plugin) — these five
+"apt:libxcb-icccm4" = "latest"
+"apt:libxcb-image0" = "latest"
+"apt:libxcb-keysyms1" = "latest"
+"apt:libxcb-render-util0" = "latest"
 
 # The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
 # No pre-packages `apt-get update` hook for that any more: since 2026.9.15 mise
@@ -98,6 +122,9 @@ ef = "exec fish"
 "~/.local/share/applications/code.desktop"     = { source = "xfce/applications/code.desktop.tmpl", mode = "template" }
 "~/.local/share/applications/obsidian.desktop" = { source = "xfce/applications/obsidian.desktop.tmpl", mode = "template" }
 "~/.local/share/applications/zen.desktop"      = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
+# Menu entry only: no autostart entry, the container's supervisord starts Anki
+# and restarts it when it exits (see bin/anki-session).
+"~/.local/share/applications/anki.desktop"     = { source = "xfce/applications/anki.desktop.tmpl", mode = "template" }
 # Aliases are [shell_alias] now; this was a symlink to the old aliases file.
 "~/.config/fish/conf.d/aliases.fish" = { mode = "absent" }
 
@@ -167,6 +194,32 @@ for style in "Regular" "Bold" "Italic" "Bold Italic"; do
   curl -fsSL "$url" -o "$target" || rm -f "$target"
 done
 command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$FONTDIR" >/dev/null 2>&1 || true
+
+# AnkiConnect into Anki's add-on folder (~/.local/share/Anki2, on the PVC). The
+# link is re-pointed every run, so a version bump of the tool is picked up.
+#
+# meta.json is where Anki keeps an add-on's user config. AnkiConnect listens on
+# 127.0.0.1 with no auth by default; it is opened to the pod network (home-ops
+# has a ClusterIP Service for n8n) ONLY together with an apiKey, and only when
+# ANKICONNECT_API_KEY is set (fnox.toml, from Proton Pass).
+#
+# Without the key — a session start with no Proton Pass session — an existing
+# meta.json is left alone, the same reasoning as neko-bootstrap's `protect`
+# mode. A fresh add-on dir (first install, or a version bump) then has none and
+# stays on localhost until a run with secrets. Anki reads this at start, so a
+# changed key needs an Anki restart.
+AC="$("$HOME/.local/bin/mise" where http:anki-connect 2>/dev/null || true)"
+if [ -n "$AC" ] && [ -d "$AC/plugin" ]; then
+  ADDON="$HOME/.local/share/Anki2/addons21/2055492159"
+  mkdir -p "$(dirname "$ADDON")"
+  ln -sfn "$AC/plugin" "$ADDON"
+  if [ -n "${ANKICONNECT_API_KEY:-}" ]; then
+    ( umask 077
+      printf '{"config": {"webBindAddress": "0.0.0.0", "apiKey": "%s"}}\n' "$ANKICONNECT_API_KEY" > "$ADDON/meta.json" )
+  elif [ ! -f "$ADDON/meta.json" ]; then
+    echo "[info] no ANKICONNECT_API_KEY; AnkiConnect stays on 127.0.0.1"
+  fi
+fi
 
 # Persist the token into gh's own config (~/.config/gh, on the PVC) so `gh` works
 # in a terminal later, where GH_TOKEN is not in the environment.
@@ -296,6 +349,14 @@ run = '''
 echo "~/.neko-hold is present — neko-bootstrap exits before doing anything,"
 echo "so this desktop is NOT reprovisioning itself at session start."
 exit 1
+'''
+
+[doctor.checks.anki-connect]
+description = "Anki is running and AnkiConnect answers"
+hint = "start Anki from the menu; see ~/.local/state/anki-session.log"
+run = '''
+curl -fsS -m 3 -X POST http://127.0.0.1:8765 -d '{"action":"version","version":6}' >/dev/null ||
+  { echo "nothing on 127.0.0.1:8765 — Anki is closed, or the add-on did not load"; exit 1; }
 '''
 
 [doctor.checks.neko-autostart]
