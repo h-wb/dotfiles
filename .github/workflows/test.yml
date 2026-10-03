@@ -49,7 +49,7 @@ jobs:
                      conf.d/macos-defaults/mise.macos.toml conf.d/k8s-dns/mise.personal.toml; do
               grep -q "$f" /tmp/cfg || { echo "::error::$f not loaded"; exit 1; }
             done ;;
-          neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg ;;
+          neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg && grep -q conf.d/anki/mise.neko.toml /tmp/cfg ;;
           cachyos) grep -q conf.d/cachyos/mise.cachyos.toml /tmp/cfg ;;
           esac
           # nothing from another machine class or platform leaks in
@@ -72,6 +72,7 @@ jobs:
           neko)
             test -L "$HOME/.config/fish/config.fish"
             test -x "$HOME/.local/bin/neko-bootstrap"
+            test -x "$HOME/.local/bin/anki-session"
             for app in code obsidian zen; do
               grep -q "^Exec=$HOME/.local/share/mise/shims/$app" "$HOME/.local/share/applications/$app.desktop"
             done ;;

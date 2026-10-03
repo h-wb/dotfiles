@@ -41,7 +41,7 @@ also how CI pins the class per matrix job.
   nothing else, not recursively. Relative sources resolve **inside the folder**,
   and its tasks **run in the folder** (2026.9.15). Each machine class and each
   self-contained feature is one folder: `zsh/`, `macos-defaults/`, `k8s-dns/`,
-  `zen-history/`, `neko/`, `cachyos/`.
+  `zen-history/`, `neko/`, `anki/`, `cachyos/`.
 - **`home/`** holds sources for the root `config*.toml` files only (git, ssh,
   kube, wireguard, BTT). A folder fragment never reaches into `home/`.
 - **Platform environments** (`auto_env = true` in `miserc.toml`): `macos`,
@@ -291,19 +291,22 @@ hand-written file cannot win a context-name collision.
   pinned `http:` with a `[platforms]` table (Obsidian: its GitHub "latest" is an
   APK). `ubi:` is deprecated. Menu entries' `Exec` is the mise shim, stable
   across bumps.
-- **Anki runs here permanently**: the container's supervisord runs
-  `bin/anki-session` and restarts it on exit. `[bootstrap.services]` needs
-  systemd, so the program is a `[bootstrap.files]` entry in supervisord's
-  include dir plus `supervisorctl update` in the bootstrap task — nothing
-  Anki-specific lives in home-ops except the Service; `supervisorctl -c /etc/neko/supervisord.conf status anki`, log in
-  `/var/log/neko/anki.log`. AnkiConnect listens on :8765 for n8n (home-ops:
-  `neko-desktop-ankiconnect` ClusterIP Service). `http:anki` +
-  `http:anki-connect` are pinned tools; the bootstrap task links the add-on
-  into `~/.local/share/Anki2/addons21` and writes its `meta.json`: bind
-  `0.0.0.0` + `apiKey`, **only** when `ANKICONNECT_API_KEY` (fnox, Proton
-  Pass `Dev/AnkiConnect`) is set — never open it without the key. The AnkiWeb login is the
-  one manual step. A sync dialog (note type changed elsewhere) blocks
-  AnkiConnect until clicked.
+- **Task bodies are scripts** in `conf.d/neko/tasks/` (`run = "sh tasks/x.sh"`,
+  relying on a folder fragment's tasks running in its folder): not templated,
+  not executable, not on PATH. `bin/` is only for what belongs in
+  `~/.local/bin`.
+- **Anki** is its own folder, `conf.d/anki/` (still machine class `neko`), kept
+  running so n8n can reach AnkiConnect on :8765 (home-ops only has the
+  `neko-desktop-ankiconnect` ClusterIP Service). Pinned `http:anki` +
+  `http:anki-connect`; the container's supervisord runs `bin/anki-session` and
+  restarts it on exit — `[bootstrap.services]` needs systemd, so the program
+  is a `[bootstrap.files]` entry in supervisord's include dir. `anki:setup`
+  (`setup.sh`, a dependency of neko's `bootstrap` task) links the add-on,
+  writes its `meta.json` and runs `supervisorctl update`. Bind `0.0.0.0` only
+  ever goes in together with the `apiKey` (`ANKICONNECT_API_KEY`, Proton Pass
+  `Dev/AnkiConnect`); `update_enabled: false` stops Anki's updater deleting
+  the linked add-on. The AnkiWeb login is the one manual step. Status:
+  `sudo supervisorctl -c /etc/neko/supervisord.conf status anki`.
 - **Not protected**: the PVC is `reclaimPolicy: Delete` under a pruning Flux
   Kustomization; the backstop is kopiur (daily 04:45 to the NAS) — check
   `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.

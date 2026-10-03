@@ -1,7 +1,7 @@
 #!/bin/sh
 # Start Anki in the neko desktop. Two callers: the menu entry, and the
-# container's supervisord (anki.conf, written by [bootstrap.files] in
-# mise.neko.toml), which runs this once the bootstrap has loaded that file and
+# container's supervisord (anki.conf, a [bootstrap.files] entry in this
+# folder's mise.neko.toml), which runs this once setup.sh has loaded that file and
 # again whenever Anki exits — that is what keeps AnkiConnect up.
 #
 # The wait below is for the menu entry on a pod whose bootstrap is still
