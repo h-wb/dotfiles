@@ -1,0 +1,84 @@
+# Anki in the neko desktop, kept running so automation (n8n today, an MCP later)
+# can reach the collection through AnkiConnect on :8765. home-ops has the
+# ClusterIP Service; everything else is here. Machine class `neko` only.
+#
+# The pieces: two pinned tools, the Qt libraries the image lacks, a supervisord
+# program that keeps Anki up, and the `anki:setup` task (setup.sh) that wires
+# the add-on in. The AnkiWeb login is the one manual step; it lives in
+# ~/.local/share/Anki2, on the PVC.
+
+# The tarball is self-contained (its own Python + Qt), so nothing from its
+# install.sh is needed.
+[tools."http:anki"]
+os = "linux"
+version = "26.09.3"
+strip_components = 1
+# The launcher sits at the top of the tarball. Without this mise goes looking
+# for bin/ dirs, finds the bundled Python's, and shims *its* python3 onto PATH
+# instead of `anki`.
+bin_path = "."
+[tools."http:anki".platforms]
+linux-x64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-x86_64.tar.zst" }
+linux-arm64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-aarch64.tar.zst" }
+
+# The AnkiConnect add-on (AnkiWeb id 2055492159) as a pinned source archive.
+# No executables: setup.sh links its plugin/ dir into Anki's addons21.
+[tools."http:anki-connect"]
+os = "linux"
+version = "25.9.6.0"
+strip_components = 1
+url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
+
+# Qt 6's xcb platform plugin needs these five; the neko image has none of them.
+[bootstrap.packages]
+"apt:libxcb-cursor0" = "latest"
+"apt:libxcb-icccm4" = "latest"
+"apt:libxcb-image0" = "latest"
+"apt:libxcb-keysyms1" = "latest"
+"apt:libxcb-render-util0" = "latest"
+
+# The container's supervisord (pid 1, the thing that runs XFCE) is the only
+# service manager here: [bootstrap.services] needs systemd --user. So the
+# program is declared the way the image declares its own, as a file in its
+# include dir — written by mise, since /etc is wiped on every pod roll — and
+# setup.sh tells supervisord to pick it up. autorestart is what keeps
+# AnkiConnect up when Anki is quit or crashes.
+#
+# Not templated: the %(ENV_...)s are supervisord's own expansions.
+[bootstrap.files."/etc/neko/supervisord/anki.conf"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = '''
+[program:anki]
+environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s"
+command=/home/%(ENV_USER)s/.local/bin/anki-session
+stopsignal=INT
+autorestart=true
+priority=900
+user=%(ENV_USER)s
+stdout_logfile=/var/log/neko/anki.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=2
+redirect_stderr=true
+'''
+
+[dotfiles]
+# One file, not symlink-each: conf.d/neko already owns ~/.local/bin that way.
+"~/.local/bin/anki-session" = { source = "bin/anki-session", mode = "symlink" }
+# Menu entry only — no autostart entry, supervisord starts Anki.
+"~/.local/share/applications/anki.desktop" = { source = "anki.desktop.tmpl", mode = "template" }
+
+# Run as a dependency of conf.d/neko's `bootstrap` task, i.e. at the very end of
+# `mise bootstrap`, once the tools and the supervisord file above exist.
+[tasks."anki:setup"]
+description = "Link AnkiConnect into Anki, write its config, start Anki under supervisord"
+run = "sh setup.sh"
+
+[doctor.checks.anki-connect]
+description = "Anki is running and AnkiConnect answers"
+hint = "sudo supervisorctl -c /etc/neko/supervisord.conf status anki; see ~/.local/state/anki-session.log"
+run = '''
+curl -fsS -m 3 -X POST http://127.0.0.1:8765 -d '{"action":"version","version":6}' >/dev/null ||
+  { echo "nothing on 127.0.0.1:8765 — Anki is closed, or the add-on did not load"; exit 1; }
+'''

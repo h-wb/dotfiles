@@ -61,9 +61,8 @@ fi
 cd "${HOME}/.dotfiles" || exit 0
 
 # Follow the remote, so a push from the Mac reaches this desktop at its next
-# session start. Nothing else does: the cluster's neko-provision pulls, but once
-# the dotfiles are applied their own autostart entry overrides it and runs this
-# script directly — the checkout sat 19 commits behind for two weeks that way.
+# session start. This is the only place that pulls: the cluster's neko-provision
+# just clones a missing checkout and hands over to this script.
 #
 # Fast-forward only, on whatever branch is checked out: a feature branch follows
 # its own upstream, local commits or a diverged branch just skip with a warning,
@@ -95,11 +94,6 @@ fi
 # the `protect` mode below skips dotfiles entirely — this makes every mode load
 # the right config regardless.
 export MISE_CONFIG_DIR="${HOME}/.dotfiles"
-
-# One-time migration from the pre-2026-10 layout; drop once the PVC has run it.
-if [ -f mise.local.toml ] && [ ! -f config.local.toml ]; then
-	mv mise.local.toml config.local.toml && echo "[info] renamed mise.local.toml -> config.local.toml"
-fi
 
 # Apply mise's [env] to THIS shell. Everything below runs as a plain script, not
 # under `mise exec`, so without this the config's env vars simply are not there —
