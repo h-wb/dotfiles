@@ -38,3 +38,7 @@ KUBECONFIG_EDGE  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/edg
 GIT_EMAIL        = { provider = "protonpass", value = "pass://Dev/GitHub/email" }
 GH_TOKEN         = { provider = "protonpass", value = "pass://Dev/GitHub/token" }
 
+# apiKey for AnkiConnect in the neko desktop (conf.d/neko bootstrap writes it
+# into the add-on's meta.json). n8n holds the same value in its own credential.
+ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://Dev/AnkiConnect/password" }
+

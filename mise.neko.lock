@@ -17,6 +17,38 @@ checksum = "sha256:1e4c3c391d10a82239d35afad84658fa3b3856b8ff72f93bbff7f57392acb
 url = "https://github.com/zen-browser/desktop/releases/download/1.21.16b/zen.linux-x86_64.tar.xz"
 url_api = "https://api.github.com/repos/zen-browser/desktop/releases/assets/535758260"
 
+[[tools."http:anki"]]
+version = "26.09.3"
+backend = "http:anki"
+specifiers = ["26.09.3"]
+
+[tools."http:anki".options]
+strip_components = "1"
+
+[tools."http:anki"."platforms.linux-arm64"]
+checksum = "sha256:0b586efdb0e3582bee3b9d08b9fa57df681fb97a8066d76a6743e1bc3fc331eb"
+url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-aarch64.tar.zst"
+
+[tools."http:anki"."platforms.linux-x64"]
+checksum = "sha256:d70e01971a7aa190b189927573ee643f2525ff840eafaecc7a8f8cde505650b3"
+url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-x86_64.tar.zst"
+
+[[tools."http:anki-connect"]]
+version = "25.9.6.0"
+backend = "http:anki-connect"
+specifiers = ["25.9.6.0"]
+
+[tools."http:anki-connect".options]
+strip_components = "1"
+
+[tools."http:anki-connect"."platforms.linux-arm64"]
+checksum = "sha256:364291dcc5572694d40258b490ffbc2ae7a91783c8add2787ac75003067d1456"
+url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
+
+[tools."http:anki-connect"."platforms.linux-x64"]
+checksum = "sha256:364291dcc5572694d40258b490ffbc2ae7a91783c8add2787ac75003067d1456"
+url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
+
 [[tools."http:obsidian"]]
 version = "1.13.7"
 backend = "http:obsidian"
