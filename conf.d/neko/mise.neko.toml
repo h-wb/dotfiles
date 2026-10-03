@@ -57,6 +57,10 @@ linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/
 os = "linux"
 version = "26.09.3"
 strip_components = 1
+# The launcher sits at the top of the tarball. Without this mise goes looking
+# for bin/ dirs, finds the bundled Python's, and shims *its* python3 onto PATH
+# instead of `anki`.
+bin_path = "."
 [tools."http:anki".platforms]
 linux-x64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-x86_64.tar.zst" }
 linux-arm64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-aarch64.tar.zst" }
