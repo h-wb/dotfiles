@@ -1,15 +1,11 @@
 #!/bin/sh
 # Start Anki in the neko desktop. Two callers: the menu entry, and the
-# container's supervisord (home-ops: neko-desktop ConfigMap, anki.conf), which
-# runs this at pod start and again whenever Anki exits — that is what keeps
-# AnkiConnect up. Not mise's [bootstrap.services]: its Linux backend is
-# systemd --user, and this container has no systemd.
+# container's supervisord (anki.conf, written by [bootstrap.files] in
+# mise.neko.toml), which runs this once the bootstrap has loaded that file and
+# again whenever Anki exits — that is what keeps AnkiConnect up.
 #
-# supervisord starts this before neko-bootstrap has finished: on a rolled pod
-# the Qt xcb libraries Anki needs are apt packages the bootstrap has not put
-# back yet (on a fresh PVC the tool itself is not installed either). So wait for
-# both rather than fail. With ~/.neko-hold set they never arrive and this waits
-# for good — on purpose, a parked desktop stays parked.
+# The wait below is for the menu entry on a pod whose bootstrap is still
+# running: the Qt xcb libraries are apt packages, gone after a roll.
 #
 # Anki is single-instance: a second launch just raises the first window.
 set -u

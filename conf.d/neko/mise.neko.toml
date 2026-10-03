@@ -50,7 +50,7 @@ strip_components = 1
 linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
 linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
 
-# Anki, kept running here (supervisord → bin/anki-session) so automation can reach
+# Anki, kept running here (supervisord, see [bootstrap.files] → bin/anki-session) so automation can reach
 # the collection through AnkiConnect. The tarball is self-contained (its own
 # Python + Qt), so nothing from its install.sh is needed.
 [tools."http:anki"]
@@ -109,6 +109,33 @@ ef = "exec fish"
 "apt:libxcb-image0" = "latest"
 "apt:libxcb-keysyms1" = "latest"
 "apt:libxcb-render-util0" = "latest"
+
+# ── Anki as a supervised program ────────────────────────────────────────────
+# The container's supervisord (pid 1, the thing that runs XFCE) is the only
+# service manager here: [bootstrap.services] needs systemd --user. So the
+# program is declared the way the image declares its own, as a file in its
+# include dir — written by mise, since /etc is wiped on every pod roll — and
+# [tasks.bootstrap] tells supervisord to pick it up. autorestart is what keeps
+# AnkiConnect up when Anki is quit or crashes.
+#
+# Not templated: the %(ENV_...)s are supervisord's own expansions.
+[bootstrap.files."/etc/neko/supervisord/anki.conf"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = '''
+[program:anki]
+environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s"
+command=/home/%(ENV_USER)s/.local/bin/anki-session
+stopsignal=INT
+autorestart=true
+priority=900
+user=%(ENV_USER)s
+stdout_logfile=/var/log/neko/anki.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=2
+redirect_stderr=true
+'''
 
 # The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
 # No pre-packages `apt-get update` hook for that any more: since 2026.9.15 mise
@@ -229,6 +256,13 @@ if [ -n "$AC" ] && [ -d "$AC/plugin" ]; then
     printf '%s\n' '{"update_enabled": false}' > "$ADDON/meta.json"
     echo "[info] no ANKICONNECT_API_KEY; AnkiConnect stays on 127.0.0.1"
   fi
+fi
+
+# Have supervisord load anki.conf ([bootstrap.files] above). `update` only acts
+# on a config that is new or changed, so a running Anki is left alone on every
+# later run; on a rolled pod this is what starts it.
+if [ -f /etc/neko/supervisord/anki.conf ]; then
+  sudo supervisorctl -c /etc/neko/supervisord.conf update anki || echo "[warn] supervisorctl update failed"
 fi
 
 # Persist the token into gh's own config (~/.config/gh, on the PVC) so `gh` works

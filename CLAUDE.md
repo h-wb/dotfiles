@@ -291,10 +291,11 @@ hand-written file cannot win a context-name collision.
   pinned `http:` with a `[platforms]` table (Obsidian: its GitHub "latest" is an
   APK). `ubi:` is deprecated. Menu entries' `Exec` is the mise shim, stable
   across bumps.
-- **Anki runs here permanently**: the container's supervisord (home-ops
-  ConfigMap `anki.conf` — `[bootstrap.services]` needs systemd) runs
-  `bin/anki-session`, which waits out the bootstrap race, and restarts it on
-  exit; `supervisorctl -c /etc/neko/supervisord.conf status anki`, log in
+- **Anki runs here permanently**: the container's supervisord runs
+  `bin/anki-session` and restarts it on exit. `[bootstrap.services]` needs
+  systemd, so the program is a `[bootstrap.files]` entry in supervisord's
+  include dir plus `supervisorctl update` in the bootstrap task — nothing
+  Anki-specific lives in home-ops except the Service; `supervisorctl -c /etc/neko/supervisord.conf status anki`, log in
   `/var/log/neko/anki.log`. AnkiConnect listens on :8765 for n8n (home-ops:
   `neko-desktop-ankiconnect` ClusterIP Service). `http:anki` +
   `http:anki-connect` are pinned tools; the bootstrap task links the add-on
