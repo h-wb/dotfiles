@@ -1,7 +1,7 @@
 # The neko/xfce container (machine class `neko`). Everything the container
 # needs is in this folder: config, its fish/starship/xfce sources, the
 # session-start script in bin/ and the task bodies in tasks/. Paths below
-# resolve inside the folder. Anki has its own folder, conf.d/anki.
+# resolve inside the folder.
 #
 # Target: ghcr.io/m1k1o/neko/xfce in k8s — Debian trixie, user `neko`,
 # passwordless sudo, supervisord as pid 1: NO systemd, NO launchd.
@@ -147,13 +147,9 @@ echo "[info] git credentials configured from GH_TOKEN"
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 # `mise bootstrap` runs [tasks.bootstrap] last, after packages/dotfiles/tools,
-# so xfconf can rely on everything else being in place. The bodies are plain
-# scripts in tasks/ (a folder fragment's tasks run in its folder): shellcheckable,
-# and not passed through the template engine.
+# so xfconf can rely on everything else being in place. Bodies are in tasks/.
 [tasks.bootstrap]
 description = "Per-session fixups for the neko container (login shell, fonts, gh, timezone)"
-# anki:setup is conf.d/anki's; it rides along here because mise runs exactly
-# one `bootstrap` task.
 depends = ["neko:xfce", "anki:setup"]
 run = "sh tasks/bootstrap.sh"
 

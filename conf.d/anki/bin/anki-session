@@ -1,13 +1,5 @@
 #!/bin/sh
-# Start Anki in the neko desktop. Two callers: the menu entry, and the
-# container's supervisord (anki.conf, a [bootstrap.files] entry in this
-# folder's mise.neko.toml), which runs this once setup.sh has loaded that file and
-# again whenever Anki exits — that is what keeps AnkiConnect up.
-#
-# The wait below is for the menu entry on a pod whose bootstrap is still
-# running: the Qt xcb libraries are apt packages, gone after a roll.
-#
-# Anki is single-instance: a second launch just raises the first window.
+# Start Anki: run by supervisord (anki.conf) and by the menu entry.
 set -u
 
 LOG="${HOME}/.local/state/anki-session.log"
@@ -17,17 +9,15 @@ echo "=== $(date -Is) anki-session ==="
 
 ANKI="${HOME}/.local/share/mise/shims/anki"
 
+# After a pod roll the Qt libraries are gone until the bootstrap reinstalls them.
 i=0
 until [ -x "$ANKI" ] && ldconfig -p 2>/dev/null | grep -q 'libxcb-cursor\.so\.0'; do
-	# One line every five minutes, so a stuck wait is visible without flooding.
 	[ $((i % 60)) -eq 0 ] && echo "[wait] Anki or its Qt libraries are not there yet (bootstrap running, or ~/.neko-hold?)"
 	i=$((i + 1))
 	sleep 5
 done
 
-# The image is LANG=C and Qt wants UTF-8; mise's [env] does not reach a process
-# started outside a mise shell. The Chromium sandbox needs a user namespace,
-# which this pod blocks.
 export LANG="${LANG:-C.UTF-8}"
+# The Chromium sandbox needs a user namespace, which this pod blocks.
 export QTWEBENGINE_DISABLE_SANDBOX=1
 exec "$ANKI" "$@"

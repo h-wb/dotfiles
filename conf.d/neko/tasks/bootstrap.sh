@@ -1,7 +1,4 @@
-# The `bootstrap` task: what `mise bootstrap` runs last, after packages,
-# dotfiles and tools. Everything here is image state that a pod roll resets, or
-# a one-time cost that lands on the PVC. Safe to repeat; run by `sh`, not
-# templated.
+# The `bootstrap` task: runs last in `mise bootstrap`. Safe to repeat.
 
 # Login shell for `kubectl exec` shells. /etc/passwd is image state, so this is
 # re-applied every roll; the terminal emulator gets fish from terminalrc instead.

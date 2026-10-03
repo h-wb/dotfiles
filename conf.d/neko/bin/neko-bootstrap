@@ -60,16 +60,8 @@ fi
 [ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
 cd "${HOME}/.dotfiles" || exit 0
 
-# Follow the remote, so a push from the Mac reaches this desktop at its next
-# session start. This is the only place that pulls: the cluster's neko-provision
-# just clones a missing checkout and hands over to this script.
-#
-# Fast-forward only, on whatever branch is checked out: a feature branch follows
-# its own upstream, local commits or a diverged branch just skip with a warning,
-# and work in progress is never touched. Parking the desktop on an old revision
-# is what ~/.neko-hold is for, and that exits above.
-#
-# git is an apt package, so on a rolled pod it is not back yet at this point.
+# Fast-forward the checkout, so a push reaches this desktop at session start.
+# git is an apt package: on a rolled pod it is not back yet.
 if ! command -v git >/dev/null 2>&1; then
 	sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends git ||
 		echo "[warn] could not install git; dotfiles not updated"
@@ -79,9 +71,7 @@ if command -v git >/dev/null 2>&1 && [ -z "${NEKO_BOOTSTRAP_PULLED:-}" ]; then
 	if timeout 60 git pull --ff-only --quiet; then
 		if [ "$(git rev-parse HEAD 2>/dev/null)" != "$before" ]; then
 			echo "[info] dotfiles updated ${before} -> $(git rev-parse HEAD)"
-			# This script may be among the files that changed: start over with
-			# the new one. The variable stops a second pull, not a loop — a
-			# re-exec that pulled nothing new would not get here anyway.
+			# This script may have changed: start over with the new one.
 			NEKO_BOOTSTRAP_PULLED=1 exec "${HOME}/.dotfiles/conf.d/neko/bin/neko-bootstrap" "$@"
 		fi
 	else
