@@ -271,8 +271,7 @@ hand-written file cannot win a context-name collision.
 - **Reprovisioning**: `~/.config/autostart/mise-bootstrap.desktop` →
   `bin/neko-bootstrap` at every XFCE session start (the launchd equivalent;
   `[bootstrap.linux.systemd.units]` is useless without systemd). It
-  fast-forwards `~/.dotfiles` from its upstream first (so a push reaches the
-  desktop at the next session start; skipped under hold), wires
+  fast-forwards `~/.dotfiles` first (skipped under hold), wires
   `~/.config/mise`, picks `secrets`/`fresh`/`protect`, runs bootstrap once with
   `--skip-dirty` (one dirty repo must not stop provisioning), logs to
   `~/.local/state/neko-bootstrap.log`, `notify-send`s on failure.
@@ -291,22 +290,13 @@ hand-written file cannot win a context-name collision.
   pinned `http:` with a `[platforms]` table (Obsidian: its GitHub "latest" is an
   APK). `ubi:` is deprecated. Menu entries' `Exec` is the mise shim, stable
   across bumps.
-- **Task bodies are scripts** in `conf.d/neko/tasks/` (`run = "sh tasks/x.sh"`,
-  relying on a folder fragment's tasks running in its folder): not templated,
-  not executable, not on PATH. `bin/` is only for what belongs in
-  `~/.local/bin`.
-- **Anki** is its own folder, `conf.d/anki/` (still machine class `neko`), kept
-  running so n8n can reach AnkiConnect on :8765 (home-ops only has the
-  `neko-desktop-ankiconnect` ClusterIP Service). Pinned `http:anki` +
-  `http:anki-connect`; the container's supervisord runs `bin/anki-session` and
-  restarts it on exit — `[bootstrap.services]` needs systemd, so the program
-  is a `[bootstrap.files]` entry in supervisord's include dir. `anki:setup`
-  (`setup.sh`, a dependency of neko's `bootstrap` task) links the add-on,
-  writes its `meta.json` and runs `supervisorctl update`. Bind `0.0.0.0` only
-  ever goes in together with the `apiKey` (`ANKICONNECT_API_KEY`, Proton Pass
-  `Dev/AnkiConnect`); `update_enabled: false` stops Anki's updater deleting
-  the linked add-on. The AnkiWeb login is the one manual step. Status:
-  `sudo supervisorctl -c /etc/neko/supervisord.conf status anki`.
+- **Task bodies are scripts** in `conf.d/neko/tasks/` (`run = "sh tasks/x.sh"`):
+  not templated, not on PATH. `bin/` is only for what goes in `~/.local/bin`.
+- **Anki** is `conf.d/anki/` (class `neko`), kept running by the container's
+  supervisord so n8n can reach AnkiConnect on :8765 (home-ops has the Service).
+  `anki:setup` links the add-on and writes its `meta.json`: bind `0.0.0.0` only
+  ever with the `apiKey` (Proton Pass `Dev/AnkiConnect`), and
+  `update_enabled: false` or Anki's updater deletes the linked add-on.
 - **Not protected**: the PVC is `reclaimPolicy: Delete` under a pruning Flux
   Kustomization; the backstop is kopiur (daily 04:45 to the NAS) — check
   `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.
