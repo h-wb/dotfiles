@@ -54,6 +54,7 @@ claude = "latest"
 "github:jdx/fnox" = "latest"              # injects Proton Pass secrets as env vars
 usage = "latest"
 "npm:@metabase/cli" = "latest"
+codex = "latest"
 
 [env]
 EDITOR = "code --wait"
