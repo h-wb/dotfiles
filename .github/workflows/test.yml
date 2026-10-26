@@ -5,13 +5,9 @@ on:
     branches: [main]
   pull_request:
 
-# Every job sets up a throwaway HOME the way install.sh sets up a real
-# machine: ~/.dotfiles is the checkout and MISE_CONFIG_DIR points at it, and the
-# dotfiles step then creates the ~/.config/mise link itself. (MISE_CONFIG_DIR has
-# to be explicit anyway: mise-action pins the config dir for the job.) The
-# class is pinned with miserc.local.toml because a runner's OS is not the
-# machine's. No secrets here, so templates render their empty fallbacks; that
-# is what validates the Tera without a Proton Pass session.
+# A throwaway HOME set up the way install.sh sets up a machine, with the class
+# pinned (a runner's OS is not the machine's). No secrets: templates render
+# their empty fallbacks, which is what validates them.
 
 jobs:
   machine:
@@ -25,8 +21,8 @@ jobs:
     name: ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
         with:
           install: false
 
@@ -41,8 +37,8 @@ jobs:
       - name: Config loads for this machine class
         run: |
           mise config | tee /tmp/cfg
-          # every task body must template (a bad {{ }} — even in a comment — fails here)
-          for t in $(mise tasks --no-header | awk '{print $1}'); do mise tasks info "$t" >/dev/null; done
+          # every task must template (a bad {{ }}, even in a comment, fails here)
+          for t in $(mise tasks --hidden --no-header | awk '{print $1}'); do mise tasks info "$t" >/dev/null; done
           case "${{ matrix.env }}" in
           personal)
             for f in config.macos.toml config.personal.toml conf.d/zsh/mise.macos.toml \
@@ -93,33 +89,33 @@ jobs:
           grep -q 'HostName tn.example' "$HOME/.ssh/config"
           grep -q 'User someone' "$HOME/.ssh/config"
 
-      # The k8s-dns resolver is a [bootstrap.files] template over bootstrap
-      # secrets. Retarget the entry IN PLACE to a scratch path first (this
-      # checkout is disposable): applying it as-is would write the runner's real
-      # /etc/resolver, with passwordless sudo. Then: per cluster, the fallback,
-      # and the failure.
+      # Retarget the privileged files to scratch paths first: the runner has
+      # passwordless sudo, so as-is this would write its real /etc/resolver.
       - name: k8s-dns resolver template
         if: matrix.env == 'personal'
         run: |
-          out="$(mktemp -d)/resolver"
+          tmp="$(mktemp -d)"; out="$tmp/resolver"
           f=conf.d/k8s-dns/mise.personal.toml
           sed -i.bak -e "s#/etc/resolver/wlab.ovh#$out#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' "$f"
+          sed -i.bak -e "s#/Library/LaunchDaemons/#$tmp/#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' conf.d/local-llm/mise.personal.toml
           ! grep -q /etc/resolver/ "$f"   # the retarget took
           export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
-          K8S_DNS_CLUSTER=main mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
-          K8S_DNS_CLUSTER=edge mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.9.9.9"
-          K8S_DNS_CLUSTER=typo mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
+          k8s_dns_cluster=main mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
+          k8s_dns_cluster=edge mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.9.9.9"
+          # the per-machine answer dns:use saves
+          mise vars k8s_dns_cluster=edge; mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.9.9.9"
+          mise vars unset k8s_dns_cluster
+          k8s_dns_cluster=typo mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
           test "$(wc -l <"$out")" -eq 1
           # a missing secret must fail and leave the previous file alone
-          ! K8S_DNS_CLUSTER=edge K8S_GATEWAY_IP_EDGE= mise bootstrap files apply --yes
+          ! k8s_dns_cluster=edge K8S_GATEWAY_IP_EDGE= mise bootstrap files apply --yes
           test "$(cat "$out")" = "nameserver 10.1.1.1"
-          mv "$f.bak" "$f"
+          mv "$f.bak" "$f"; mv conf.d/local-llm/mise.personal.toml.bak conf.d/local-llm/mise.personal.toml
 
-      # The repo's own invariants, the same checks machines run via
-      # `mise doctor project`. Only the repo-state ones can pass on a runner.
+      # Only the repo-state doctor checks can pass on a runner.
       - name: Repo invariants
         run: |
           mise doctor project 2>&1 | tee /tmp/doctor || true
-          for check in file-modes lockfiles wiring; do
+          for check in config-keys file-modes lockfiles wiring; do
             grep -q "^PASS $check" /tmp/doctor || { echo "::error::doctor check '$check' failed"; exit 1; }
           done

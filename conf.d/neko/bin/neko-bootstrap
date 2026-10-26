@@ -1,18 +1,7 @@
 #!/bin/sh
-# Re-provision the neko container at every XFCE session start.
-#
-# This is the launchd equivalent for a box that has no launchd and no systemd:
-# ~/.config/autostart/mise-bootstrap.desktop runs it when the XFCE session comes
-# up. It has to exist because only /home/neko is on a PVC — /usr and /etc are
-# image state, so every pod roll loses the apt packages and the login shell,
-# while $HOME (mise, [tools], dotfiles) comes back intact.
-#
-# Secrets come from Proton Pass, exactly as on the Macs. The container-specific
-# part is PROTON_PASS_KEY_PROVIDER=fs (conf.d/neko/mise.neko.toml), because pass-cli's default
-# keyring backend needs add_key(2), which this pod's seccomp profile blocks; and
-# PASS_CLI_PAT, because a session start has no TTY to log in through.
-#
-# It is also just a normal script: run `neko-bootstrap` by hand any time.
+# Re-provision the neko container at every XFCE session start (run by
+# ~/.config/autostart/mise-bootstrap.desktop; fine to run by hand). Only $HOME
+# survives a pod roll, so apt packages and /etc are rebuilt each time.
 set -u
 
 LOG="${HOME}/.local/state/neko-bootstrap.log"
@@ -22,36 +11,29 @@ echo "=== $(date -Is) session start ==="
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 
-# X server side of "never blank": there is nobody at this screen to wake it, and
-# a blanked display just streams black. The xfce daemons are handled by neko:xfce.
+# Never blank the X server (neko:xfce covers the XFCE daemons).
 [ -n "${DISPLAY:-}" ] && command -v xset >/dev/null 2>&1 && xset s off -dpms || true
 
-# mise itself lives on the PVC, but reinstall it if the volume is ever new.
 if ! command -v mise >/dev/null 2>&1; then
 	echo "[info] installing mise"
 	curl -fsSL https://mise.run | sh
 fi
 MISE="${HOME}/.local/bin/mise"
 
-# auto_update skips non-interactive runs, so the PVC's mise only moves when
-# someone runs it by hand — and config.toml's hard min_version would then fail
-# every session start. Keep this in step with that value.
-MIN_MISE="2026.9.17"
+# self_update.auto skips unattended runs, so honour config.toml's hard
+# min_version here or every session start fails. Re-checked after a pull.
+MIN_MISE="$(sed -n 's/^min_version = { hard = "\([^"]*\)" }.*/\1/p' "${HOME}/.dotfiles/config.toml" 2>/dev/null)"
 have="$("$MISE" --version 2>/dev/null | awk '{print $1}')"
-if [ "$(printf '%s\n%s\n' "$MIN_MISE" "${have:-0}" | sort -V | head -1)" != "$MIN_MISE" ]; then
+if [ -n "$MIN_MISE" ] &&
+	[ "$(printf '%s\n%s\n' "$MIN_MISE" "${have:-0}" | sort -V | head -1)" != "$MIN_MISE" ]; then
 	echo "[info] mise ${have:-?} < ${MIN_MISE}; self-updating"
 	"$MISE" self-update --yes || echo "[warn] mise self-update failed"
 fi
 
-# Escape hatch. This box is where the dotfiles get edited, and the session-start
-# run would happily apply a half-finished config over a working desktop — or
-# fight an edit in progress. `touch ~/.neko-hold` stops that until you remove it.
-#
-# Deliberately checked before anything else, and deliberately a file in $HOME:
-# it survives a pod roll, so a desktop parked mid-surgery comes back parked.
+# `touch ~/.neko-hold` parks provisioning (e.g. mid-edit of the dotfiles). A
+# file in $HOME, so a desktop parked mid-surgery comes back parked.
 if [ -e "${HOME}/.neko-hold" ]; then
-	echo "[hold] ~/.neko-hold present — skipping bootstrap entirely."
-	echo "[hold] remove it and run \`neko-bootstrap\` (or restart the session) to resume."
+	echo "[hold] ~/.neko-hold present — skipping. Remove it and run \`neko-bootstrap\` to resume."
 	command -v notify-send >/dev/null 2>&1 &&
 		notify-send "neko-bootstrap on hold" "~/.neko-hold is present; nothing was applied" || true
 	exit 0
@@ -60,8 +42,7 @@ fi
 [ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
 cd "${HOME}/.dotfiles" || exit 0
 
-# Fast-forward the checkout, so a push reaches this desktop at session start.
-# git is an apt package: on a rolled pod it is not back yet.
+# Fast-forward the checkout; git is an apt package, so not back yet on a rolled pod.
 if ! command -v git >/dev/null 2>&1; then
 	sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends git ||
 		echo "[warn] could not install git; dotfiles not updated"
@@ -71,7 +52,6 @@ if command -v git >/dev/null 2>&1 && [ -z "${NEKO_BOOTSTRAP_PULLED:-}" ]; then
 	if timeout 60 git pull --ff-only --quiet; then
 		if [ "$(git rev-parse HEAD 2>/dev/null)" != "$before" ]; then
 			echo "[info] dotfiles updated ${before} -> $(git rev-parse HEAD)"
-			# This script may have changed: start over with the new one.
 			NEKO_BOOTSTRAP_PULLED=1 exec "${HOME}/.dotfiles/conf.d/neko/bin/neko-bootstrap" "$@"
 		fi
 	else
@@ -79,84 +59,46 @@ if command -v git >/dev/null 2>&1 && [ -z "${NEKO_BOOTSTRAP_PULLED:-}" ]; then
 	fi
 fi
 
-# Point mise at the checkout directly. On a fresh PVC ~/.config/mise is not
-# the repo yet (config.toml's [dotfiles] entry links it during this run), and
-# the `protect` mode below skips dotfiles entirely — this makes every mode load
-# the right config regardless.
+# The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
 export MISE_CONFIG_DIR="${HOME}/.dotfiles"
 
-# Apply mise's [env] to THIS shell. Everything below runs as a plain script, not
-# under `mise exec`, so without this the config's env vars simply are not there —
-# in particular PROTON_PASS_KEY_PROVIDER=fs, whose absence sends pass-cli back to
-# the kernel keyring that seccomp blocks, and the whole secrets path fails with
-# no obvious cause.
-#
-# --shell bash is load-bearing, and `|| true` does NOT cover its absence. Bare
-# `mise env` honours an inherited MISE_SHELL, so running this by hand from a fish
-# session emits `set -gx FOO bar`; `set` is a POSIX *special builtin*, so dash
-# exits on the usage error instead of continuing — the script died here with
-# status 2, past the hold check but before choosing a mode, and never reached its
-# own notify-send. bash's `export FOO='bar'` is plain POSIX and dash evals it
-# fine. There is no `--shell sh`; the accepted values are bash/zsh/fish/nu/....
+# mise's [env] for this script (PROTON_PASS_KEY_PROVIDER=fs above all). --shell
+# bash is load-bearing: from fish, bare `mise env` emits `set -gx`, on which dash
+# exits outright, past the `|| true`.
 eval "$("$MISE" env --shell bash 2>/dev/null)" || true
 
-# Pick the mode first, then run bootstrap exactly ONCE. Chaining the three cases
-# on each other's exit status looks tidier but is wrong: an unrelated failure
-# (one tool with no asset for this platform) makes a mode that already applied
-# the dotfiles look failed, and the next branch re-runs the whole bootstrap.
-#
-# --skip-dirty: [bootstrap.repos] converges the checkouts on every session start,
-# and without it one repo with uncommitted work fails the whole bootstrap — on
-# this box that means the desktop silently stops provisioning.
-#
-# --force-dotfiles where dotfiles are applied: apps write their own defaults
-# before we get here (fish creates ~/.config/fish/config.fish on first shell) and
-# mise will not replace a regular file with a symlink without it.
-#
-# DOTFILES_NO_LOGIN so a session start never blocks on a prompt; the preflight
-# still logs in non-interactively when PASS_CLI_PAT is set.
+# Pick a mode, then bootstrap exactly once:
+#   secrets  live Proton Pass session (PASS_CLI_PAT logs in without a TTY)
+#   fresh    no session, but no secret-derived content to lose either: the test
+#            is the ssh Host block / a non-empty kubeconfig, not the files
+#            (~/.ssh/config always exists after one run)
+#   protect  no session and secrets on disk: skip dotfiles, or they render empty
 FNOX="$("$MISE" which fnox 2>/dev/null || true)"
 if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
 	DOTFILES_NO_LOGIN=1 "${HOME}/.dotfiles/scripts/pass-preflight"; then
 	MODE=secrets
-elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
-	[ ! -s "${HOME}/.kube/main.yaml" ]; then
-	# No session, but nothing to lose. The test is for secret-DERIVED content, not
-	# for the files: ~/.ssh/config always exists after one run (the template still
-	# emits `HashKnownHosts no`), so keying on existence would pin the box in
-	# `protect` forever and freeze every unrelated dotfile with it. The kubeconfig
-	# has no such preamble, so -s (non-empty) is the equivalent test there.
+elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null && [ ! -s "${HOME}/.kube/main.yaml" ]; then
 	MODE=fresh
 else
-	# A secret-derived file (ssh Host block, or a non-empty kubeconfig) exists and
-	# there is no session to regenerate it: rendering now would blank it.
 	MODE=protect
 fi
 
+# --skip-dirty: one repo with uncommitted work would fail the whole run.
+# --force-dotfiles: fish writes its own config.fish on first start.
 case "$MODE" in
-secrets)
-	timeout 900 "$FNOX" --if-missing error exec -c fnox.toml -- \
-		"$MISE" bootstrap --yes --force-dotfiles --skip-dirty
-	STATUS=$?
-	[ $STATUS -eq 0 ] && echo "[ok] bootstrap applied with secrets"
-	;;
-fresh)
-	timeout 900 "$MISE" bootstrap --yes --force-dotfiles --skip-dirty
-	STATUS=$?
-	[ $STATUS -eq 0 ] &&
-		echo "[ok] bootstrap applied without secrets (set PASS_CLI_PAT, or run \`pass-cli login\` then \`mise run apply\`)"
-	;;
-protect)
-	timeout 900 "$MISE" bootstrap --yes --skip dotfiles --skip-dirty
-	STATUS=$?
-	[ $STATUS -eq 0 ] &&
-		echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies"
-	;;
+secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty ;;
+fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty ;;
+protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty ;;
 esac
 
-if [ "${STATUS:-1}" -ne 0 ]; then
+if ! timeout 900 "$@"; then
 	echo "[error] bootstrap failed in mode '$MODE' — see above"
 	command -v notify-send >/dev/null 2>&1 &&
 		notify-send -u critical "neko-bootstrap failed" "see $LOG" || true
 	exit 1
 fi
+case "$MODE" in
+secrets) echo "[ok] bootstrap applied with secrets" ;;
+fresh) echo "[ok] bootstrap applied without secrets (set PASS_CLI_PAT, or \`pass-cli login\` then \`mise run apply\`)" ;;
+protect) echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies" ;;
+esac

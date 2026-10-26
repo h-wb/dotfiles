@@ -50,10 +50,13 @@ also how CI pins the class per matrix job.
   `variants = [{ os = ... }]` in `[dotfiles]`. `[tools]`/`[bootstrap.packages]`
   still accept `os =` for the odd cross-cutting entry (the neko GUI apps keep it
   so a stray `-E neko` on a Mac fails clean).
-- **`min_version = { hard = "2026.9.17" }`** in `config.toml` — global
-  `miserc.local.toml` is that release. `conf.d/neko/bin/neko-bootstrap`
-  self-updates below it, because `auto_update` skips unattended runs; keep
-  its `MIN_MISE` in step.
+- **`min_version = { hard = "2026.10.19" }`** in `config.toml` — for
+  `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
+  `depends`. `conf.d/neko/bin/neko-bootstrap` self-updates below it, because
+  `self_update.auto` skips unattended runs; it reads the version from this very
+  line with `sed`, so keep the inline-table shape. Don't
+  raise it to a release under 24h old: self-update and mise-action both wait a
+  day before they will install one.
 
 ## Commands
 
@@ -61,14 +64,22 @@ also how CI pins the class per matrix job.
   `fnox --if-missing error exec -c fnox.toml -- mise bootstrap --yes`
   (`--force-dotfiles` added on Linux by a Tera `os()` branch: the distro/image
   writes its own `~/.config/fish/config.fish` first). One task for every
-  machine — there are no per-class overrides any more.
-- `mise run diff` — the same, `--dry-run`. Note a dry run does **not** render
-  dotfile templates (it prints `(if changed)`).
-- `mise doctor project` — the `[doctor.checks.*]`: wiring, file modes, lockfile
-  checksums, credential perms, plus per-class ones (k8s-dns, neko-hold,
-  neko-autostart, gamescope-projector). Fields are `description`/`run`/`hint`
-  only. A check's `run` is **not** templated — one that needs `[vars]` calls a
-  task (`dns:check`). Add a check whenever you catch a regression by hand.
+  machine — there are no per-class overrides any more. Two `usage` flags:
+  `--dry-run` (= `mise run diff`; a dry run does **not** render dotfile
+  templates, it prints `(if changed)`) and `--upgrade` (= `mise run upgrade`:
+  `mise self-update`, then `mise bootstrap --upgrade`, packages and tools
+  upgraded within their ranges — `latest` tools move, so commit the lockfiles).
+- `mise doctor project` — the `[doctor.checks.*]`: wiring, config keys, file
+  modes, lockfile checksums, credential perms, plus per-class ones (k8s-dns,
+  neko-hold, neko-autostart, gamescope-projector). Fields are
+  `description`/`run`/`hint`/`depends`; the first three are Tera-templated
+  (2026.10.17), so a check reads `{{ vars.x }}` directly. A check whose
+  `depends` fails is BLOCKED, not run. Add a check whenever you catch a
+  regression by hand.
+- `mise config explain --file <f>` — every key with its schema description;
+  flags unknown (`not a key mise reads`) and deprecated ones. mise itself only
+  warns on an unknown key, so a typo is a silent no-op; the `config-keys`
+  doctor check runs this over every committed config.
 - `mise lock --global` — refresh lockfiles. Without `--platform` it reuses the
   platforms each lockfile already lists, which is what you want (see Lockfiles).
 
@@ -115,14 +126,24 @@ picked, a missing main IP is fine).
 - **Task fields (`dir`, `run`, `env`) are Tera-templated — the whole body,
   comments included.** A malformed `{{ }}` inside a `#` comment fails the task.
   `mise tasks info <task>` validates a body without running it; CI runs it on
-  every task.
+  every task, hidden ones included (`mise tasks --hidden`).
+- **Task shape used here**: a machine's `[tasks.bootstrap]` (run last by `mise
+  bootstrap`) is a sequential `run = [{ task = "..." }, ...]` list of small
+  tasks, each with a `skip_if` guard where a check decides whether to act;
+  internal ones are `hide = true`. Bodies longer than a few lines are scripts in
+  the folder's `tasks/` (`run = "sh tasks/x.sh"`, not templated, not on PATH,
+  committed non-executable). `skip_if` gets the task's env (`$TZ` from `[env]`).
 - **Templated vs literal.** Templated: task fields, dotfile *content*
   (`mode = "template"`), `[bootstrap.files]` content **with `template = true`**,
-  launchd agent and systemd unit values, hook commands, `[shell_alias]`.
-  Literal: every *key* (so `/etc/resolver/wlab.ovh` is spelled out), dotfile
-  `source`, package specs, macOS defaults, doctor `run`.
-- **`mise run <task> -- --flag` does not become `$1`** in a multi-line script —
-  it is appended to the last line. Pass values through an env var.
+  launchd agent and systemd unit values, hook commands, `[shell_alias]`, doctor
+  `run`/`description`/`hint`. Literal: every *key* (so `/etc/resolver/wlab.ovh`
+  is spelled out), dotfile `source`, package specs, macOS defaults.
+- **Task arguments need a `usage` spec.** Without one, `mise run <task> foo`
+  appends `foo` to the *last line* of a multi-line script instead of making it
+  `$1`. With `usage = 'arg "<x>" { choices "a" "b"; }'` (or `flag "--y"`) it
+  is validated and read as `{{ usage.x }}` (`--dry-run` → `usage.dry_run`).
+  A nested `mise run` keeps the terminal on stdin, so wrappers like `diff` →
+  `apply --dry-run` still let `pass-cli login` prompt.
 - **Same-named hooks accumulate across configs; same-named tasks override.**
 - **Hooks fire on a full `mise bootstrap` and with `--only <step>`**, not for
   sub-commands like `mise bootstrap macos defaults apply`.
@@ -132,16 +153,24 @@ picked, a missing main IP is fine).
 - **Templates can branch on the platform**: `{% if os() == "linux" %}`
   (`os_family()` → `unix`, `arch()` → `x64`).
 - **`[dotfiles]` never sudos.** `[bootstrap.files]` (phase 3) is the only way to
-  write a root-owned path; keys must be absolute; no `os`/`variants`, so scope
-  comes from which config holds it.
+  write a root-owned path; keys must be absolute. It takes `os =` (2026.10.5)
+  but no `variants`; here scope comes from which config holds it.
 - **`permissions = "0600"`** states a dotfile target's mode outright and repairs
   drift (git only records the executable bit, so a source can never be
   committed 0600). Works on template/copy/content, not symlinks. A
   permissions-only entry (no source) never creates the path.
 - **`mode = "absent"` removes a file or symlink** — use it when a refactor
-  orphans a previously managed target (the old fish aliases link, the old
-  rendered resolver).
-- **`[vars]` cannot hold nested tables** (`[vars.apps.x]` errors).
+  orphans a previously managed target (neko's old `~/.git-credentials`). Drop
+  the entry once every machine that had the file has applied it.
+- **`[vars]` cannot hold nested tables** (`[vars.apps.x]` errors). The one
+  table a var may be is its own definition: `[vars.x] default = ...` (plus
+  `prompt`/`required`).
+- **Per-machine values without a file: `mise vars x=VALUE`** saves to
+  `$MISE_STATE_DIR/vars.toml`. Precedence, highest first: an env var named
+  exactly like the var (case-sensitive, so lowercase), any config file that
+  sets it (`config.local.toml` included), the saved answer, the var's
+  `default`. A plain `x = "..."` in config is a config value and always beats
+  a saved answer, so a saveable var must be the table form with `default`.
 - **Bare `mise bootstrap` really bootstraps** — use `--dry-run` to look.
 - **`mise env` in a `#!/bin/sh` script needs `--shell bash`**: it honours an
   inherited `MISE_SHELL`, and from fish it emits `set -gx`, on which dash
@@ -197,9 +226,12 @@ is v3 (`mise lock --upgrade`).
 
 ## The MacBook (`personal`) and every Mac (`macos`)
 
-- `config.macos.toml`: Rosetta/Homebrew hook, casks, the Proton Pass ssh-agent
-  LaunchAgent (`SSH_AUTH_SOCK` is set here only, so Linux needs no override),
-  wireguard, BTT. `config.personal.toml`: MacBook-only packages.
+- `config.macos.toml`: Rosetta + `/etc/paths` hook, casks, the Proton Pass
+  ssh-agent LaunchAgent (`SSH_AUTH_SOCK` is set here only, so Linux needs no
+  override), wireguard, BTT. `config.personal.toml`: MacBook-only packages.
+- **Homebrew itself is not installed**: mise installs `brew:` formulae and
+  `brew-cask:` casks natively into `/opt/homebrew` (Apple Silicon only for
+  formulae). An existing Homebrew sees and manages them.
 - **A LaunchAgent must find pass-cli itself**: launchd's PATH has no mise shims,
   so the agent resolves it with `$HOME/.local/bin/mise which pass-cli`. Get this
   wrong and every fnox secret fails while the agent looks healthy. mise forces
@@ -211,23 +243,27 @@ is v3 (`mise lock --upgrade`).
   dots are not separators), `host = "current"` is `-currentHost`. Those five
   fields are the whole schema. No killall: Raycast/AltTab/BTT would be quit and
   left dead.
-- Don't drop `MISE_EXPERIMENTAL` without testing launchd + defaults on a Mac.
+- `MISE_EXPERIMENTAL` is gone (2026-10-26): `mise bootstrap status` was
+  identical without it, launchd and defaults included, and mise's remaining
+  experimental gates (daemons, `mise secrets`, OCI, task caching) are unused.
 
 ### k8s-gateway DNS (`conf.d/k8s-dns/`)
 
 Both clusters run k8s-gateway **authoritative for the same zone** with no
 `fallthrough`, so the first to answer returns an authoritative NXDOMAIN for a
 route that only exists on the other. **A second nameserver buys nothing** — it
-is a switch: `mise run dns:main` / `dns:edge` / `dns:status`.
+is a switch: `mise run dns:use main|edge` (`dns:main`/`dns:edge` are
+one-line wrappers) and `dns:status`.
 
-- The selection is `vars.k8s_dns_cluster`: default `main` < `$K8S_DNS_CLUSTER`
-  < `config.local.toml` (written by `dns:select`). Local winning is what makes
-  a switch survive `apply`. `dns:select` **unsets** `$K8S_DNS_CLUSTER` before
-  re-applying, or a failed write to `config.local.toml` would look like success.
+- The selection is `vars.k8s_dns_cluster`: `default = "main"` < the answer
+  `dns:use` saves with `mise vars` (machine state, outside the repo, so it
+  survives `apply`) < any config file (`config.local.toml`) < a lowercase
+  `k8s_dns_cluster` env var (what CI drives). `dns:use` reads the value back
+  after saving and fails if a higher source still wins.
 - `/etc/resolver/wlab.ovh` is a `[bootstrap.files]` template over two bootstrap
   secrets (`K8S_GATEWAY_IP_MAIN`/`_EDGE` in fnox — internal IPs, public repo).
-  The zone had to be a literal (keys are not templated); `dns:check` asserts it
-  matches the var. An unknown cluster falls back to main.
+  The zone had to be a literal (keys are not templated); the `k8s-dns` doctor
+  check asserts it matches the var. An unknown cluster falls back to main.
 - Flush after a switch (`dscacheutil -flushcache; killall -HUP mDNSResponder`)
   or lookups keep the old answer, which reads exactly like the switch failing.
 
@@ -266,8 +302,8 @@ hand-written file cannot win a context-name collision.
 - **Only `/home/neko` is on a PVC.** `/usr` and `/etc` are wiped every pod roll.
   Never mount volumes over them (an empty `/usr` volume leaves no binaries).
   So apt (`[bootstrap.packages]`) is a per-start cost and stays tiny; GUI apps
-  are `[tools]` (`~/.local/share/mise` is on the PVC); `chsh` and the timezone
-  are re-applied each run.
+  are `[tools]` (`~/.local/share/mise` is on the PVC); the login shell and the
+  timezone (`neko:shell`, `neko:tz`) are re-applied each run.
 - **Reprovisioning**: `~/.config/autostart/mise-bootstrap.desktop` →
   `bin/neko-bootstrap` at every XFCE session start (the launchd equivalent;
   `[bootstrap.linux.systemd.units]` is useless without systemd). It
@@ -290,11 +326,11 @@ hand-written file cannot win a context-name collision.
   pinned `http:` with a `[platforms]` table (Obsidian: its GitHub "latest" is an
   APK). `ubi:` is deprecated. Menu entries' `Exec` is the mise shim, stable
   across bumps.
-- **Task bodies are scripts** in `conf.d/neko/tasks/` (`run = "sh tasks/x.sh"`):
-  not templated, not on PATH. `bin/` is only for what goes in `~/.local/bin`.
+- `bin/` is only for what goes in `~/.local/bin`; task bodies live in `tasks/`.
 - **Anki** is `conf.d/anki/` (class `neko`), kept running by the container's
   supervisord so n8n can reach AnkiConnect on :8765 (home-ops has the Service).
-  `anki:setup` links the add-on and writes its `meta.json`: bind `0.0.0.0` only
+  `anki:setup` = `anki:addon` (links the add-on, writes its `meta.json`) then
+  `anki:start` (`supervisorctl update anki`). Bind `0.0.0.0` only
   ever with the `apiKey` (Proton Pass `Dev/AnkiConnect`), and
   `update_enabled: false` or Anki's updater deletes the linked add-on.
 - **Not protected**: the PVC is `reclaimPolicy: Delete` under a pruning Flux
@@ -334,8 +370,8 @@ of the neko constraints: apps are `pacman:` packages.
   `uaccess` rule for that keyboard only, not the `input` group.
 - **Plasma 6 Wayland global shortcuts: use kglobalaccel's D-Bus, not the file.**
   kglobalaccel runs inside KWin, so editing `kglobalshortcutsrc` is invisible
-  until re-login (and there is no kglobalaccel service to restart). `cachyos:kde`
-  adds Ctrl+Tab/Ctrl+\` (= Cmd+Tab/\`) to KWin's switchers with
+  until re-login (and there is no kglobalaccel service to restart).
+  `cachyos:kwin-switcher` adds Ctrl+Tab/Ctrl+\` (= Cmd+Tab/\`) to KWin's switchers with
   `setForeignShortcutKeys`, which applies live and persists the file. A held
   Cmd+Tab cannot be a remap — xremap would release the modifier — which is why
   the switcher itself listens on Ctrl.

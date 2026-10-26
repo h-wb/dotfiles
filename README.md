@@ -25,8 +25,10 @@ conf.d/
   zsh/                   zsh + z4h + p10k (Macs)
   macos-defaults/        `defaults write`, declaratively (Macs)
   k8s-dns/               pick which cluster resolves the internal zone (MacBook)
+  local-llm/             LM Studio GPU memory limit and RAM triage (MacBook)
   zen-history/           Zen history snapshots → Nextcloud (MacBook)
   neko/                  the neko/xfce container, whole
+  anki/                  Anki + AnkiConnect for n8n (neko)
   cachyos/               the CachyOS gaming desktop, whole
 home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
 fnox.toml                Proton Pass secret references (no values)
@@ -42,7 +44,7 @@ Each `conf.d/` folder holds its own config and the files it uses; inside it,
 | --- | --- | --- |
 | `personal` | the MacBook | auto (macOS) |
 | `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | auto (`/etc/neko`) |
-| `cachyos` | CachyOS KDE gaming desktop | auto (`/etc/os-release`) |
+| `cachyos` | CachyOS KDE gaming desktop | auto (`/etc/pacman.d/cachyos-mirrorlist`) |
 
 `miserc.toml` detects the class; an untracked `miserc.local.toml`
 (`env = ["..."]`) overrides it. Platform files (`*.macos.toml`, `*.linux.toml`)
@@ -64,7 +66,8 @@ fnox. Override the detected class with `DOTFILES_ENV=personal|neko|cachyos`.
 ```sh
 mise run diff           # preview what apply would change
 mise run apply          # provision everything, with secrets
-mise doctor project     # the repo's invariants (wiring, lockfiles, file modes, ...)
+mise run upgrade        # the same, with packages and tools upgraded (then commit the lockfiles)
+mise doctor project     # the repo's invariants (wiring, config keys, lockfiles, file modes, ...)
 mise run dns:edge       # (MacBook) resolve the internal zone via the edge cluster
 ```
 

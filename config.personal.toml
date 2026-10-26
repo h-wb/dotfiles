@@ -1,6 +1,4 @@
-# The MacBook (machine class `personal`). On top of config.macos.toml, which
-# every Mac gets: this is what a work Mac on the same OS would NOT want.
-# Its Mac-only features are folder fragments: conf.d/k8s-dns, conf.d/zen-history.
+# The MacBook (class `personal`): what a work Mac would NOT want.
 
 [tools]
 "github:ReagentX/imessage-exporter" = "latest"   # iMessage history export

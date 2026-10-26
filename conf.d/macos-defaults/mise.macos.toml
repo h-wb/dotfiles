@@ -1,6 +1,5 @@
-# macOS defaults (auto_env `macos`). Verbose and rarely edited, hence its own
-# folder. The scalar table covers most keys; the array, the nested dict and the
-# ByHost value are `defaults_entries` at the bottom.
+# macOS defaults, every Mac. Arrays, nested dicts and ByHost keys are
+# `defaults_entries` at the bottom.
 
 [bootstrap.macos.defaults."NSGlobalDomain"]
 ApplePressAndHoldEnabled = false            # repeat key instead of accent popup
@@ -101,26 +100,19 @@ raycastGlobalHotkey = "Command-49"           # Cmd-Space
 "NSStatusItem Visible raycastIcon" = false
 
 # ── What the scalar table cannot express ────────────────────────────────────
-# `value` takes real TOML types, `path` addresses one key inside a shared dict
-# without replacing its siblings (each component is literal — dots are not
-# separators), and `host = "current"` is `defaults -currentHost`. No killall:
-# Raycast/AltTab/BTT would be quit and left dead; changes land on next launch.
+# `path` sets one key inside a shared dict (components are literal, dots are not
+# separators); `host = "current"` is -currentHost. No killall: Raycast/AltTab/BTT
+# would be quit and left dead, so changes land on next launch.
 
-# Empty the Dock. `value = []` is the array `defaults write -array` wrote.
+# Empty the Dock.
 [[bootstrap.macos.defaults_entries]]
 domain = "com.apple.dock"
 key = "persistent-apps"
 value = []
 
-# Disable the Cmd-Space Spotlight hotkey so Raycast can have it. Hotkey 64 is one
-# entry in the shared AppleSymbolicHotKeys dict, hence `path` — writing the whole
-# key would drop every other shortcut. Each path component is a literal key (dots
-# are not separators) and missing parents are created.
-#
-# The `value` sub-dict is written as well as `enabled`, exactly as the old plist
-# blob did: it keeps the binding itself intact (standard, Cmd-Space) while
-# disabled, so toggling Spotlight back on in System Settings restores Cmd-Space
-# rather than an unbound entry.
+# Free Cmd-Space for Raycast: disable Spotlight's hotkey 64 without touching the
+# other shortcuts in the dict. The binding itself is kept, so re-enabling it in
+# System Settings restores Cmd-Space rather than an unbound entry.
 [[bootstrap.macos.defaults_entries]]
 domain = "com.apple.symbolichotkeys"
 key = "AppleSymbolicHotKeys"
@@ -139,8 +131,7 @@ key = "AppleSymbolicHotKeys"
 path = ["64", "value", "parameters"]
 value = [32, 49, 1048576]
 
-# Battery percentage is a per-host preference. (The Bluetooth item next to it is
-# not ByHost, so it stays in the scalar table.)
+# Per-host (the Bluetooth item next to it is not).
 [[bootstrap.macos.defaults_entries]]
 domain = "com.apple.controlcenter"
 key = "BatteryShowPercentage"
