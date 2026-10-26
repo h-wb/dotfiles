@@ -1,5 +1,5 @@
-# Anki in the neko desktop, kept running so n8n can reach AnkiConnect on :8765
-# (home-ops has the Service). The AnkiWeb login is the one manual step.
+# Anki in neko, kept running for n8n's AnkiConnect calls on :8765 (home-ops has
+# the Service). The AnkiWeb login is the one manual step.
 
 [tools."http:anki"]
 os = "linux"
@@ -10,7 +10,7 @@ bin_path = "."                    # else mise shims the tarball's bundled python
 linux-x64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-x86_64.tar.zst" }
 linux-arm64 = { url = "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-linux-aarch64.tar.zst" }
 
-# The add-on (AnkiWeb id 2055492159); setup.sh links it into Anki.
+# The add-on (AnkiWeb id 2055492159); anki:addon links it into Anki.
 [tools."http:anki-connect"]
 os = "linux"
 version = "25.9.6.0"
@@ -25,8 +25,7 @@ url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
 "apt:libxcb-keysyms1" = "latest"
 "apt:libxcb-render-util0" = "latest"
 
-# No systemd here, so [bootstrap.services] is out: the image's supervisord
-# keeps Anki up. setup.sh loads this file.
+# No systemd here: the image's supervisord keeps Anki up (anki:start loads this).
 [bootstrap.files."/etc/neko/supervisord/anki.conf"]
 owner = "root"
 group = "root"
@@ -49,10 +48,23 @@ redirect_stderr=true
 "~/.local/bin/anki-session" = { source = "bin/anki-session", mode = "symlink" }
 "~/.local/share/applications/anki.desktop" = { source = "anki.desktop.tmpl", mode = "template" }
 
-# A dependency of conf.d/neko's `bootstrap` task.
+# Run by conf.d/neko's `bootstrap` task.
 [tasks."anki:setup"]
 description = "Link AnkiConnect into Anki, write its config, start Anki under supervisord"
-run = "sh setup.sh"
+run = [{ task = "anki:addon" }, { task = "anki:start" }]
+
+[tasks."anki:addon"]
+description = "Link the AnkiConnect add-on and write its config"
+hide = true
+skip_if = '! "$HOME/.local/bin/mise" where http:anki-connect >/dev/null 2>&1'
+run = "sh tasks/addon.sh"
+
+# Starts Anki on a rolled pod; a no-op when anki.conf is unchanged.
+[tasks."anki:start"]
+description = "Load anki.conf into supervisord"
+hide = true
+skip_if = "[ ! -f /etc/neko/supervisord/anki.conf ]"
+run = "sudo supervisorctl -c /etc/neko/supervisord.conf update anki"
 
 [doctor.checks.anki-connect]
 description = "Anki is running and AnkiConnect answers"

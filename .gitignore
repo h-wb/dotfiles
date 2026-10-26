@@ -1,7 +1,4 @@
 .DS_Store
-# Per-machine, never committed: the machine class and local [vars].
-miserc.local.toml
+# Per-machine, never committed: miserc.local.toml (machine class), config.local.toml ([vars]).
 *.local.toml
 !*.local.toml.example
-# The pre-2026-10 name of config.local.toml (neko-bootstrap renames it).
-mise.local.toml

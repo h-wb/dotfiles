@@ -1,35 +1,14 @@
-# The neko/xfce container (machine class `neko`). Everything the container
-# needs is in this folder: config, its fish/starship/xfce sources, the
-# session-start script in bin/ and the task bodies in tasks/. Paths below
-# resolve inside the folder.
-#
-# Target: ghcr.io/m1k1o/neko/xfce in k8s — Debian trixie, user `neko`,
-# passwordless sudo, supervisord as pid 1: NO systemd, NO launchd.
-#
-# THE constraint: only /home/neko is on a PVC; /usr and /etc are wiped on every
-# pod roll. So [bootstrap.packages] (apt) is a per-start cost and stays tiny,
-# GUI apps are [tools] (they install under ~/.local/share/mise, on the PVC), and
-# ~/.config/autostart/mise-bootstrap.desktop → bin/neko-bootstrap re-runs
-# bootstrap at every XFCE session start, which is what reprovisions a new pod.
-
-# min_version lives in config.toml now (2026.9.17 covers this file's needs too,
-# e.g. mise refreshing the image's cleaned apt lists, 2026.9.15). auto_update
-# skips the unattended session-start run, so bin/neko-bootstrap self-updates
-# a binary that is below it.
+# The neko/xfce container (class `neko`): ghcr.io/m1k1o/neko/xfce in k8s, Debian
+# trixie, user `neko`, passwordless sudo, supervisord as pid 1 (no systemd).
+# Only /home/neko is on a PVC; /usr and /etc are wiped every pod roll, so apt
+# stays tiny and bin/neko-bootstrap re-runs bootstrap at every session start.
 
 # ── Tools, including the GUI apps ───────────────────────────────────────────
-# Not brew (installs outside the PVC; casks are font-only on Linux), not apt
-# (/usr is wiped), not flatpak (bubblewrap needs a user namespace, blocked
-# here, and a sandboxed VS Code cannot see the mise toolchain).
-#
-# Folder-fragment tools lock into the repo's mise.neko.lock like any other.
-# `http:` entries are PINNED: bump the version and both URLs, then
-# `mise lock --global`. Obsidian is `http:` because its GitHub "latest" is an APK.
-# os = "linux" on each: a stray `-E neko` on a Mac would fail on the missing URL.
-#
-# ADDING AN APP: a [tools] entry, plus a .desktop file in xfce/applications/
-# and its [dotfiles] line (Exec → ~/.local/share/mise/shims/<name>, which is
-# stable across version bumps).
+# Not brew, apt or flatpak: they install outside the PVC, or (flatpak) need a
+# user namespace. `http:` entries are pinned: bump the version and both URLs,
+# then `mise lock --global`. os = "linux" so a stray `-E neko` on a Mac fails clean.
+# Adding an app: a [tools] entry, a .desktop in xfce/applications/ and its
+# [dotfiles] line (Exec is the shim, stable across bumps).
 [tools]
 starship = "latest"
 "github:zen-browser/desktop" = { version = "latest", extract_all = true, exe = "zen", os = "linux" }
@@ -38,11 +17,12 @@ starship = "latest"
 os = "linux"
 version = "1.136.1"
 strip_components = 1
-bin_path = "bin"                  # the launcher is bin/code, next to a bin/ dir of helpers
+bin_path = "bin"                  # bin/code, next to a bin/ dir of helpers
 [tools."http:vscode".platforms]
 linux-x64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-x64/stable" }
 linux-arm64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-arm64/stable" }
 
+# http: because its GitHub "latest" is an APK.
 [tools."http:obsidian"]
 os = "linux"
 version = "1.13.7"
@@ -53,27 +33,24 @@ linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/
 
 [env]
 LANG = "C.UTF-8"                     # Debian ships C.UTF-8 without `locales`
-TZ = "America/New_York"              # the image is UTC
-# pass-cli's default backend keeps its key in the KERNEL keyring, and this pod's
-# seccomp profile blocks add_key/keyctl (EPERM even as root). `fs` keeps it
-# beside the session under ~/.local/share/proton-pass-cli, on the PVC.
+TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
+# seccomp blocks the kernel keyring pass-cli uses by default; `fs` keeps the key on the PVC.
 PROTON_PASS_KEY_PROVIDER = "fs"
 
 [shell_alias]
 ef = "exec fish"
 
-# ── System packages (reinstalled on every pod start — keep it short) ───────
+# ── System packages (reinstalled every pod start: keep it short) ────────────
 [bootstrap.packages]
-"apt:git" = "latest"       # not in the neko base image; needed to clone this repo
-"apt:fish" = "latest"      # the shell here; the Macs stay on zsh + z4h
-"apt:tmux" = "latest"      # survives a dropped WebRTC session
+"apt:git" = "latest"
+"apt:fish" = "latest"
+"apt:tmux" = "latest"        # survives a dropped WebRTC session
 "apt:less" = "latest"
 "apt:unzip" = "latest"
-"apt:xz-utils" = "latest"  # .tar.xz app tarballs
-"apt:xdg-utils" = "latest" # xdg-open / default browser
-"apt:fontconfig" = "latest" # fc-cache, for the Nerd Font the bootstrap task drops in $HOME
-# Shared libraries the neko base image lacks, for the GUI apps in [tools].
-# (Verified against Debian trixie — hence the t64 suffix on libasound.)
+"apt:xz-utils" = "latest"
+"apt:xdg-utils" = "latest"
+"apt:fontconfig" = "latest"  # fc-cache, for neko:fonts
+# Libraries the base image lacks, for the GUI apps.
 "apt:libnss3" = "latest"          # Electron (VS Code, Obsidian)
 "apt:libnspr4" = "latest"
 "apt:libasound2t64" = "latest"
@@ -83,36 +60,25 @@ ef = "exec fish"
 "apt:libsecret-1-0" = "latest"    # VS Code keyring
 "apt:libdbus-glib-1-2" = "latest" # Zen (Gecko)
 
-# The image cleans /var/lib/apt/lists, so apt has no index on a fresh container.
-# No pre-packages `apt-get update` hook for that any more: since 2026.9.15 mise
-
 # ── Dotfiles ────────────────────────────────────────────────────────────────
 [dotfiles]
 "~/.config/fish/config.fish" = { source = "fish/config.fish", mode = "symlink" }
 "~/.config/starship.toml"    = { source = "starship.toml", mode = "symlink" }
-# symlink-each: links neko-bootstrap without touching mise's own binary there.
+# symlink-each: leaves mise's own binary in ~/.local/bin alone.
 "~/.local/bin"                               = { source = "bin", mode = "symlink-each" }
 "~/.config/autostart/mise-bootstrap.desktop" = { source = "xfce/mise-bootstrap.desktop.tmpl", mode = "template" }
 "~/.config/xfce4/terminal/terminalrc"        = { source = "xfce/terminalrc", mode = "symlink" }
 "~/.config/mimeapps.list"                    = { source = "xfce/mimeapps.list", mode = "symlink" }
-# template mode because .desktop files do not expand `~`.
+# template: .desktop files don't expand `~`.
 "~/.local/share/applications/code.desktop"     = { source = "xfce/applications/code.desktop.tmpl", mode = "template" }
 "~/.local/share/applications/obsidian.desktop" = { source = "xfce/applications/obsidian.desktop.tmpl", mode = "template" }
 "~/.local/share/applications/zen.desktop"      = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
-# Aliases are [shell_alias] now; this was a symlink to the old aliases file.
-"~/.config/fish/conf.d/aliases.fish" = { mode = "absent" }
-# Replaced by bin/git-credential-fnox.
+# Held a token; replaced by bin/git-credential-fnox.
 "~/.git-credentials" = { mode = "absent" }
 
 # ── Repos ───────────────────────────────────────────────────────────────────
-# Cloned to the same paths as on the Macs, so muscle memory and any absolute
-# path in a note still works. Deliberately NOT in the shared config: on a Mac
-# these directories already exist with real work in them, and a bootstrap that
-# tries to converge them is a good way to lose an afternoon.
-#
-# `mise bootstrap` re-runs this every session start, so neko-bootstrap passes
-# --skip-dirty: without it a single repo with uncommitted changes fails the whole
-# bootstrap, which on this box means the desktop stops provisioning entirely.
+# neko only: on a Mac these checkouts hold real work. neko-bootstrap passes
+# --skip-dirty, or one dirty repo would stop the desktop provisioning.
 [bootstrap.repos]
 "~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
@@ -121,26 +87,65 @@ ef = "exec fish"
 "~/Repositories/sento"               = { url = "https://github.com/h-wb/sento.git" }
 "~/Repositories/main-go-brrr"        = { url = "https://github.com/h-wb/main-go-brrr.git" }
 "~/Repositories/dlt"                 = { url = "https://github.com/h-wb/pipelines.git" }
-# upstreams and references, read-only in practice
-"~/Repositories/dawarich"            = { url = "https://github.com/Freika/dawarich.git" }
-"~/Repositories/onedr0p"             = { url = "https://github.com/onedr0p/home-ops.git" }
-"~/Repositories/jory"                = { url = "https://github.com/joryirving/home-ops.git" }
-"~/Repositories/vrozaksen"           = { url = "https://github.com/vrozaksen/home-ops.git" }
+# Read-only references: partial clones keep the PVC small (first clone only).
+"~/Repositories/dawarich"            = { url = "https://github.com/Freika/dawarich.git", filter = "blob:none" }
+"~/Repositories/onedr0p"             = { url = "https://github.com/onedr0p/home-ops.git", filter = "blob:none" }
+"~/Repositories/jory"                = { url = "https://github.com/joryirving/home-ops.git", filter = "blob:none" }
+"~/Repositories/vrozaksen"           = { url = "https://github.com/vrozaksen/home-ops.git", filter = "blob:none" }
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
-# `mise bootstrap` runs [tasks.bootstrap] last, after packages/dotfiles/tools,
-# so xfconf can rely on everything else being in place. Bodies are in tasks/.
+# The last step of `mise bootstrap`. /etc is image state, so the shell and
+# timezone are re-applied after every pod roll.
 [tasks.bootstrap]
-description = "Per-session fixups for the neko container (login shell, fonts, gh, timezone)"
-depends = ["neko:xfce", "anki:setup"]
-run = "sh tasks/bootstrap.sh"
+run = [
+  { task = "neko:shell" },
+  { task = "neko:tz" },
+  { task = "neko:fonts" },
+  { task = "neko:gh" },
+  { task = "neko:xfce" },
+  { task = "anki:setup" },
+]
 
-# XFCE settings — xfconf is to XFCE what `defaults` is to macOS. xfconfd is a
-# session daemon, so this only works inside the XFCE session (the autostart
-# run); from a bare `kubectl exec` shell it no-ops instead of failing. Writes
-# land in ~/.config/xfce4/xfconf, on the PVC.
+[tasks."neko:shell"]
+description = "Make fish the login shell (for kubectl exec)"
+hide = true
+skip_if = 'f="$(command -v fish)" || exit 0; [ "$(getent passwd "$(id -un)" | cut -d: -f7)" = "$f" ]'
+run = 'sudo chsh -s "$(command -v fish)" "$(id -un)"'
+
+[tasks."neko:tz"]
+description = "Link /etc/localtime to $TZ (the image is UTC)"
+hide = true
+skip_if = '[ ! -f "/usr/share/zoneinfo/$TZ" ] || [ "$(readlink /etc/localtime)" = "/usr/share/zoneinfo/$TZ" ]'
+run = 'sudo ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime'
+
+[tasks."neko:fonts"]
+description = "MesloLGS NF for the starship prompt (on the PVC: a one-time download)"
+hide = true
+skip_if = 'for s in Regular Bold Italic "Bold Italic"; do [ -f "$HOME/.local/share/fonts/MesloLGS NF $s.ttf" ] || exit 1; done'
+run = '''
+dir="$HOME/.local/share/fonts"
+mkdir -p "$dir"
+for s in Regular Bold Italic "Bold Italic"; do
+	f="$dir/MesloLGS NF $s.ttf"
+	[ -f "$f" ] && continue
+	curl -fsSL "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20$(echo "$s" | sed 's/ /%20/g').ttf" -o "$f" || rm -f "$f"
+done
+fc-cache -f "$dir" >/dev/null 2>&1 || true
+'''
+
+# Persists GH_TOKEN into ~/.config/gh for later terminals. Both `env -u` matter:
+# with GH_TOKEN set, `gh auth status` always passes and `gh auth login` refuses.
+[tasks."neko:gh"]
+description = "Store GH_TOKEN in gh's own config"
+hide = true
+skip_if = '[ -z "${GH_TOKEN:-}" ] || ! command -v gh >/dev/null 2>&1 || env -u GH_TOKEN -u GITHUB_TOKEN gh auth status >/dev/null 2>&1'
+run = 'printf %s "$GH_TOKEN" | env -u GH_TOKEN -u GITHUB_TOKEN gh auth login --with-token'
+
+# xfconfd is a session daemon: this only works from the autostart run, not a
+# bare `kubectl exec`, where it skips.
 [tasks."neko:xfce"]
 description = "Apply XFCE settings (xfconf) inside the neko desktop session"
+skip_if = '! command -v xfconf-query >/dev/null 2>&1 || { [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && ! xfconf-query -l >/dev/null 2>&1; }'
 run = "sh tasks/xfce.sh"
 
 # ── Doctor checks ───────────────────────────────────────────────────────────
@@ -149,8 +154,7 @@ description = "session-start provisioning is not parked"
 hint = "rm ~/.neko-hold to resume, then run `neko-bootstrap`"
 run = '''
 [ -e "$HOME/.neko-hold" ] || exit 0
-echo "~/.neko-hold is present — neko-bootstrap exits before doing anything,"
-echo "so this desktop is NOT reprovisioning itself at session start."
+echo "~/.neko-hold is present: neko-bootstrap exits before doing anything"
 exit 1
 '''
 

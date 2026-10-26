@@ -1,19 +1,12 @@
-# fish config for the CachyOS desktop. Unlike the neko container, CachyOS ships
-# its own fish setup (pure prompt, fastfetch greeting, `done` notifications) in
-# the cachyos-fish-config package — this keeps it and only adds mise on top.
-#
-# Lives in the dotfiles repo at conf.d/cachyos/fish/. Aliases come from mise
-# ([shell_alias]), set by the `mise activate` below.
-
+# Keeps CachyOS's own fish setup and adds mise. Aliases are mise [shell_alias].
 source /usr/share/cachyos-fish-config/cachyos-config.fish
 
-# mise itself lives in ~/.local/bin. fish_add_path is idempotent.
 fish_add_path -g $HOME/.local/bin
 
 if status is-interactive
-    # mise last, so its tool dirs win on PATH (same ordering rule as the zshrc).
+    # mise last, so its tool dirs win on PATH.
     mise activate fish | source
 else
-    # `mise activate` is interactive-only by design; scripts and ssh commands get shims.
+    # `mise activate` is interactive-only; scripts and ssh commands get shims.
     mise activate fish --shims | source
 end

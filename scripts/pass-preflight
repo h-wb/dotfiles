@@ -1,25 +1,14 @@
 #!/bin/sh
-# Make sure there is a live Proton Pass session before a bootstrap that renders
-# secret-gated dotfiles.
-#
-# Why this exists: fnox defaults to `--if-missing warn`, so a dead pass-cli
-# session is only a WARN — fnox still exits 0 and runs mise bootstrap with every
-# secret unset. The templated dotfiles then render their empty fallback and
-# OVERWRITE the good copies (~/.ssh/config loses the truenas host, and
-# wg0.home.conf is truncated to 0 bytes). The apply/diff tasks pair this with
-# `--if-missing error` so a failure is loud; this script is the part that makes
-# it self-healing instead of just fatal.
-#
-# Exit 0 = session is live. Exit 1 = no session (and we could not get one).
-# Order: an existing session, then a non-interactive PAT login (PASS_CLI_PAT),
-# then an interactive `pass-cli login` if stdin is a TTY.
-# Set DOTFILES_NO_LOGIN=1 to skip only the interactive step.
+# Exit 0 only with a live Proton Pass session; every bootstrap with secrets
+# runs this first. (A dead session is just a fnox WARN, and the secret-gated
+# dotfiles would render EMPTY over the good copies.)
+# Tries: the stored session, PASS_CLI_PAT (no TTY needed), then an interactive
+# `pass-cli login` unless DOTFILES_NO_LOGIN is set or stdin is not a TTY.
 set -u
 
 MISE="${MISE:-$HOME/.local/bin/mise}"
 
-# pass-cli is a [tools] entry, so it may not be on PATH yet on a fresh machine
-# (install.sh runs this before the first bootstrap installs the tools).
+# pass-cli is a [tools] entry, so it may not be installed yet on a fresh machine.
 pass_cli() {
 	if command -v pass-cli >/dev/null 2>&1; then
 		pass-cli "$@"
@@ -32,21 +21,13 @@ pass_cli() {
 	fi
 }
 
-# `info` reports on the stored session and fails when there is none. Deliberately
-# not `test` — here or in the post-login check below: that subcommand exists in
-# 2.1.2 (what the Macs have) but is gone in 2.3.3 (what the container installs),
-# where it fails as an unknown argument. At this call site that looks exactly like
-# "no session", so the caller silently falls back to a PAT login that then refuses
-# with "Client is already authenticated"; at the post-login one it made a
-# successful interactive login report "still no usable session" and exit 1.
-if PASS_LOG_LEVEL=error pass_cli info >/dev/null 2>&1; then
-	exit 0
-fi
+# `info`, not `test`: `test` was removed in pass-cli 2.3, and failing as an
+# unknown argument looks exactly like "no session".
+session() { PASS_LOG_LEVEL=error pass_cli info >/dev/null 2>&1; }
 
-# A Personal Access Token logs in without a TTY, which is what lets an unattended
-# box (the neko container's session-start bootstrap) authenticate itself. Create
-# one with `pass-cli personal-access-token create` on a machine that already has a
-# session, and hand it over as PASS_CLI_PAT.
+session && exit 0
+
+# Create one with `pass-cli personal-access-token create` on a logged-in machine.
 if [ -n "${PASS_CLI_PAT:-}" ]; then
 	if PASS_LOG_LEVEL=error pass_cli login --pat "${PASS_CLI_PAT}" >/dev/null 2>&1; then
 		echo "[preflight] logged in with PASS_CLI_PAT." >&2
@@ -61,15 +42,7 @@ if [ -n "${DOTFILES_NO_LOGIN:-}" ] || [ ! -t 0 ]; then
 fi
 
 echo "[preflight] no Proton Pass session — starting \`pass-cli login\`." >&2
-if ! pass_cli login; then
-	echo "[preflight] login failed." >&2
-	exit 1
-fi
-
-if PASS_LOG_LEVEL=error pass_cli info >/dev/null 2>&1; then
-	echo "[preflight] session established." >&2
-	exit 0
-fi
-
+pass_cli login || { echo "[preflight] login failed." >&2; exit 1; }
+session && { echo "[preflight] session established." >&2; exit 0; }
 echo "[preflight] still no usable session after login." >&2
 exit 1
