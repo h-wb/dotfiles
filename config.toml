@@ -56,6 +56,18 @@ usage = "latest"
 "npm:@metabase/cli" = "latest"
 codex = "latest"
 
+# Mistral Vibe CLI (`vibe`). Each release also ships a vibe-acp-* build that
+# mise's asset autodetection prefers, so every platform names its zip.
+[tools."github:mistralai/mistral-vibe"]
+version = "latest"
+
+[tools."github:mistralai/mistral-vibe".platforms]
+macos-arm64 = { asset_pattern = "vibe-darwin-aarch64-*.zip" }
+macos-x64   = { asset_pattern = "vibe-darwin-x86_64-*.zip" }
+linux-arm64 = { asset_pattern = "vibe-linux-aarch64-*.zip" }
+linux-x64   = { asset_pattern = "vibe-linux-x86_64-*.zip" }
+windows-x64 = { asset_pattern = "vibe-windows-x86_64-*.zip" }
+
 [env]
 EDITOR = "code --wait"
 MISE_EXPERIMENTAL = 1
