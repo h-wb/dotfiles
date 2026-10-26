@@ -273,6 +273,77 @@ url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-x86_64-pc-wind
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598847"
 provenance = "github-attestations"
 
+[[tools."github:mistralai/mistral-vibe"]]
+version = "2.26.1"
+backend = "github:mistralai/mistral-vibe"
+specifiers = ["latest"]
+
+[tools."github:mistralai/mistral-vibe".options]
+asset_pattern = "vibe-darwin-aarch64-*.zip"
+
+[tools."github:mistralai/mistral-vibe"."platforms.macos-arm64"]
+checksum = "sha256:8c7e1c391d84cfe2adbdc16d374bb57e233150eea5b0b39594584bff22e1c096"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-darwin-aarch64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319524"
+
+[[tools."github:mistralai/mistral-vibe"]]
+version = "2.26.1"
+backend = "github:mistralai/mistral-vibe"
+
+[tools."github:mistralai/mistral-vibe".options]
+asset_pattern = "vibe-windows-x86_64-*.zip"
+
+[tools."github:mistralai/mistral-vibe"."platforms.windows-x64"]
+checksum = "sha256:58e475380311c3c0bba8495c77a52e2498a856547bbd2ac87ee8fec1388fcee1"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-windows-x86_64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319537"
+
+[[tools."github:mistralai/mistral-vibe"]]
+version = "2.26.1"
+backend = "github:mistralai/mistral-vibe"
+
+[tools."github:mistralai/mistral-vibe".options]
+asset_pattern = "vibe-darwin-x86_64-*.zip"
+
+[tools."github:mistralai/mistral-vibe"."platforms.macos-x64"]
+checksum = "sha256:6c53c71949bff3df8d998a5928b95bb67fa14665e56d147b429a23908ee77134"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-darwin-x86_64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319523"
+
+[[tools."github:mistralai/mistral-vibe"]]
+version = "2.26.1"
+backend = "github:mistralai/mistral-vibe"
+
+[tools."github:mistralai/mistral-vibe".options]
+asset_pattern = "vibe-linux-aarch64-*.zip"
+
+[tools."github:mistralai/mistral-vibe"."platforms.linux-arm64"]
+checksum = "sha256:bab9ea63437440e819174269f2d192c076380b3026af29f435e1f5018f1f363c"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-aarch64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319535"
+
+[tools."github:mistralai/mistral-vibe"."platforms.linux-arm64-musl"]
+checksum = "sha256:bab9ea63437440e819174269f2d192c076380b3026af29f435e1f5018f1f363c"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-aarch64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319535"
+
+[[tools."github:mistralai/mistral-vibe"]]
+version = "2.26.1"
+backend = "github:mistralai/mistral-vibe"
+
+[tools."github:mistralai/mistral-vibe".options]
+asset_pattern = "vibe-linux-x86_64-*.zip"
+
+[tools."github:mistralai/mistral-vibe"."platforms.linux-x64"]
+checksum = "sha256:2915db76b12d31589706a3e1c5aac41de32fa6a12d7b2e694df0dd540c09127e"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-x86_64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319527"
+
+[tools."github:mistralai/mistral-vibe"."platforms.linux-x64-musl"]
+checksum = "sha256:2915db76b12d31589706a3e1c5aac41de32fa6a12d7b2e694df0dd540c09127e"
+url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-x86_64-2.26.1.zip"
+url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319527"
+
 [[tools."github:protonpass/pass-cli"]]
 version = "2.3.3"
 backend = "github:protonpass/pass-cli"
