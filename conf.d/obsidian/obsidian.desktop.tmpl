@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Obsidian
-Comment=Markdown knowledge base
-Exec={{ env.HOME }}/.local/share/mise/shims/obsidian --no-sandbox %U
+Comment=Markdown knowledge base (supervisord keeps it running for the Local REST API)
+Exec={{ env.HOME }}/.local/bin/obsidian-session %U
 Icon=accessories-text-editor
 Categories=Office;TextEditor;
 MimeType=x-scheme-handler/obsidian;

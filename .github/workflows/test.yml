@@ -69,7 +69,9 @@ jobs:
             test -L "$HOME/.config/fish/config.fish"
             test -x "$HOME/.local/bin/neko-bootstrap"
             test -x "$HOME/.local/bin/anki-session"
-            for app in code obsidian zen; do
+            test -x "$HOME/.local/bin/obsidian-session"
+            grep -q "^Exec=$HOME/.local/bin/obsidian-session" "$HOME/.local/share/applications/obsidian.desktop"
+            for app in code zen; do
               grep -q "^Exec=$HOME/.local/share/mise/shims/$app" "$HOME/.local/share/applications/$app.desktop"
             done ;;
           cachyos)
