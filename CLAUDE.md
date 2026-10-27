@@ -41,7 +41,7 @@ also how CI pins the class per matrix job.
   nothing else, not recursively. Relative sources resolve **inside the folder**,
   and its tasks **run in the folder** (2026.9.15). Each machine class and each
   self-contained feature is one folder: `zsh/`, `macos-defaults/`, `k8s-dns/`,
-  `zen-history/`, `neko/`, `anki/`, `cachyos/`.
+  `zen-history/`, `neko/`, `anki/`, `obsidian/`, `cachyos/`.
 - **`home/`** holds sources for the root `config*.toml` files only (git, ssh,
   kube, wireguard, BTT). A folder fragment never reaches into `home/`.
 - **Platform environments** (`auto_env = true` in `miserc.toml`): `macos`,
@@ -358,6 +358,13 @@ name would regenerate every client's key).
   AnkiMCP's `http_allowed_hosts` must list the Service name ToolHive dials,
   or every request is a 421 (a wrong key is a 403). The `.ankiaddon` needs
   `format = "zip"`.
+- **Obsidian** is `conf.d/obsidian/` (class `neko`), kept running the same way
+  so n8n's Paperless journal mirror can read and write the vault through the
+  Local REST API plugin on :27124 (home-ops `neko-obsidian` Service). Never
+  write vault files from outside Obsidian: Sync only uploads what its own
+  watcher sees. The vault and its plugins (with the plugin's `bindingHost:
+  0.0.0.0` and key) come from Obsidian Sync, not from here; doctor
+  `obsidian-rest-api` checks the result.
 - **Not protected**: the PVC is `reclaimPolicy: Delete` under a pruning Flux
   Kustomization; the backstop is kopiur (daily 04:45 to the NAS) — check
   `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.

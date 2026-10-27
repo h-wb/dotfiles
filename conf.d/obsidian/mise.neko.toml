@@ -1,0 +1,53 @@
+# Obsidian in neko, kept running for n8n's Local REST API calls on :27124
+# (home-ops has the Service, default/neko-obsidian). The vault, plugins included,
+# comes from Obsidian Sync: signing in and opening it is the one manual step.
+
+# http: because its GitHub "latest" is an APK.
+[tools."http:obsidian"]
+os = "linux"
+version = "1.13.7"
+strip_components = 1
+[tools."http:obsidian".platforms]
+linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
+linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
+
+# No systemd here: the image's supervisord keeps Obsidian up (obsidian:start loads this).
+[bootstrap.files."/etc/neko/supervisord/obsidian.conf"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = '''
+[program:obsidian]
+environment=HOME="/home/%(ENV_USER)s",USER="%(ENV_USER)s",DISPLAY="%(ENV_DISPLAY)s"
+command=/home/%(ENV_USER)s/.local/bin/obsidian-session
+autorestart=true
+priority=900
+user=%(ENV_USER)s
+stdout_logfile=/var/log/neko/obsidian.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=2
+redirect_stderr=true
+'''
+
+[dotfiles]
+"~/.local/bin/obsidian-session" = { source = "bin/obsidian-session", mode = "symlink" }
+"~/.local/share/applications/obsidian.desktop" = { source = "obsidian.desktop.tmpl", mode = "template" }
+
+# Run by conf.d/neko's `bootstrap` task. Starts Obsidian on a rolled pod; a
+# no-op when obsidian.conf is unchanged.
+[tasks."obsidian:start"]
+description = "Load obsidian.conf into supervisord"
+hide = true
+skip_if = "[ ! -f /etc/neko/supervisord/obsidian.conf ]"
+run = "sudo supervisorctl -c /etc/neko/supervisord.conf update obsidian"
+
+# On the pod IP, not 127.0.0.1: n8n reaches it through the Service. The root
+# endpoint answers without the key.
+[doctor.checks.obsidian-rest-api]
+description = "Obsidian is running and the Local REST API answers on the pod IP"
+hint = "a vault must be open, its Sync must include community plugins, and the plugin's binding host must be 0.0.0.0; see ~/.local/state/obsidian-session.log"
+run = '''
+ip="$(hostname -i | cut -d' ' -f1)"
+curl -fsSk -m 3 "https://$ip:27124/" >/dev/null ||
+  { echo "nothing on $ip:27124 — Obsidian is closed, no vault is open, or the plugin binds 127.0.0.1"; exit 1; }
+'''

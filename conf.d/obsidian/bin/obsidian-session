@@ -1,0 +1,23 @@
+#!/bin/sh
+# Start Obsidian: run by supervisord (obsidian.conf) and by the menu entry.
+set -u
+
+LOG="${HOME}/.local/state/obsidian-session.log"
+mkdir -p "$(dirname "$LOG")"
+exec >>"$LOG" 2>&1
+echo "=== $(date -Is) obsidian-session ==="
+
+OBSIDIAN="${HOME}/.local/share/mise/shims/obsidian"
+
+# After a pod roll the Electron libraries are gone until the bootstrap reinstalls them.
+i=0
+until [ -x "$OBSIDIAN" ] && ldconfig -p 2>/dev/null | grep -q 'libnss3\.so'; do
+	[ $((i % 60)) -eq 0 ] && echo "[wait] Obsidian or its libraries are not there yet (bootstrap running, or ~/.neko-hold?)"
+	i=$((i + 1))
+	sleep 5
+done
+
+export LANG="${LANG:-C.UTF-8}"
+# The Chromium sandbox needs a user namespace, which this pod blocks. A second
+# launch (menu entry) hands over to the running instance and exits.
+exec "$OBSIDIAN" --no-sandbox "$@"

@@ -22,15 +22,6 @@ bin_path = "bin"                  # bin/code, next to a bin/ dir of helpers
 linux-x64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-x64/stable" }
 linux-arm64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-arm64/stable" }
 
-# http: because its GitHub "latest" is an APK.
-[tools."http:obsidian"]
-os = "linux"
-version = "1.13.7"
-strip_components = 1
-[tools."http:obsidian".platforms]
-linux-x64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7.tar.gz" }
-linux-arm64 = { url = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/obsidian-1.13.7-arm64.tar.gz" }
-
 [env]
 LANG = "C.UTF-8"                     # Debian ships C.UTF-8 without `locales`
 TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
@@ -70,9 +61,8 @@ ef = "exec fish"
 "~/.config/xfce4/terminal/terminalrc"        = { source = "xfce/terminalrc", mode = "symlink" }
 "~/.config/mimeapps.list"                    = { source = "xfce/mimeapps.list", mode = "symlink" }
 # template: .desktop files don't expand `~`.
-"~/.local/share/applications/code.desktop"     = { source = "xfce/applications/code.desktop.tmpl", mode = "template" }
-"~/.local/share/applications/obsidian.desktop" = { source = "xfce/applications/obsidian.desktop.tmpl", mode = "template" }
-"~/.local/share/applications/zen.desktop"      = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
+"~/.local/share/applications/code.desktop" = { source = "xfce/applications/code.desktop.tmpl", mode = "template" }
+"~/.local/share/applications/zen.desktop"  = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
 # Held a token; replaced by bin/git-credential-fnox.
 "~/.git-credentials" = { mode = "absent" }
 
@@ -104,6 +94,7 @@ run = [
   { task = "neko:gh" },
   { task = "neko:xfce" },
   { task = "anki:setup" },
+  { task = "obsidian:start" },
 ]
 
 [tasks."neko:shell"]
