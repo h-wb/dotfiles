@@ -1,5 +1,6 @@
-# Anki in neko, kept running for n8n's AnkiConnect calls on :8765 (home-ops has
-# the Service). The AnkiWeb login is the one manual step.
+# Anki in neko, kept running for n8n's AnkiConnect calls on :8765 and ToolHive's
+# AnkiMCP calls on :3141 (home-ops has both Services). The AnkiWeb login is the
+# one manual step.
 
 [tools."http:anki"]
 os = "linux"
@@ -16,6 +17,14 @@ os = "linux"
 version = "25.9.6.0"
 strip_components = 1
 url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
+
+# The MCP server add-on (AnkiWeb id 124672614), Python deps vendored. Beta:
+# read the release notes before a bump, tools get renamed.
+[tools."http:anki-mcp-server"]
+os = "linux"
+version = "0.40.0"
+format = "zip"                    # a .ankiaddon is a zip; mise keeps it packed otherwise
+url = "https://github.com/ankimcp/anki-mcp-server-addon/releases/download/v0.40.0/anki_mcp_server.ankiaddon"
 
 # Qt 6 xcb platform plugin
 [bootstrap.packages]
@@ -50,11 +59,11 @@ redirect_stderr=true
 
 # Run by conf.d/neko's `bootstrap` task.
 [tasks."anki:setup"]
-description = "Link AnkiConnect into Anki, write its config, start Anki under supervisord"
+description = "Link AnkiConnect and AnkiMCP into Anki, write their config, start Anki under supervisord"
 run = [{ task = "anki:addon" }, { task = "anki:start" }]
 
 [tasks."anki:addon"]
-description = "Link the AnkiConnect add-on and write its config"
+description = "Link the AnkiConnect and AnkiMCP add-ons and write their config"
 hide = true
 skip_if = '! "$HOME/.local/bin/mise" where http:anki-connect >/dev/null 2>&1'
 run = "sh tasks/addon.sh"
@@ -72,4 +81,14 @@ hint = "sudo supervisorctl -c /etc/neko/supervisord.conf status anki; see ~/.loc
 run = '''
 curl -fsS -m 3 -X POST http://127.0.0.1:8765 -d '{"action":"version","version":6}' >/dev/null ||
   { echo "nothing on 127.0.0.1:8765 — Anki is closed, or the add-on did not load"; exit 1; }
+'''
+
+# Any HTTP answer will do: with the key set, an unauthenticated request is a 403.
+[doctor.checks.anki-mcp]
+description = "AnkiMCP answers on :3141"
+hint = "Tools → Add-ons in Anki shows load errors; its first start fetches pydantic_core from PyPI"
+depends = ["anki-connect"]
+run = '''
+curl -sS -m 3 -o /dev/null http://127.0.0.1:3141/ ||
+  { echo "nothing on 127.0.0.1:3141 — the AnkiMCP add-on did not load"; exit 1; }
 '''

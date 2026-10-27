@@ -49,6 +49,22 @@ url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
 checksum = "sha256:364291dcc5572694d40258b490ffbc2ae7a91783c8add2787ac75003067d1456"
 url = "https://git.sr.ht/~foosoft/anki-connect/archive/25.9.6.0.tar.gz"
 
+[[tools."http:anki-mcp-server"]]
+version = "0.40.0"
+backend = "http:anki-mcp-server"
+specifiers = ["0.40.0"]
+
+[tools."http:anki-mcp-server".options]
+format = "zip"
+
+[tools."http:anki-mcp-server"."platforms.linux-arm64"]
+checksum = "sha256:ad0d41dd6222b10600ab0b61378e621792b5f919ae9d1d269f6556391124d1f5"
+url = "https://github.com/ankimcp/anki-mcp-server-addon/releases/download/v0.40.0/anki_mcp_server.ankiaddon"
+
+[tools."http:anki-mcp-server"."platforms.linux-x64"]
+checksum = "sha256:ad0d41dd6222b10600ab0b61378e621792b5f919ae9d1d269f6556391124d1f5"
+url = "https://github.com/ankimcp/anki-mcp-server-addon/releases/download/v0.40.0/anki_mcp_server.ankiaddon"
+
 [[tools."http:obsidian"]]
 version = "1.13.7"
 backend = "http:obsidian"
