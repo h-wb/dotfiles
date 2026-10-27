@@ -32,6 +32,12 @@ checksum = "sha256:45d22088439443d4282b0cd2292bf81d1677cb560a13af4cc2675b3fbcb89
 url = "https://github.com/ReagentX/imessage-exporter/releases/download/4.3.0/imessage-exporter-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/ReagentX/imessage-exporter/releases/assets/564620232"
 
+[[tools."npm:mcp-remote"]]
+version = "0.15.2"
+aube = { path = "locks/mise.personal/npm-mcp-remote/0.15.2", digest = "sha256:ff3785faf9e02f1785ab080c90d41ca7cdcdfb20df57bbb12e2cf7630218aa21" }
+backend = "npm:mcp-remote"
+specifiers = ["0.15.2"]
+
 [[tools.sqlite]]
 version = "3.53.4"
 backend = "conda:sqlite"

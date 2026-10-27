@@ -24,3 +24,7 @@ GH_TOKEN         = { provider = "protonpass", value = "pass://Dev/GitHub/token" 
 ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://Dev/AnkiConnect/password" }
 # AnkiMCP's bearer key (conf.d/anki); ToolHive holds the same value (BWS `toolhive`).
 ANKIMCP_API_KEY     = { provider = "protonpass", value = "pass://Dev/AnkiMCP/password" }
+
+# home-ops mcp-ops gateway key (the `claude-code` one in llm/mcp-ops-api-keys);
+# conf.d/claude-desktop writes it into Claude Desktop's config.
+MCP_OPS_API_KEY  = { provider = "protonpass", value = "pass://Dev/mcp-ops/password" }
