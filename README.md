@@ -27,6 +27,7 @@ conf.d/
   k8s-dns/               pick which cluster resolves the internal zone (MacBook)
   local-llm/             LM Studio GPU memory limit and RAM triage (MacBook)
   zen-history/           Zen history snapshots → Nextcloud (MacBook)
+  claude-desktop/        Claude Desktop → the mcp-ops ToolHive gateway (MacBook)
   neko/                  the neko/xfce container, whole
   anki/                  Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive) (neko)
   cachyos/               the CachyOS gaming desktop, whole

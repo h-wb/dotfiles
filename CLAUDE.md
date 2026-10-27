@@ -294,6 +294,26 @@ per cluster); `[env] KUBECONFIG` lists both so kubectl merges them.
 `~/.kube/config` is deliberately unmanaged and **not** in the list, so a stale
 hand-written file cannot win a context-name collision.
 
+### Claude Desktop (`conf.d/claude-desktop/`)
+
+Desktop gets home-ops' `mcp-ops` ToolHive gateway (Anki, kubectl, flux, GitHub,
+n8n), the same one Claude Code uses, with the same `claude-code` key (Proton
+Pass `Dev/mcp-ops`; the in-cluster generator is `CreatedOnce`, so a new key
+name would regenerate every client's key).
+
+- **Merged, not rendered**: Desktop writes its own `preferences` into
+  `claude_desktop_config.json`. A `post-dotfiles` hook runs
+  `claude-desktop:mcp`, which sets only `mcpServers.toolhive-ops` with jq.
+  Without the key it leaves the entry alone. A running Desktop reads it on its
+  next start.
+- Desktop's config only launches local commands, so `npm:mcp-remote` (pinned,
+  lock under `locks/`) bridges. `command` is its mise shim: launchd's PATH
+  has `/usr/bin` (the npm wrapper needs `dirname`) but no mise.
+- The key is in `env`, and mcp-remote expands `${MCP_OPS_API_KEY}` in the
+  header arg itself, so it never shows in `ps`.
+- claude.ai (web, phone) is out of reach: its connectors call from Anthropic's
+  cloud and want OAuth, and `mcp-ops` is internal with a static key.
+
 ## The neko container (`conf.d/neko/`)
 
 `ghcr.io/m1k1o/neko/xfce` in k8s: Debian trixie, user `neko`, passwordless sudo,
