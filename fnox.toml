@@ -2,29 +2,29 @@
 
 [providers.protonpass]
 type = "proton-pass"
-vault = "Dev"
+vault = "dotfiles"
 
 [secrets]
-SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://Dev/Truenas/host" }
-SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://Dev/Truenas/username" }
-WG0_HOME_CONF    = { provider = "protonpass", value = "pass://Dev/wg0.conf/note" }
+SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://dotfiles/Truenas/host" }
+SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://dotfiles/Truenas/username" }
+WG0_HOME_CONF    = { provider = "protonpass", value = "pass://dotfiles/wg0.conf/note" }
 # Internal addresses in a public repo; conf.d/k8s-dns reads them as bootstrap secrets.
-K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address" }
-K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://Dev/k8s gateway/ip address edge" }
+K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://dotfiles/k8s gateway/ip address" }
+K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://dotfiles/k8s gateway/ip address edge" }
 
 # One kubeconfig per cluster, as custom fields on one item.
-KUBECONFIG_MAIN  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/main" }
-KUBECONFIG_EDGE  = { provider = "protonpass", value = "pass://Dev/Kubeconfig/edge" }
+KUBECONFIG_MAIN  = { provider = "protonpass", value = "pass://dotfiles/Kubeconfig/main" }
+KUBECONFIG_EDGE  = { provider = "protonpass", value = "pass://dotfiles/Kubeconfig/edge" }
 
 # GH_TOKEN is only really needed in neko (the Macs' keychain covers git and gh).
-GIT_EMAIL        = { provider = "protonpass", value = "pass://Dev/GitHub/email" }
-GH_TOKEN         = { provider = "protonpass", value = "pass://Dev/GitHub/token" }
+GIT_EMAIL        = { provider = "protonpass", value = "pass://dotfiles/GitHub/email" }
+GH_TOKEN         = { provider = "protonpass", value = "pass://dotfiles/GitHub/token" }
 
 # AnkiConnect's apiKey (conf.d/anki); n8n holds the same value.
-ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://Dev/AnkiConnect/password" }
+ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://dotfiles/AnkiConnect/password" }
 # AnkiMCP's bearer key (conf.d/anki); ToolHive holds the same value (BWS `toolhive`).
-ANKIMCP_API_KEY     = { provider = "protonpass", value = "pass://Dev/AnkiMCP/password" }
+ANKIMCP_API_KEY     = { provider = "protonpass", value = "pass://dotfiles/AnkiMCP/password" }
 
 # home-ops mcp-ops gateway key (the `claude-code` one in llm/mcp-ops-api-keys);
 # conf.d/claude-desktop writes it into Claude Desktop's config.
-MCP_OPS_API_KEY  = { provider = "protonpass", value = "pass://Dev/mcp-ops/password" }
+MCP_OPS_API_KEY  = { provider = "protonpass", value = "pass://dotfiles/mcp-ops/password" }
