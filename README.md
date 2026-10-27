@@ -28,7 +28,7 @@ conf.d/
   local-llm/             LM Studio GPU memory limit and RAM triage (MacBook)
   zen-history/           Zen history snapshots → Nextcloud (MacBook)
   neko/                  the neko/xfce container, whole
-  anki/                  Anki + AnkiConnect for n8n (neko)
+  anki/                  Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive) (neko)
   cachyos/               the CachyOS gaming desktop, whole
 home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
 fnox.toml                Proton Pass secret references (no values)

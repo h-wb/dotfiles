@@ -328,11 +328,16 @@ hand-written file cannot win a context-name collision.
   across bumps.
 - `bin/` is only for what goes in `~/.local/bin`; task bodies live in `tasks/`.
 - **Anki** is `conf.d/anki/` (class `neko`), kept running by the container's
-  supervisord so n8n can reach AnkiConnect on :8765 (home-ops has the Service).
-  `anki:setup` = `anki:addon` (links the add-on, writes its `meta.json`) then
-  `anki:start` (`supervisorctl update anki`). Bind `0.0.0.0` only
-  ever with the `apiKey` (Proton Pass `Dev/AnkiConnect`), and
+  supervisord so n8n can reach AnkiConnect on :8765 and ToolHive the AnkiMCP
+  add-on on :3141 (home-ops has both Services; ToolHive's `anki`
+  MCPServerEntry). `anki:setup` = `anki:addon` (links both add-ons, writes
+  their `meta.json`) then `anki:start` (`supervisorctl update anki`). Bind
+  `0.0.0.0` only ever with a key (Proton Pass `Dev/AnkiConnect`,
+  `Dev/AnkiMCP`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
   `update_enabled: false` or Anki's updater deletes the linked add-on.
+  AnkiMCP's `http_allowed_hosts` must list the Service name ToolHive dials,
+  or every request is a 421 (a wrong key is a 403). The `.ankiaddon` needs
+  `format = "zip"`.
 - **Not protected**: the PVC is `reclaimPolicy: Delete` under a pruning Flux
   Kustomization; the backstop is kopiur (daily 04:45 to the NAS) — check
   `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.

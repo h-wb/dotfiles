@@ -22,3 +22,5 @@ GH_TOKEN         = { provider = "protonpass", value = "pass://Dev/GitHub/token" 
 
 # AnkiConnect's apiKey (conf.d/anki); n8n holds the same value.
 ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://Dev/AnkiConnect/password" }
+# AnkiMCP's bearer key (conf.d/anki); ToolHive holds the same value (BWS `toolhive`).
+ANKIMCP_API_KEY     = { provider = "protonpass", value = "pass://Dev/AnkiMCP/password" }
