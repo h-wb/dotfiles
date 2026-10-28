@@ -1,0 +1,12 @@
+# Layer `pod`: the Linux pods in home-ops (neko, paseo). Only $HOME is on a PVC; each
+# reprovisions at every start through its conf.d/<class>/bin/*-bootstrap and
+# scripts/provision.sh. --skip-dirty there: a dirty checkout must not stop it.
+
+[tools]
+tmux = "latest"   # mise, not apt: /usr is wiped every pod roll
+
+[env]
+LANG = "C.UTF-8"  # Debian ships C.UTF-8 without `locales`
+
+[bootstrap.repos]
+"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }

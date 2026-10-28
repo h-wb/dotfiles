@@ -35,30 +35,6 @@ url = "https://dl.k8s.io/v1.37.0/bin/darwin/amd64/kubectl"
 checksum = "sha256:4721b614a67bb4932a0369e61f4a323d8c6ca00943d3a2ff14837c124da06f0e"
 url = "https://dl.k8s.io/v1.37.0/bin/windows/amd64/kubectl.exe"
 
-[[tools.aws-cli]]
-version = "2.36.40"
-backend = "aqua:aws/aws-cli"
-specifiers = ["latest"]
-
-[tools.aws-cli."platforms.linux-arm64"]
-url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.36.40.zip"
-
-[tools.aws-cli."platforms.linux-arm64-musl"]
-url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.36.40.zip"
-
-[tools.aws-cli."platforms.linux-x64"]
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.40.zip"
-
-[tools.aws-cli."platforms.linux-x64-musl"]
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.40.zip"
-
-[tools.aws-cli."platforms.macos-arm64"]
-checksum = "blake3:5db2bdbe1a49c6b544796a62b37aea7452f706f40d8becea3f41088309084812"
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.36.40.pkg"
-
-[tools.aws-cli."platforms.macos-x64"]
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.36.40.pkg"
-
 [[tools.claude]]
 version = "2.1.289"
 backend = "aqua:anthropics/claude-code"
@@ -139,46 +115,6 @@ checksum = "sha256:7f7fbbc8d6fd4ea2f3b13855ef47ea59663ba7e61fb2e9821df37163b8030
 url = "https://github.com/openai/codex/releases/download/rust-v0.160.0/codex-package-x86_64-pc-windows-msvc.tar.gz"
 url_api = "https://api.github.com/repos/openai/codex/releases/assets/604049911"
 
-[[tools."github:bitwarden/sdk-sm"]]
-version = "python-v2.1.0"
-backend = "github:bitwarden/sdk-sm"
-specifiers = ["latest"]
-
-[tools."github:bitwarden/sdk-sm"."platforms.linux-arm64"]
-checksum = "sha256:cdf85d309aecf21c563c9245322d49a344135761d03cffa43b8703f509bc0df7"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524676"
-
-[tools."github:bitwarden/sdk-sm"."platforms.linux-arm64-musl"]
-checksum = "sha256:cdf85d309aecf21c563c9245322d49a344135761d03cffa43b8703f509bc0df7"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524676"
-
-[tools."github:bitwarden/sdk-sm"."platforms.linux-x64"]
-checksum = "sha256:b6f6b2624e340307891edc20a2860ec0b7c2140683eec2ce2e20d1076ffe9268"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524666"
-
-[tools."github:bitwarden/sdk-sm"."platforms.linux-x64-musl"]
-checksum = "sha256:b6f6b2624e340307891edc20a2860ec0b7c2140683eec2ce2e20d1076ffe9268"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524666"
-
-[tools."github:bitwarden/sdk-sm"."platforms.macos-arm64"]
-checksum = "sha256:8374ef97e481c17a0b65e1b8d700df492cb384ff5a4888bd2c697c37457fc332"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-macosx_11_0_arm64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524688"
-
-[tools."github:bitwarden/sdk-sm"."platforms.macos-x64"]
-checksum = "sha256:659b7e3faaab067f38556ffaaa7edf217e581047234f9a748770fa2926d2664c"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-macosx_10_12_x86_64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524692"
-
-[tools."github:bitwarden/sdk-sm"."platforms.windows-x64"]
-checksum = "sha256:2c5de50af003b7b2d16a9a690d3111480d1b1962eb25f39e416812d6d9d4e4d6"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-win_amd64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524662"
-
 [[tools."github:cli/cli"]]
 version = "2.100.0"
 backend = "github:cli/cli"
@@ -224,53 +160,6 @@ provenance = "github-attestations"
 checksum = "sha256:227e35230b25db3fa1b997bab7cf4d67df0470a3b75b99e4ee66bce1a7cd4e72"
 url = "https://github.com/cli/cli/releases/download/v2.100.0/gh_2.100.0_windows_amd64.zip"
 url_api = "https://api.github.com/repos/cli/cli/releases/assets/542974322"
-provenance = "github-attestations"
-
-[[tools."github:jdx/fnox"]]
-version = "1.35.0"
-backend = "github:jdx/fnox"
-specifiers = ["latest"]
-
-[tools."github:jdx/fnox"."platforms.linux-arm64"]
-checksum = "sha256:6861c6fb92e07ffab14f1ffc34ea2d0f5a99d467bdd7d13291c9a3ca4872d13d"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598831"
-provenance = "github-attestations"
-
-[tools."github:jdx/fnox"."platforms.linux-arm64-musl"]
-checksum = "sha256:2cd16d567c99057e5ba1edd467887f4e43d293d4591e3d254f322eff3240ea7f"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-aarch64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598827"
-provenance = "github-attestations"
-
-[tools."github:jdx/fnox"."platforms.linux-x64"]
-checksum = "sha256:7b720b5852b01bc1e549fcf307ff6642d9929b25386d935da31f372ecedb88e4"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598851"
-provenance = "github-attestations"
-
-[tools."github:jdx/fnox"."platforms.linux-x64-musl"]
-checksum = "sha256:bc4679a263d479542f8ec3db3602c510e37e66e44116feb400c5d9a6c7295b8f"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598854"
-provenance = "github-attestations"
-
-[tools."github:jdx/fnox"."platforms.macos-arm64"]
-checksum = "sha256:e474bde18bcc305360c4e688cad99c36165545824b61921973c4e6fef3ebd111"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598829"
-provenance = "github-attestations"
-
-[tools."github:jdx/fnox"."platforms.macos-x64"]
-checksum = "sha256:98cc8bbd75dbfcef4e4ac8d2bbf269d4a76084780614a17d63b46761f7fd28a3"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598830"
-provenance = "github-attestations"
-
-[tools."github:jdx/fnox"."platforms.windows-x64"]
-checksum = "sha256:e98a4076f49df270bf3d6f1041917c6515996e8c8df7f67e2ab6a598754b4de5"
-url = "https://github.com/jdx/fnox/releases/download/v1.35.0/fnox-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/542598847"
 provenance = "github-attestations"
 
 [[tools."github:mistralai/mistral-vibe"]]
@@ -343,46 +232,6 @@ url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/6
 checksum = "sha256:2915db76b12d31589706a3e1c5aac41de32fa6a12d7b2e694df0dd540c09127e"
 url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-x86_64-2.26.1.zip"
 url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319527"
-
-[[tools."github:protonpass/pass-cli"]]
-version = "2.3.3"
-backend = "github:protonpass/pass-cli"
-specifiers = ["latest"]
-
-[tools."github:protonpass/pass-cli"."platforms.linux-arm64"]
-checksum = "sha256:9c3e85e10d3bb631ffe377f063d996b9cc9a545d30971bcedf5910e16d03542b"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-linux-aarch64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321906"
-
-[tools."github:protonpass/pass-cli"."platforms.linux-arm64-musl"]
-checksum = "sha256:9c3e85e10d3bb631ffe377f063d996b9cc9a545d30971bcedf5910e16d03542b"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-linux-aarch64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321906"
-
-[tools."github:protonpass/pass-cli"."platforms.linux-x64"]
-checksum = "sha256:b5b49a8b3fd0af8830c0c1979f28ea0c90ccece73f59023a8bca8245d4b68da9"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-linux-x86_64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321902"
-
-[tools."github:protonpass/pass-cli"."platforms.linux-x64-musl"]
-checksum = "sha256:b5b49a8b3fd0af8830c0c1979f28ea0c90ccece73f59023a8bca8245d4b68da9"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-linux-x86_64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321902"
-
-[tools."github:protonpass/pass-cli"."platforms.macos-arm64"]
-checksum = "sha256:3281587ac9c50ae2f1604ba75e9d1d39b6debb221b65a6cc56f64d626ede3dbc"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-macos-aarch64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321923"
-
-[tools."github:protonpass/pass-cli"."platforms.macos-x64"]
-checksum = "sha256:275f6159f63d152ecdd9d4e2969ef515291619005e0d30ab762daee26081621c"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-macos-x86_64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321907"
-
-[tools."github:protonpass/pass-cli"."platforms.windows-x64"]
-checksum = "sha256:4169c7644e3475f294d265e2f1262476573e41d372b905187222c52f1c6dbca5"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.3.3/pass-cli-windows-x86_64.zip"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/529321936"
 
 [[tools."github:shoenot/diskard"]]
 version = "0.1.1"
@@ -481,12 +330,6 @@ url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-darwin-x64.tar.gz"
 [tools.node."platforms.windows-x64"]
 checksum = "sha256:6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba"
 url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip"
-
-[[tools."npm:@metabase/cli"]]
-version = "0.3.1"
-aube = { path = "locks/npm-metabase-cli/0.3.1", digest = "sha256:00a09d6a560b4250f6d7aa6e0029942f48c04bd3ae7c048733078c917865dacc" }
-backend = "npm:@metabase/cli"
-specifiers = ["latest"]
 
 [[tools.python]]
 version = "3.14.7"

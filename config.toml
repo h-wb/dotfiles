@@ -1,8 +1,9 @@
-# Every machine. ~/.config/mise is a symlink to this repo (first [dotfiles]
+# Every machine, the paseo agent host included: only what all of them want (the
+# rest is a layer, see miserc.toml). ~/.config/mise is a symlink to this repo (first [dotfiles]
 # entry), so mise reads these files under their native names. What loads when:
 # see the table in CLAUDE.md.
 
-# neko-bootstrap reads this line with sed: keep its shape.
+# scripts/provision.sh reads this line with sed: keep its shape.
 min_version = { hard = "2026.10.19" }
 
 [settings]
@@ -17,23 +18,16 @@ repo             = "{{ mise_config_dir }}"
 git_email        = "{{ get_env(name='GIT_EMAIL', default='') }}"
 ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
-kubeconfig_main  = "{{ get_env(name='KUBECONFIG_MAIN', default='') }}"
-kubeconfig_edge  = "{{ get_env(name='KUBECONFIG_EDGE', default='') }}"
 
 [tools]
 node = "lts"
 python = "3.14"
 "aqua:kubernetes/kubectl" = "latest"
-aws-cli = "latest"
-"github:bitwarden/sdk-sm" = "latest"
 k9s = "latest"
 claude = "latest"
 "github:cli/cli" = "latest"
 "github:shoenot/diskard" = "latest"       # TUI disk usage analyzer
-"github:protonpass/pass-cli" = "latest"
-"github:jdx/fnox" = "latest"
 usage = "latest"
-"npm:@metabase/cli" = "latest"
 codex = "latest"
 
 # Mistral Vibe CLI (`vibe`). Each release also ships a vibe-acp-* build that
@@ -50,12 +44,9 @@ windows-x64 = { asset_pattern = "vibe-windows-x86_64-*.zip" }
 
 [env]
 EDITOR = "code --wait"
-PASS_LOG_LEVEL = "error"
 # mise installs and upgrades claude; its own updater would npm-install a second
 # copy into the active node that shadows it.
 DISABLE_AUTOUPDATER = "1"
-# No ~/.kube/config in the list: a stale hand-written one could win a context-name collision.
-KUBECONFIG = "{{ env.HOME }}/.kube/main.yaml:{{ env.HOME }}/.kube/edge.yaml"
 
 [shell_alias]
 repo = "cd {{ env.HOME }}/Repositories"
@@ -64,7 +55,6 @@ ops = "code {{ env.HOME }}/Repositories/home-ops"
 g = "git"
 galias = "git config --get-regexp alias"
 df = "mise -C {{ env.HOME }}/.dotfiles"
-dfa = "mise run apply"
 
 # ── Dotfiles (sources in home/) ─────────────────────────────────────────────
 [dotfiles]
@@ -72,38 +62,8 @@ dfa = "mise run apply"
 "~/.config/mise"       = { source = "~/.dotfiles", mode = "symlink" }
 "~/.config/git/config" = { source = "home/git/config.tmpl", mode = "template" }
 "~/.ssh/config"        = { source = "home/ssh/config.tmpl", mode = "template", permissions = "0600" }
-"~/.kube/main.yaml"    = { source = "home/kube/main.yaml.tmpl", mode = "template", permissions = "0600" }
-"~/.kube/edge.yaml"    = { source = "home/kube/edge.yaml.tmpl", mode = "template", permissions = "0600" }
 # Permissions-only: fixes the mode if the path exists, never creates it.
 "~/.ssh"  = { permissions = "0700" }
-"~/.kube" = { permissions = "0700" }
-
-# ── Tasks ───────────────────────────────────────────────────────────────────
-# Never bootstrap without a live Proton Pass session: fnox's default
-# `--if-missing warn` would render the secret-gated files EMPTY over the good
-# copies. The preflight is inline (not `depends`) so `pass-cli login` gets the
-# terminal. --force-dotfiles: Linux distros write their own config.fish first.
-[tasks.apply]
-description = "Provision this machine (packages, dotfiles, tools, settings) with secrets"
-usage = '''
-flag "--dry-run" help="Only show what would change"
-flag "--upgrade" help="Update mise, then upgrade packages and tools as well"
-'''
-dir = "{{ vars.repo }}"
-run = """
-{% if usage.upgrade %}mise self-update --yes || echo "[warn] mise self-update failed; continuing"{% endif %}
-./scripts/pass-preflight || exit 1
-fnox --if-missing error exec -c fnox.toml -- mise bootstrap {% if usage.dry_run %}--dry-run{% else %}--yes{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if os() == "linux" %} --force-dotfiles{% endif %}
-"""
-
-[tasks.diff]
-description = "Preview what apply would change"
-run = "mise run apply --dry-run"
-
-# `latest` tools move: commit the lockfile changes afterwards.
-[tasks.upgrade]
-description = "Update mise, then apply with packages and tools upgraded"
-run = "mise run apply --upgrade"
 
 # ── Doctor checks (`mise doctor project`) ───────────────────────────────────
 # Each is an invariant this repo has broken before. Fields are templated, so a

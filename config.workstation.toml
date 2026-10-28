@@ -1,0 +1,55 @@
+# Layer `workstation`: machines a person works at (personal, neko, cachyos), not the
+# paseo agent host. Credentialed CLIs, fnox-backed provisioning and kubeconfigs:
+# everything that assumes a Proton Pass session.
+
+[vars]
+kubeconfig_main = "{{ get_env(name='KUBECONFIG_MAIN', default='') }}"
+kubeconfig_edge = "{{ get_env(name='KUBECONFIG_EDGE', default='') }}"
+
+[tools]
+aws-cli = "latest"
+"github:bitwarden/sdk-sm" = "latest"
+"github:protonpass/pass-cli" = "latest"
+"github:jdx/fnox" = "latest"
+"npm:@metabase/cli" = "latest"
+
+[env]
+PASS_LOG_LEVEL = "error"
+# No ~/.kube/config in the list: a stale hand-written one could win a context-name collision.
+KUBECONFIG = "{{ env.HOME }}/.kube/main.yaml:{{ env.HOME }}/.kube/edge.yaml"
+
+[shell_alias]
+dfa = "mise run apply"
+
+[dotfiles]
+"~/.kube/main.yaml" = { source = "home/kube/main.yaml.tmpl", mode = "template", permissions = "0600" }
+"~/.kube/edge.yaml" = { source = "home/kube/edge.yaml.tmpl", mode = "template", permissions = "0600" }
+# Permissions-only: fixes the mode if the path exists, never creates it.
+"~/.kube" = { permissions = "0700" }
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+# Never bootstrap without a live Proton Pass session: fnox's default
+# `--if-missing warn` would render the secret-gated files EMPTY over the good
+# copies. The preflight is inline (not `depends`) so `pass-cli login` gets the
+# terminal. --force-dotfiles: Linux distros write their own config.fish first.
+[tasks.apply]
+description = "Provision this machine (packages, dotfiles, tools, settings) with secrets"
+usage = '''
+flag "--dry-run" help="Only show what would change"
+flag "--upgrade" help="Update mise, then upgrade packages and tools as well"
+'''
+dir = "{{ vars.repo }}"
+run = """
+{% if usage.upgrade %}mise self-update --yes || echo "[warn] mise self-update failed; continuing"{% endif %}
+./scripts/pass-preflight || exit 1
+fnox --if-missing error exec -c fnox.toml -- mise bootstrap {% if usage.dry_run %}--dry-run{% else %}--yes{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if os() == "linux" %} --force-dotfiles{% endif %}
+"""
+
+[tasks.diff]
+description = "Preview what apply would change"
+run = "mise run apply --dry-run"
+
+# `latest` tools move: commit the lockfile changes afterwards.
+[tasks.upgrade]
+description = "Update mise, then apply with packages and tools upgraded"
+run = "mise run apply --upgrade"

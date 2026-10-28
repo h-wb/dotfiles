@@ -4,7 +4,8 @@ Dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi is
 long gone). Secrets come from **fnox** backed by **Proton Pass**. Four machine
 classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s pod
 (`neko`), a CachyOS KDE gaming desktop (`cachyos`) and a headless coding-agent
-pod (`paseo`). Read the section for a
+pod (`paseo`). What several classes share lives in **layers** (`workstation`,
+`pod`), not in each class. Read the section for a
 machine before touching anything it loads.
 
 ## The layout: this repo IS mise's config dir
@@ -20,22 +21,35 @@ like any dotfile (`mise dot status` shows drift; a real directory in the way
 needs `--force-dotfiles`). The entry's source must be the absolute
 `~/.dotfiles` — relative would resolve through the link to itself.
 
-The **machine class is detected in `miserc.toml`**: miserc templates see only
-the OS (no `read_file`/`exec`), but `is exists` path tests work — `/etc/neko`
-(neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS), else `os() ==
-"macos"` → personal. An unrecognised machine gets no class (doctor `wiring`
-flags it); an untracked `miserc.local.toml` overrides (`env = [...]`), which is
-also how CI pins the class per matrix job.
+The **machine class and its layers are picked in `miserc.toml`**: miserc
+templates see only the OS (no `read_file`/`exec`), but `is exists` path tests
+work — `/etc/neko` (neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS),
+`/etc/paseo` (the paseo pod mounts it), else `os() == "macos"` → personal. `env`
+is a list, applied in order (later wins), and an entry that templates to empty is
+ignored:
+
+| env | machines | holds |
+| --- | --- | --- |
+| `workstation` (layer) | personal, neko, cachyos | credentialed CLIs (aws, bws, pass-cli, fnox, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
+| `pod` (layer) | neko, paseo | `$HOME`-only pods: tmux, `LANG`, the home-ops checkout |
+| the class | one machine | everything else |
+
+So `config.toml` is only what *every* machine wants, the paseo agent host
+included; a layer never has to be taken back out by a class. An unrecognised
+machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
+`miserc.local.toml` overrides with the whole list (`env = ["workstation", "pod",
+"neko"]`), which is also how CI pins each matrix job.
 
 | file | loads when |
 | --- | --- |
-| `config.toml` | always (global config: tools, env, vars, `[shell_alias]`, `apply`/`diff`, doctor) |
+| `config.toml` | always (what every machine wants: tools, env, vars, `[shell_alias]`, doctor) |
+| `config.workstation.toml` | layer `workstation` |
 | `config.macos.toml` | any Mac — **platform environment** via `auto_env` |
 | `config.personal.toml` | machine class `personal` |
 | `conf.d/<feature>/mise.<env>.toml` | that env or platform — **folder fragments** |
 | `config.local.toml` | always, last (untracked per-machine `[vars]`) |
 | `miserc.toml` | early init, committed: `env_conf_d`, `auto_env` |
-| `miserc.local.toml` | early init, untracked, optional: overrides the detected class |
+| `miserc.local.toml` | early init, untracked, optional: overrides the detected class and layers |
 
 - **Folder fragments** (mise 2026.9.14): a folder in `conf.d/` reads only
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
@@ -53,7 +67,7 @@ also how CI pins the class per matrix job.
   so a stray `-E neko` on a Mac fails clean).
 - **`min_version = { hard = "2026.10.19" }`** in `config.toml` — for
   `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
-  `depends`. `conf.d/neko/bin/neko-bootstrap` self-updates below it, because
+  `depends`. `scripts/provision.sh` (both pods' bootstrap) self-updates below it, because
   `self_update.auto` skips unattended runs; it reads the version from this very
   line with `sed`, so keep the inline-table shape. Don't
   raise it to a release under 24h old: self-update and mise-action both wait a
@@ -204,14 +218,16 @@ picked, a missing main IP is fine).
 
 mise writes one lockfile per config *file*, and with the repo as config dir
 they all land in the repo: `mise.lock` (config.toml **and** env-less folder
-fragments), `mise.macos.lock`, `mise.personal.lock`, `mise.neko.lock`,
-`mise.cachyos.lock` (env-scoped files, folder ones included). Lockfile format
+fragments), `mise.macos.lock`, `mise.workstation.lock`, `mise.pod.lock`,
+`mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`
+(env-scoped files, folder ones included). Lockfile format
 is v3 (`mise lock --upgrade`).
 
 - **Scope each env lockfile to the platforms that class runs on.** Locking
   Ludo (an AppImage-only release) for macos-arm64/linux-arm64 made mise pick the
   Decky plugin zip — a different artifact. `mise.macos.lock`/`personal` are
-  macos-arm64, `cachyos` linux-x64, `neko` linux-x64 + arm64; `mise.lock` keeps
+  macos-arm64, `cachyos` linux-x64, `neko` and `pod` linux-x64 + arm64, `paseo`
+  linux-x64, `workstation` macos-arm64 + linux-x64 + arm64; `mise.lock` keeps
   them all. A later plain `mise lock --global` preserves each file's set.
   `--platform` is the trap: it applies to EVERY loaded lockfile, so locking a
   Linux tool from the Mac with `MISE_ENV=cachyos mise lock --global --platform
@@ -378,16 +394,16 @@ user `paseo`, **no sudo, no apt, no systemd**. Only `/home/paseo` is on a PVC.
 The pod mounts `/etc/paseo`, which is what `miserc.toml` detects.
 
 - **Cloud models run here**, so the class holds no secrets and no personal data:
-  no fnox, and `disable_tools` drops the credentialed CLIs `config.toml` installs
-  everywhere. Credentials (`GH_TOKEN`, `GIT_EMAIL`, `LITELLM_API_KEY`) are pod
-  env from home-ops' ExternalSecrets.
+  layers `pod` only, not `workstation`, so no fnox and none of the credentialed
+  CLIs. Credentials (`GH_TOKEN`, `GIT_EMAIL`, `LITELLM_API_KEY`) are pod env from
+  home-ops' ExternalSecrets; templates read them like any `[vars]` default.
 - **Reprovisioning**: the pod's `tools` init container clones `~/.dotfiles` on a
   fresh PVC and runs `bin/paseo-bootstrap` at every start: one plain `mise
   bootstrap`, no secret modes. `scripts/provision.sh` (mise present and at the
   hard `min_version`, checkout fast-forwarded and re-exec'd) is shared with
   `neko-bootstrap`.
-- **`KUBECONFIG = false`**: `config.toml` points it at kubeconfigs that render
-  empty here; unset, kubectl uses the pod's service account. Doctor `paseo-kube`.
+- **No kubeconfig**: `workstation` renders them and sets `KUBECONFIG`; without it,
+  kubectl uses the pod's service account. Doctor `paseo-kube`.
 - **Claude stays on the subscription**: Paseo's built-in Claude provider goes
   through the Agent SDK, so `paseo:config` turns it off and Claude runs in a
   terminal tab. Codex, OpenCode (LiteLLM's local models) and the rest stay in
@@ -446,6 +462,8 @@ of the neko constraints: apps are `pacman:` packages.
 - **An extra env as a per-moment toggle** (e.g. `env = ["personal", "edge"]`
   for DNS): works, but puts a toggle into config *discovery* and `MISE_ENV`
   order is literal last-wins — `["edge", "personal"]` silently picks main.
+  Layers are the opposite case: fixed per machine, and they never set the same
+  key as each other, so their order cannot change the result.
 - **`[bootstrap.secrets]` everywhere** — see Secrets above.
 
 ## Don'ts
