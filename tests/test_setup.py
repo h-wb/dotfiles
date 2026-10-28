@@ -169,8 +169,12 @@ esac
             "codex": {"enabled": True}}}}
         target.write_text(json.dumps(before))
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        before["agents"]["providers"]["claude"]["enabled"] = False
-        self.assertEqual(json.loads(target.read_text()), before)
+        after = json.loads(target.read_text())
+        providers = after["agents"]["providers"]
+        self.assertIn("VIBE_MCP_SERVERS", providers.pop("mistral-vibe")["env"])
+        self.assertIn("fresh-worktrees", after.pop("plugins"))
+        self.assertTrue(after.pop("pluginsEnabled"))
+        self.assertEqual(after, before)
         stamp = target.stat().st_mtime_ns
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         self.assertEqual(target.stat().st_mtime_ns, stamp)
@@ -180,7 +184,7 @@ esac
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         config = json.loads((self.home / ".paseo/config.json").read_text())
         self.assertEqual(config["version"], 1)
-        self.assertFalse(config["agents"]["providers"]["claude"]["enabled"])
+        self.assertTrue(config["agents"]["providers"]["claude"]["enabled"])
 
     def test_paseo_merge_refuses_invalid_json(self):
         target = self.home / ".paseo/config.json"
