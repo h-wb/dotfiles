@@ -20,6 +20,7 @@ jq = "latest"
 yq = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
+"github:jpillora/sshd-lite" = "latest"   # the pod's sshd sidecar (home-ops agents/paseo)
 
 [dotfiles]
 "~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
