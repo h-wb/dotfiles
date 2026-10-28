@@ -32,6 +32,18 @@ ensure_mise() {
 # (and this file, and the min_version check) run as of that commit.
 pull_dotfiles() {
 	[ -z "${DOTFILES_PULLED:-}" ] || return 0
+	# Migrate: the default branch moved from main to master (2026-10-28). A
+	# checkout still on main tracks a deleted remote branch and every pull fails.
+	if [ "$(git -C "${HOME}/.dotfiles" branch --show-current 2>/dev/null)" = "main" ] &&
+		! git -C "${HOME}/.dotfiles" ls-remote --exit-code --heads origin main >/dev/null 2>&1 &&
+		git -C "${HOME}/.dotfiles" ls-remote --exit-code --heads origin master >/dev/null 2>&1; then
+		echo "[info] migrating dotfiles branch: main -> master"
+		git -C "${HOME}/.dotfiles" fetch origin --quiet 2>/dev/null
+		git -C "${HOME}/.dotfiles" checkout -q master 2>/dev/null ||
+			git -C "${HOME}/.dotfiles" checkout -q -b master origin/master
+		git -C "${HOME}/.dotfiles" branch --set-upstream-to=origin/master master 2>/dev/null
+		git -C "${HOME}/.dotfiles" branch -d main 2>/dev/null
+	fi
 	before="$(git -C "${HOME}/.dotfiles" rev-parse HEAD 2>/dev/null)"
 	if timeout 60 git -C "${HOME}/.dotfiles" pull --ff-only --quiet; then
 		after="$(git -C "${HOME}/.dotfiles" rev-parse HEAD 2>/dev/null)"
