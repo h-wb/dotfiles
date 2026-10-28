@@ -14,4 +14,9 @@ export MISE_CONFIG_DIR="${HOME}/.dotfiles"
 # --skip-dirty: an agent's uncommitted work in a repo must not fail the pod start.
 # --locked: never rewrite mise.lock / its sidecars — they are committed at locks/;
 #   MISE_CONFIG_DIR makes mise write them under .mise/locks/ instead (gitignored).
-exec "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked
+"$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked || exit 1
+
+# MISE_CONFIG_DIR makes mise normalise lock sidecar paths from locks/… to
+# .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
+# so the checkout stays clean for the next pull --ff-only.
+git -C "${HOME}/.dotfiles" checkout -- mise.lock mise.*.lock 2>/dev/null || true
