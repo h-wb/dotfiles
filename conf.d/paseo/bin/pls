@@ -1,0 +1,3 @@
+#!/bin/sh
+# List all Paseo sessions.
+exec paseo ls "$@"

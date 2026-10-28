@@ -1,0 +1,3 @@
+#!/bin/sh
+# Start a Mistral Vibe session through Paseo (daemon-managed).
+exec paseo run --provider mistral-vibe "$@"

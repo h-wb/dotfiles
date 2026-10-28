@@ -1,0 +1,3 @@
+#!/bin/sh
+# Attach to a Paseo session by ID.
+exec paseo attach "$@"
