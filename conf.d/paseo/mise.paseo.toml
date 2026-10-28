@@ -44,6 +44,7 @@ starship = "latest"
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
 "~/Repositories/dotfiles"           = { url = "https://github.com/h-wb/dotfiles.git" }
 "~/Repositories/sento"              = { url = "https://github.com/h-wb/sento.git" }
+"~/Repositories/pipelines"          = { url = "https://github.com/h-wb/pipelines.git" }
 
 # A pull can change a repo's mise config, which invalidates its content-hashed
 # trust marker; without a fresh `mise trust`, every daemon-spawned helper there
