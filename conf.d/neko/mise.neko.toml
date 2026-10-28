@@ -11,7 +11,7 @@
 # [dotfiles] line (Exec is the shim, stable across bumps).
 [tools]
 starship = "latest"
-"github:zen-browser/desktop" = { version = "latest", extract_all = true, exe = "zen", os = "linux" }
+"github:zen-browser/desktop" = { version = "latest", os = "linux" }   # whole archive; zen at its root
 
 [tools."http:vscode"]
 os = "linux"

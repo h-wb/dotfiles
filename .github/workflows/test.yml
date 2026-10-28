@@ -24,7 +24,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
         with:
-          version: ${{ matrix.mise }}
+          # The action spells a version into the download URL (`vlatest` is a
+          # 404); empty means its own default, the newest release.
+          version: ${{ matrix.mise != 'latest' && matrix.mise || '' }}
           install: false
       - run: python3 tests/test_setup.py -v
 

@@ -13,4 +13,4 @@ skip_if = '[ ! -d "/Applications/Claude.app" ]'
 run = "sh tasks/mcp.sh"
 
 [bootstrap.hooks.post-dotfiles]
-run = '"$HOME/.local/bin/mise" run --quiet claude-desktop:mcp'
+run = '"$(command -v mise || echo "$HOME/.local/bin/mise")" run --quiet claude-desktop:mcp'
