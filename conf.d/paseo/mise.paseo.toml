@@ -18,11 +18,14 @@ helm = "latest"
 kustomize = "latest"
 jq = "latest"
 yq = "latest"
+starship = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
 "github:jpillora/sshd-lite" = "latest"   # the pod's sshd sidecar (home-ops agents/paseo)
 
 [dotfiles]
+"~/.bashrc"                       = { source = "bashrc", mode = "symlink" }
+"~/.config/starship.toml"         = { source = "starship.toml", mode = "symlink" }
 "~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
 "~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
 "~/.paseo/config.json/defaults"     = { source = "defaults.json", merge = "missing" }

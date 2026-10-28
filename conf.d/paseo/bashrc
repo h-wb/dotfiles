@@ -1,0 +1,29 @@
+# bashrc for the paseo agent host (SSH and terminal sessions). The image's
+# default shell is bash and the pod has no sudo, so mise installs starship and
+# this file gives the same prompt as neko's fish.
+
+# Only for interactive shells — kubectl exec and scripts get plain bash.
+case $- in
+*i*) ;;
+*) return ;;
+esac
+
+fish_add_path() { :; }  # no-op if something sources fish helpers
+
+#mise# — mise activate, so tool shims and env load on every shell
+eval "$(mise activate bash)"
+#mise#
+
+#mise# — starship prompt (single static binary, installed by mise)
+eval "$(starship init bash)"
+#mise#
+
+# SSH agent forwarding helper: use the forwarded agent when present.
+if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
+    export SSH_AGENT_PID=""
+fi
+
+# tmux by default on SSH? Uncomment if wanted:
+# if [ -n "$SSH_TTY" ] && [ -z "$TMUX" ] && command -v tmux >/dev/null; then
+#     exec tmux new -A -s main
+# fi
