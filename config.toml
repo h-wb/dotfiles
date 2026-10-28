@@ -51,6 +51,9 @@ windows-x64 = { asset_pattern = "vibe-windows-x86_64-*.zip" }
 [env]
 EDITOR = "code --wait"
 PASS_LOG_LEVEL = "error"
+# mise installs and upgrades claude; its own updater would npm-install a second
+# copy into the active node that shadows it.
+DISABLE_AUTOUPDATER = "1"
 # No ~/.kube/config in the list: a stale hand-written one could win a context-name collision.
 KUBECONFIG = "{{ env.HOME }}/.kube/main.yaml:{{ env.HOME }}/.kube/edge.yaml"
 
@@ -111,7 +114,7 @@ hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; unknown mach
 run = '''
 [ -L "$HOME/.config/mise" ] && git -C "$HOME/.config/mise" rev-parse --git-dir >/dev/null 2>&1 \
 	|| { echo "~/.config/mise is not a symlink to the dotfiles checkout"; exit 1; }
-mise config 2>/dev/null | grep -qE '(config|mise)\.(personal|neko|cachyos)\.toml' \
+mise config 2>/dev/null | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo)\.toml' \
 	|| { echo "no machine class active — miserc.toml did not recognise this machine"; exit 1; }
 '''
 
