@@ -5,11 +5,29 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # A throwaway HOME set up the way install.sh sets up a machine, with the class
 # pinned (a runner's OS is not the machine's). No secrets: templates render
 # their empty fallbacks, which is what validates them.
 
 jobs:
+  regressions:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        mise: ["2026.10.19", "latest"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+        with:
+          version: ${{ matrix.mise }}
+          install: false
+      - run: python3 tests/test_setup.py -v
+
   machine:
     strategy:
       fail-fast: false
@@ -39,6 +57,7 @@ jobs:
       - name: Config loads for this machine class
         run: |
           mise config | tee /tmp/cfg
+          mise tasks validate --errors-only
           # every task must template (a bad {{ }}, even in a comment, fails here)
           for t in $(mise tasks --hidden --no-header | awk '{print $1}'); do mise tasks info "$t" >/dev/null; done
           case "${{ matrix.env }}" in
@@ -134,7 +153,9 @@ jobs:
       # Only the repo-state doctor checks can pass on a runner.
       - name: Repo invariants
         run: |
+          # Locked PyPI graphs need their interpreter even for an install preview.
+          mise install --locked python uv
           mise doctor project 2>&1 | tee /tmp/doctor || true
-          for check in config-keys file-modes lockfiles wiring; do
+          for check in config-keys file-modes lockfiles wiring tasks; do
             grep -q "^PASS $check" /tmp/doctor || { echo "::error::doctor check '$check' failed"; exit 1; }
           done

@@ -8,7 +8,7 @@ kubeconfig_edge = "{{ get_env(name='KUBECONFIG_EDGE', default='') }}"
 
 [tools]
 aws-cli = "latest"
-"github:bitwarden/sdk-sm" = "latest"
+bitwarden-secrets-manager = "latest"
 "github:protonpass/pass-cli" = "latest"
 "github:jdx/fnox" = "latest"
 "npm:@metabase/cli" = "latest"
@@ -40,7 +40,7 @@ flag "--upgrade" help="Update mise, then upgrade packages and tools as well"
 '''
 dir = "{{ vars.repo }}"
 run = """
-{% if usage.upgrade %}mise self-update --yes || echo "[warn] mise self-update failed; continuing"{% endif %}
+{% if usage.upgrade and not usage.dry_run %}mise self-update --yes || echo "[warn] mise self-update failed; continuing"{% endif %}
 ./scripts/pass-preflight || exit 1
 fnox --if-missing error exec -c fnox.toml -- mise bootstrap {% if usage.dry_run %}--dry-run{% else %}--yes{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if os() == "linux" %} --force-dotfiles{% endif %}
 """

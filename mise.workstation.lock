@@ -8,34 +8,39 @@ backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.aws-cli."platforms.linux-arm64"]
+checksum = "sha256:f26e08d0d64d9f35f304a9df94d63cbd11ffe8881c8b4bf60be934cf9e4d13a9"
 url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.36.40.zip"
 
 [tools.aws-cli."platforms.linux-x64"]
+checksum = "sha256:a904e314340ad4c4b62beb50e9259d4becb2acf3dffc86c96c553c834d7fdf7a"
 url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.40.zip"
 
 [tools.aws-cli."platforms.macos-arm64"]
 checksum = "blake3:5db2bdbe1a49c6b544796a62b37aea7452f706f40d8becea3f41088309084812"
 url = "https://awscli.amazonaws.com/AWSCLIV2-2.36.40.pkg"
 
-[[tools."github:bitwarden/sdk-sm"]]
-version = "python-v2.1.0"
-backend = "github:bitwarden/sdk-sm"
+[[tools.bitwarden-secrets-manager]]
+version = "2.1.0"
+backend = "aqua:bitwarden/sdk-sm"
 specifiers = ["latest"]
 
-[tools."github:bitwarden/sdk-sm"."platforms.linux-arm64"]
-checksum = "sha256:cdf85d309aecf21c563c9245322d49a344135761d03cffa43b8703f509bc0df7"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524676"
+[tools.bitwarden-secrets-manager."platforms.linux-arm64"]
+checksum = "sha256:18253757286e119d450133a87eb463bf8c1ce418ce24c834f4f250d60cba6f9e"
+checksum_source = "mise-versions"
+url = "https://github.com/bitwarden/sdk-sm/releases/download/bws-v2.1.0/bws-aarch64-unknown-linux-gnu-2.1.0.zip"
+url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426507287"
 
-[tools."github:bitwarden/sdk-sm"."platforms.linux-x64"]
-checksum = "sha256:b6f6b2624e340307891edc20a2860ec0b7c2140683eec2ce2e20d1076ffe9268"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524666"
+[tools.bitwarden-secrets-manager."platforms.linux-x64"]
+checksum = "sha256:ba8233c3a4aee5d43e3c73bbd04d99e9bc5aba13bbbfd06d89b073abe732b860"
+checksum_source = "mise-versions"
+url = "https://github.com/bitwarden/sdk-sm/releases/download/bws-v2.1.0/bws-x86_64-unknown-linux-gnu-2.1.0.zip"
+url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426507282"
 
-[tools."github:bitwarden/sdk-sm"."platforms.macos-arm64"]
-checksum = "sha256:8374ef97e481c17a0b65e1b8d700df492cb384ff5a4888bd2c697c37457fc332"
-url = "https://github.com/bitwarden/sdk-sm/releases/download/python-v2.1.0/bitwarden_sdk-2.1.0-cp39-abi3-macosx_11_0_arm64.whl"
-url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426524688"
+[tools.bitwarden-secrets-manager."platforms.macos-arm64"]
+checksum = "sha256:9cb1c1c6e6164d83b2e339883ba02b4cbb37188ce9a484b1ce8249443163e066"
+checksum_source = "mise-versions"
+url = "https://github.com/bitwarden/sdk-sm/releases/download/bws-v2.1.0/bws-aarch64-apple-darwin-2.1.0.zip"
+url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426507211"
 
 [[tools."github:jdx/fnox"]]
 version = "1.35.0"
@@ -82,6 +87,6 @@ url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/5293
 
 [[tools."npm:@metabase/cli"]]
 version = "0.3.1"
-aube = { path = "locks/npm-metabase-cli/0.3.1", digest = "sha256:00a09d6a560b4250f6d7aa6e0029942f48c04bd3ae7c048733078c917865dacc" }
+aube = { path = "locks/mise.workstation/npm-metabase-cli/0.3.1", digest = "sha256:00a09d6a560b4250f6d7aa6e0029942f48c04bd3ae7c048733078c917865dacc" }
 backend = "npm:@metabase/cli"
 specifiers = ["latest"]

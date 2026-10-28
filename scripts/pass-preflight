@@ -15,7 +15,7 @@ pass_cli() {
 	elif [ -x "$MISE" ] && P="$("$MISE" which pass-cli 2>/dev/null)" && [ -x "$P" ]; then
 		"$P" "$@"
 	elif [ -x "$MISE" ]; then
-		"$MISE" exec github:protonpass/pass-cli@latest -- pass-cli "$@"
+		"$MISE" exec github:protonpass/pass-cli -- pass-cli "$@"
 	else
 		return 127
 	fi

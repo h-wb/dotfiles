@@ -15,7 +15,6 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 [ -n "${DISPLAY:-}" ] && command -v xset >/dev/null 2>&1 && xset s off -dpms || true
 
 . "${HOME}/.dotfiles/scripts/provision.sh"
-ensure_mise
 
 # `touch ~/.neko-hold` parks provisioning (e.g. mid-edit of the dotfiles). A
 # file in $HOME, so a desktop parked mid-surgery comes back parked.
@@ -25,6 +24,7 @@ if [ -e "${HOME}/.neko-hold" ]; then
 		notify-send "neko-bootstrap on hold" "~/.neko-hold is present; nothing was applied" || true
 	exit 0
 fi
+ensure_mise || exit 1
 
 [ -d "${HOME}/.dotfiles" ] || { echo "[warn] no ~/.dotfiles; nothing to apply"; exit 0; }
 cd "${HOME}/.dotfiles" || exit 0
@@ -54,7 +54,8 @@ FNOX="$("$MISE" which fnox 2>/dev/null || true)"
 if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
 	DOTFILES_NO_LOGIN=1 "${HOME}/.dotfiles/scripts/pass-preflight"; then
 	MODE=secrets
-elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null && [ ! -s "${HOME}/.kube/main.yaml" ]; then
+elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
+	[ ! -s "${HOME}/.kube/main.yaml" ] && [ ! -s "${HOME}/.kube/edge.yaml" ]; then
 	MODE=fresh
 else
 	MODE=protect

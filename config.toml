@@ -21,6 +21,7 @@ ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
 
 [tools]
 node = "lts"
+uv = "latest"   # before python: a pip-installed uv in its bin would shadow this one (pipx: locks need >= 0.12.10)
 python = "3.14"
 "aqua:kubernetes/kubectl" = "latest"
 k9s = "latest"
@@ -29,18 +30,9 @@ claude = "latest"
 "github:shoenot/diskard" = "latest"       # TUI disk usage analyzer
 usage = "latest"
 codex = "latest"
-
-# Mistral Vibe CLI (`vibe`). Each release also ships a vibe-acp-* build that
-# mise's asset autodetection prefers, so every platform names its zip.
-[tools."github:mistralai/mistral-vibe"]
-version = "latest"
-
-[tools."github:mistralai/mistral-vibe".platforms]
-macos-arm64 = { asset_pattern = "vibe-darwin-aarch64-*.zip" }
-macos-x64   = { asset_pattern = "vibe-darwin-x86_64-*.zip" }
-linux-arm64 = { asset_pattern = "vibe-linux-aarch64-*.zip" }
-linux-x64   = { asset_pattern = "vibe-linux-x86_64-*.zip" }
-windows-x64 = { asset_pattern = "vibe-windows-x86_64-*.zip" }
+# PyPI only since 3.0 (releases ship just vibe-acp). Its own Python: a project's newer
+# one (home-ops pins 3.15) has no cffi wheels, and installs build nothing.
+"pipx:mistral-vibe" = { version = "latest", python = "3.14" }
 
 [env]
 EDITOR = "code --wait"
@@ -72,9 +64,11 @@ df = "mise -C {{ env.HOME }}/.dotfiles"
 description = "~/.config/mise is this repo and a machine class is selected"
 hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; unknown machine: env = [...] in ~/.dotfiles/miserc.local.toml"
 run = '''
-[ -L "$HOME/.config/mise" ] && git -C "$HOME/.config/mise" rev-parse --git-dir >/dev/null 2>&1 \
+[ -L "$HOME/.config/mise" ] && \
+  [ "$(cd "$HOME/.config/mise" && pwd -P)" = "$(cd {{ vars.repo | quote }} && pwd -P)" ] \
 	|| { echo "~/.config/mise is not a symlink to the dotfiles checkout"; exit 1; }
-mise config 2>/dev/null | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo)\.toml' \
+configs="$(mise config)" || exit 1
+printf '%s\n' "$configs" | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo)\.toml' \
 	|| { echo "no machine class active — miserc.toml did not recognise this machine"; exit 1; }
 '''
 
@@ -84,29 +78,16 @@ hint = "git update-index --chmod=-x <file> — a template takes its source's mod
 depends = ["wiring"]
 run = '''
 cd "{{ vars.repo }}" || exit 1
-bad="$(git ls-files -s | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/)' || true)"
+index="$(git ls-files -s)" || exit 1
+bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/)' || true)"
 [ -z "$bad" ] || { echo "unexpectedly executable:"; echo "$bad"; exit 1; }
 '''
 
-# Headers are `[tools.x."platforms.<os-arch>"]`: match `"platforms.`, quote
-# included. aws-cli is exempt: AWS publishes no checksums, so only a platform
-# that installed it has one.
 [doctor.checks.lockfiles]
-description = "every locked platform entry carries a checksum"
-hint = "run `mise lock --global` (for a pinned http: tool, bump the version + URLs first)"
-depends = ["wiring"]
-run = '''
-cd "{{ vars.repo }}" || exit 1
-for f in mise*.lock; do
-	awk -v f="$f" '
-		/^\[/ { if (sec != "" && !sum) { print f ": " sec; bad = 1 }
-		        sec = ($0 ~ /"platforms\./ && $0 !~ /^\[tools\.aws-cli\./) ? $0 : ""; sum = 0; next }
-		/^checksum =/ { sum = 1 }
-		END { if (sec != "" && !sum) { print f ": " sec; bad = 1 }; exit bad }
-	' "$f" || rc=1
-done
-exit ${rc:-0}
-'''
+description = "configured tools have usable lock entries for this platform"
+hint = "run `mise lock --global` for the affected environment and commit its sidecars too"
+timeout = "30s"
+run = "mise -C {{ vars.repo | quote }} install --locked --dry-run"
 
 [doctor.checks.credential-perms]
 description = "rendered credential dotfiles are not group/world readable"
@@ -131,10 +112,20 @@ depends = ["wiring"]
 run = '''
 cd "{{ vars.repo }}" || exit 1
 rc=0
-for f in config.toml config.*.toml conf.d/*/mise.*.toml; do
+for f in config.toml config.*.toml conf.d/*.toml conf.d/*/mise.toml conf.d/*/mise.*.toml; do
 	case "$f" in *.local.toml) continue ;; esac
-	bad="$(mise config explain --file "$f" | grep -E 'not a key mise reads|deprecated:')" || continue
+	[ -f "$f" ] || continue
+	if ! output="$(mise config explain --file "$f" 2>&1)"; then
+		printf '%s:\n%s\n' "$f" "$output"; rc=1; continue
+	fi
+	bad="$(printf '%s\n' "$output" | grep -E 'not a key mise reads|deprecated:')" || continue
 	printf '%s:\n%s\n' "$f" "$bad"; rc=1
 done
 exit $rc
 '''
+
+[doctor.checks.tasks]
+description = "task definitions and references are valid"
+hint = "mise tasks validate; mise tasks info <task>"
+timeout = "30s"
+run = "mise -C {{ vars.repo | quote }} tasks validate --errors-only"
