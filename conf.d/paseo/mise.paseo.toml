@@ -43,6 +43,14 @@ starship = "latest"
 "~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
 "~/Repositories/dotfiles"           = { url = "https://github.com/h-wb/dotfiles.git" }
+
+# A pull can change a repo's mise config, which invalidates its content-hashed
+# trust marker; without a fresh `mise trust`, every daemon-spawned helper there
+# (git credential helper → gh shim, claude shim for workspace auto-naming) dies
+# with "Config files ... are not trusted" and chats fail to start. Hooks run
+# before the config-dependent parts, so trust the repos as soon as they exist.
+[bootstrap.hooks.post-repos]
+run = "mise bootstrap repos exec -- mise trust"
 "~/Repositories/sento"              = { url = "https://github.com/h-wb/sento.git" }
 
 [dotfiles]
