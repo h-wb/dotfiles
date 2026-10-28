@@ -32,6 +32,7 @@ fi
 "brew-cask:obsidian" = "latest"
 "brew-cask:orbstack" = "latest"            # Docker / Linux VMs
 "brew-cask:plexamp" = "latest"
+"brew-cask:proton-pass" = "latest"
 "brew-cask:raycast" = "latest"             # launcher (takes Cmd-Space, see macos-defaults)
 "brew-cask:spotify" = "latest"
 "brew-cask:utm" = "latest"
