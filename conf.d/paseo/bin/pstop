@@ -1,0 +1,3 @@
+#!/bin/sh
+# Stop a Paseo session.
+exec paseo stop "$@"

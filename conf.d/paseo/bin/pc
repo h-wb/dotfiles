@@ -1,0 +1,5 @@
+#!/bin/sh
+# Start a Claude Code session through Paseo (daemon-managed, visible everywhere).
+# A wrapper script and not a mise [shell_alias]: the Paseo web UI terminal runs
+# /bin/sh, which never loads mise's aliases.
+exec paseo run --provider claude "$@"
