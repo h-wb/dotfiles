@@ -9,6 +9,11 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 # shells only and we don't know if the web terminal is one)
 eval "$(mise activate sh --shims 2>/dev/null)" || true
 
+# completions for mise
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise completion sh 2>/dev/null)" || true
+fi
+
 # starship prompt (has an sh init mode)
 if command -v starship >/dev/null 2>&1; then
     eval "$(starship init sh 2>/dev/null)" || true
