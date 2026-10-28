@@ -40,6 +40,8 @@ description = "Register the browser MCP with Claude Code and Codex"
 hide = true
 run = '''
 url=http://127.0.0.1:9222
+# codex refuses to start when its home is missing, as on a fresh PVC.
+mkdir -p "${CODEX_HOME:-$HOME/.codex}"
 claude mcp get chrome-devtools >/dev/null 2>&1 ||
 	claude mcp add -s user chrome-devtools -- chrome-devtools-mcp --browserUrl "$url"
 codex mcp get chrome-devtools >/dev/null 2>&1 ||
