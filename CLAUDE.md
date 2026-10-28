@@ -1,9 +1,10 @@
 # CLAUDE.md — working in this repo
 
 Dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi is
-long gone). Secrets come from **fnox** backed by **Proton Pass**. Three machine
+long gone). Secrets come from **fnox** backed by **Proton Pass**. Four machine
 classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s pod
-(`neko`) and a CachyOS KDE gaming desktop (`cachyos`). Read the section for a
+(`neko`), a CachyOS KDE gaming desktop (`cachyos`) and a headless coding-agent
+pod (`paseo`). Read the section for a
 machine before touching anything it loads.
 
 ## The layout: this repo IS mise's config dir
@@ -41,7 +42,7 @@ also how CI pins the class per matrix job.
   nothing else, not recursively. Relative sources resolve **inside the folder**,
   and its tasks **run in the folder** (2026.9.15). Each machine class and each
   self-contained feature is one folder: `zsh/`, `macos-defaults/`, `k8s-dns/`,
-  `zen-history/`, `neko/`, `anki/`, `obsidian/`, `cachyos/`.
+  `zen-history/`, `neko/`, `anki/`, `obsidian/`, `cachyos/`, `paseo/`.
 - **`home/`** holds sources for the root `config*.toml` files only (git, ssh,
   kube, wireguard, BTT). A folder fragment never reaches into `home/`.
 - **Platform environments** (`auto_env = true` in `miserc.toml`): `macos`,
@@ -368,6 +369,32 @@ name would regenerate every client's key).
 - **Not protected**: the PVC is `reclaimPolicy: Delete` under a pruning Flux
   Kustomization; the backstop is kopiur (daily 04:45 to the NAS) — check
   `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.
+
+## The paseo agent host (`conf.d/paseo/`)
+
+home-ops `kubernetes/apps/main/agents/paseo`: the Paseo daemon (coding agents
+driven from desktop, web and phone) on `ghcr.io/getpaseo/paseo`, Debian bookworm,
+user `paseo`, **no sudo, no apt, no systemd**. Only `/home/paseo` is on a PVC.
+The pod mounts `/etc/paseo`, which is what `miserc.toml` detects.
+
+- **Cloud models run here**, so the class holds no secrets and no personal data:
+  no fnox, and `disable_tools` drops the credentialed CLIs `config.toml` installs
+  everywhere. Credentials (`GH_TOKEN`, `GIT_EMAIL`, `LITELLM_API_KEY`) are pod
+  env from home-ops' ExternalSecrets.
+- **Reprovisioning**: the pod's `tools` init container clones `~/.dotfiles` on a
+  fresh PVC and runs `bin/paseo-bootstrap` at every start: one plain `mise
+  bootstrap`, no secret modes. `scripts/provision.sh` (mise present and at the
+  hard `min_version`, checkout fast-forwarded and re-exec'd) is shared with
+  `neko-bootstrap`.
+- **`KUBECONFIG = false`**: `config.toml` points it at kubeconfigs that render
+  empty here; unset, kubectl uses the pod's service account. Doctor `paseo-kube`.
+- **Claude stays on the subscription**: Paseo's built-in Claude provider goes
+  through the Agent SDK, so `paseo:config` turns it off and Claude runs in a
+  terminal tab. Codex, OpenCode (LiteLLM's local models) and the rest stay in
+  Paseo's chat.
+- The pod's Chromium sidecar is CDP on `127.0.0.1:9222`; `paseo:mcp` and
+  `opencode.json` register `chrome-devtools-mcp` against it.
+- sshd is not mise's job (it would need apt): it is a home-ops sidecar.
 
 ## The CachyOS desktop (`conf.d/cachyos/`)
 

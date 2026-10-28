@@ -18,6 +18,7 @@ jobs:
           - { env: personal, os: macos-latest }
           - { env: neko, os: ubuntu-latest }
           - { env: cachyos, os: ubuntu-latest }
+          - { env: paseo, os: ubuntu-latest }
     name: ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,9 +48,10 @@ jobs:
             done ;;
           neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg && grep -q conf.d/anki/mise.neko.toml /tmp/cfg ;;
           cachyos) grep -q conf.d/cachyos/mise.cachyos.toml /tmp/cfg ;;
+          paseo)   grep -q conf.d/paseo/mise.paseo.toml /tmp/cfg ;;
           esac
           # nothing from another machine class or platform leaks in
-          for other in personal neko cachyos; do
+          for other in personal neko cachyos paseo; do
             [ "$other" = "${{ matrix.env }}" ] && continue
             ! grep -qE "(config|mise)\.$other\.toml" /tmp/cfg || { echo "::error::$other config leaked"; exit 1; }
           done
@@ -78,6 +80,10 @@ jobs:
             readlink "$HOME/.config/fish/config.fish" | grep -q conf.d/cachyos/fish/
             test -L "$HOME/.config/systemd/user/gamescope-session.service.d/projector.conf"
             grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" "$HOME/.local/share/applications/ludo.desktop" ;;
+          paseo)
+            test -x "$HOME/.local/bin/paseo-bootstrap"
+            test -L "$HOME/.config/opencode/opencode.json"
+            test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')" ;;
           esac
           if [ "$RUNNER_OS" = Linux ]; then
             for f in .zshrc .config/zsh .config/wireguard Library; do

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Provision the paseo agent host at every pod start, from its `tools` init container
+# (home-ops agents/paseo); fine to run by hand. Only $HOME survives a pod roll. The
+# class holds no secrets, so unlike neko there is a single mode.
+set -u
+
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
+. "${HOME}/.dotfiles/scripts/provision.sh"
+ensure_mise
+pull_dotfiles "${HOME}/.dotfiles/conf.d/paseo/bin/paseo-bootstrap" "$@"
+
+# The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
+export MISE_CONFIG_DIR="${HOME}/.dotfiles"
+# --skip-dirty: an agent's uncommitted work in a repo must not fail the pod start.
+exec "$MISE" bootstrap --yes --force-dotfiles --skip-dirty

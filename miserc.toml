@@ -9,4 +9,4 @@ auto_env = true
 
 # The machine class. miserc templates cannot read files or exec, only test
 # paths. Unrecognised machine: env = ["..."] in an untracked miserc.local.toml.
-env = ["{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif os() == 'macos' %}personal{% endif %}"]
+env = ["{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif os() == 'macos' %}personal{% endif %}"]

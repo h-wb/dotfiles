@@ -14,21 +14,8 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 # Never blank the X server (neko:xfce covers the XFCE daemons).
 [ -n "${DISPLAY:-}" ] && command -v xset >/dev/null 2>&1 && xset s off -dpms || true
 
-if ! command -v mise >/dev/null 2>&1; then
-	echo "[info] installing mise"
-	curl -fsSL https://mise.run | sh
-fi
-MISE="${HOME}/.local/bin/mise"
-
-# self_update.auto skips unattended runs, so honour config.toml's hard
-# min_version here or every session start fails. Re-checked after a pull.
-MIN_MISE="$(sed -n 's/^min_version = { hard = "\([^"]*\)" }.*/\1/p' "${HOME}/.dotfiles/config.toml" 2>/dev/null)"
-have="$("$MISE" --version 2>/dev/null | awk '{print $1}')"
-if [ -n "$MIN_MISE" ] &&
-	[ "$(printf '%s\n%s\n' "$MIN_MISE" "${have:-0}" | sort -V | head -1)" != "$MIN_MISE" ]; then
-	echo "[info] mise ${have:-?} < ${MIN_MISE}; self-updating"
-	"$MISE" self-update --yes || echo "[warn] mise self-update failed"
-fi
+. "${HOME}/.dotfiles/scripts/provision.sh"
+ensure_mise
 
 # `touch ~/.neko-hold` parks provisioning (e.g. mid-edit of the dotfiles). A
 # file in $HOME, so a desktop parked mid-surgery comes back parked.
@@ -47,17 +34,7 @@ if ! command -v git >/dev/null 2>&1; then
 	sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends git ||
 		echo "[warn] could not install git; dotfiles not updated"
 fi
-if command -v git >/dev/null 2>&1 && [ -z "${NEKO_BOOTSTRAP_PULLED:-}" ]; then
-	before="$(git rev-parse HEAD 2>/dev/null)"
-	if timeout 60 git pull --ff-only --quiet; then
-		if [ "$(git rev-parse HEAD 2>/dev/null)" != "$before" ]; then
-			echo "[info] dotfiles updated ${before} -> $(git rev-parse HEAD)"
-			NEKO_BOOTSTRAP_PULLED=1 exec "${HOME}/.dotfiles/conf.d/neko/bin/neko-bootstrap" "$@"
-		fi
-	else
-		echo "[warn] dotfiles pull skipped (offline, local commits, or no upstream)"
-	fi
-fi
+command -v git >/dev/null 2>&1 && pull_dotfiles "${HOME}/.dotfiles/conf.d/neko/bin/neko-bootstrap" "$@"
 
 # The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
 export MISE_CONFIG_DIR="${HOME}/.dotfiles"

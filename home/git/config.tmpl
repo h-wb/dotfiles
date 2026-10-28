@@ -46,6 +46,10 @@
 # neko: token from Proton Pass on demand (conf.d/neko/bin/git-credential-fnox).
 [credential "https://github.com"]
 	helper = {{ env.HOME }}/.local/bin/git-credential-fnox
+{% elif '/etc/paseo' is exists %}
+# paseo: GH_TOKEN from the pod's secret, through gh.
+[credential "https://github.com"]
+	helper = !gh auth git-credential
 {% elif os() == "linux" %}
 [credential]
 	helper = store

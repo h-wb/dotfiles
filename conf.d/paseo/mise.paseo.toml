@@ -1,0 +1,70 @@
+# The paseo agent host: a headless pod in home-ops (kubernetes/apps/main/agents/paseo),
+# image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
+# systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
+#
+# Cloud models (Claude, Codex) run here: never give this class personal data or
+# anything from fnox. Cluster access is the pod's service account.
+
+[settings]
+# The agent host needs none of these: credentials for them never reach the pod.
+disable_tools = ["aws-cli", "github:bitwarden/sdk-sm", "github:protonpass/pass-cli", "github:jdx/fnox", "npm:@metabase/cli"]
+# Agents work in clones and Paseo worktrees that carry their own mise configs
+# (home-ops' .mise.toml); an untrusted one fails every shim run in that directory.
+trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
+
+[tools]
+"aqua:anomalyco/opencode" = "latest"
+tmux = "latest"
+flux2 = "latest"
+helm = "latest"
+kustomize = "latest"
+jq = "latest"
+yq = "latest"
+"github:home-operations/flate" = "latest"
+"npm:chrome-devtools-mcp" = "latest"
+
+[env]
+# config.toml's kubeconfigs render empty here; unset, kubectl uses the service account.
+KUBECONFIG = false
+
+[bootstrap.repos]
+"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
+
+[dotfiles]
+"~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
+"~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+[tasks.bootstrap]
+run = [
+  { task = "paseo:config" },
+  { task = "paseo:mcp" },
+]
+
+# Paseo's chat-mode Claude goes through the Agent SDK; Claude runs from a terminal
+# tab instead, so it stays on the subscription.
+[tasks."paseo:config"]
+description = "Turn off Paseo's built-in Claude provider"
+hide = true
+run = "node tasks/paseo-config.mjs"
+
+# The pod's headless Chromium sidecar. OpenCode gets it from opencode.json.
+[tasks."paseo:mcp"]
+description = "Register the browser MCP with Claude Code and Codex"
+hide = true
+run = '''
+url=http://127.0.0.1:9222
+claude mcp get chrome-devtools >/dev/null 2>&1 ||
+	claude mcp add -s user chrome-devtools -- chrome-devtools-mcp --browserUrl "$url"
+codex mcp get chrome-devtools >/dev/null 2>&1 ||
+	codex mcp add chrome-devtools -- chrome-devtools-mcp --browserUrl "$url"
+'''
+
+# ── Doctor checks ───────────────────────────────────────────────────────────
+[doctor.checks.paseo-kube]
+description = "kubectl reaches the cluster through the pod's service account"
+hint = "KUBECONFIG must be unset here (conf.d/paseo [env]); check the paseo ServiceAccount's bindings in home-ops"
+run = '''
+[ -z "${KUBECONFIG:-}" ] || { echo "KUBECONFIG is set ($KUBECONFIG)"; exit 1; }
+kubectl auth can-i list pods --all-namespaces >/dev/null || { echo "service account cannot list pods"; exit 1; }
+'''
