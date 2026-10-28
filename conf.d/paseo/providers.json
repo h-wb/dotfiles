@@ -2,7 +2,7 @@
   "agents": {
     "providers": {
       "claude": {
-        "enabled": false
+        "enabled": true
       }
     }
   }
