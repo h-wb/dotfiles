@@ -33,6 +33,17 @@ checksum_source = "mise-versions"
 url = "https://github.com/home-operations/flate/releases/download/v0.6.5/flate_0.6.5_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/541337294"
 
+[[tools."github:jpillora/sshd-lite"]]
+version = "1.55.4"
+backend = "github:jpillora/sshd-lite"
+specifiers = ["latest"]
+
+[tools."github:jpillora/sshd-lite"."platforms.linux-x64"]
+checksum = "sha256:fc2e08a1648f9d66759d39697d7197df01085cc268fb5d35d2e400a87740d847"
+checksum_source = "mise-versions"
+url = "https://github.com/jpillora/sshd-lite/releases/download/v1.55.4/sshd-lite_1.55.4_linux_amd64.gz"
+url_api = "https://api.github.com/repos/jpillora/sshd-lite/releases/assets/587012397"
+
 [[tools.helm]]
 version = "4.3.1"
 backend = "aqua:helm/helm"
