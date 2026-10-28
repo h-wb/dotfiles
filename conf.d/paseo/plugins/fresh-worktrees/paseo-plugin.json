@@ -1,0 +1,7 @@
+{
+  "id": "fresh-worktrees",
+  "name": "Fresh worktrees",
+  "requirements": {
+    "paseo": ">=0.13.2"
+  }
+}
