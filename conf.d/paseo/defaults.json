@@ -1,3 +1,11 @@
 {
-  "version": 1
+  "version": 1,
+  "pluginsEnabled": true,
+  "plugins": {
+    "fresh-worktrees": {
+      "source": "directory",
+      "path": "/home/paseo/.dotfiles/conf.d/paseo/plugins/fresh-worktrees",
+      "enabled": true
+    }
+  }
 }
