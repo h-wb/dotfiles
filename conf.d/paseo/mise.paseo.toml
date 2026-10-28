@@ -19,6 +19,9 @@ trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
 # (home-ops' .mise.toml) overrides it with its separate session dir there.
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo"
 PROTON_PASS_AGENT_REASON = "paseo fnox"
+# seccomp blocks the kernel keyring pass-cli uses by default; `fs` keeps the key
+# on the PVC (same as neko).
+PROTON_PASS_KEY_PROVIDER = "fs"
 
 [tools]
 "aqua:anomalyco/opencode" = "latest"
