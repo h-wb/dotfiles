@@ -77,6 +77,12 @@ if ! timeout 900 "$@"; then
 		notify-send -u critical "neko-bootstrap failed" "see $LOG" || true
 	exit 1
 fi
+
+# MISE_CONFIG_DIR makes mise normalise lock sidecar paths from locks/… to
+# .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
+# so the checkout stays clean for the next pull --ff-only.
+git -C "${HOME}/.dotfiles" checkout -- mise.lock mise.*.lock 2>/dev/null || true
+
 case "$MODE" in
 secrets) echo "[ok] bootstrap applied with secrets" ;;
 fresh) echo "[ok] bootstrap applied without secrets (set PASS_CLI_PAT, or \`pass-cli login\` then \`mise run apply\`)" ;;
