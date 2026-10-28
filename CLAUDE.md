@@ -298,7 +298,7 @@ hand-written file cannot win a context-name collision.
 
 Desktop gets home-ops' `mcp-ops` ToolHive gateway (Anki, kubectl, flux, GitHub,
 n8n), the same one Claude Code uses, with the same `claude-code` key (Proton
-Pass `Dev/mcp-ops`; the in-cluster generator is `CreatedOnce`, so a new key
+Pass `env-dotfiles/mcp-ops`; the in-cluster generator is `CreatedOnce`, so a new key
 name would regenerate every client's key).
 
 - **Merged, not rendered**: Desktop writes its own `preferences` into
@@ -352,8 +352,8 @@ name would regenerate every client's key).
   add-on on :3141 (home-ops has both Services; ToolHive's `anki`
   MCPServerEntry). `anki:setup` = `anki:addon` (links both add-ons, writes
   their `meta.json`) then `anki:start` (`supervisorctl update anki`). Bind
-  `0.0.0.0` only ever with a key (Proton Pass `Dev/AnkiConnect`,
-  `Dev/AnkiMCP`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
+  `0.0.0.0` only ever with a key (Proton Pass `env-dotfiles/AnkiConnect`,
+  `env-dotfiles/AnkiMCP`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
   `update_enabled: false` or Anki's updater deletes the linked add-on.
   AnkiMCP's `http_allowed_hosts` must list the Service name ToolHive dials,
   or every request is a 421 (a wrong key is a 403). The `.ankiaddon` needs
