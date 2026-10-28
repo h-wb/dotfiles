@@ -60,6 +60,10 @@ run = "mise bootstrap repos exec -- mise trust"
 "~/.config/starship.toml"         = { source = "starship.toml", mode = "symlink" }
 "~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
 "~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
+# Vibe user-scope plugins: every agent on the pod gets the MCP servers. In-cluster
+# callers reach the mcp-gateway anonymously (home-ops toolhive securitypolicy only
+# keys the Envoy route), so no secret needs to ride along.
+"~/.vibe/plugins"                     = { source = "vibe-plugins", mode = "symlink" }
 "~/.paseo/config.json/defaults"     = { source = "defaults.json", merge = "missing" }
 "~/.paseo/config.json/providers"    = { source = "providers.json", merge = true }
 
