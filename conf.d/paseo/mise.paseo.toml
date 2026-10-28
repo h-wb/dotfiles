@@ -3,10 +3,10 @@
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
 #
 # Layers: pod, not workstation (miserc.toml). Cloud models (Claude, Codex) run here:
-# no personal data and no fnox beyond the scoped env-paseo session (paseo:pass-login,
-# below) — that Proton Pass vault holds only what this pod's agents may read
-# (dawarich-regression's secrets); the token itself reaches the pod as
-# PROTON_PASS_TOKEN from the Bitwarden `paseo` item (home-ops agents/paseo).
+# no personal data; fnox goes through the `paseo` Proton Pass access token
+# (paseo:pass-login, below), which reads the Homelab, env-home-ops, env-dlt and
+# env-dotfiles vaults. The token reaches the pod as PROTON_PASS_TOKEN from the
+# Bitwarden `paseo` item (home-ops agents/paseo).
 # Cluster access is the pod's service account, since no kubeconfig is rendered here.
 
 [settings]
@@ -34,8 +34,8 @@ starship = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
 "github:jpillora/sshd-lite" = "latest"   # the pod's sshd sidecar (home-ops agents/paseo)
-"github:protonpass/pass-cli" = "latest"  # scoped env-paseo session (paseo:pass-login)
-"github:jdx/fnox" = "latest"             # reads env-paseo; repos' fnox.toml ref it
+"github:protonpass/pass-cli" = "latest"  # the `paseo` token's session (paseo:pass-login)
+"github:jdx/fnox" = "latest"             # repos' fnox.toml ref their vaults
 
 # Checkouts this host is provisioned from: cloned / fast-forwarded into
 # ~/Repositories by `mise bootstrap` (paseo-bootstrap) at every pod start.
@@ -125,12 +125,13 @@ run = [
   { task = "paseo:pass-login" },
 ]
 
-# The pod's scoped Proton Pass session. The token (PROTON_PASS_TOKEN, from the
-# Bitwarden `paseo` item via home-ops' ExternalSecret) can open only the
-# env-paseo vault; fnox-based tasks in the repos read the rest from there.
+# The pod's Proton Pass session. The token (PROTON_PASS_TOKEN, from the
+# Bitwarden `paseo` item via home-ops' ExternalSecret) opens the Homelab,
+# env-home-ops, env-dlt and env-dotfiles vaults; repos' pass:login tasks log the
+# same token into their own session dirs.
 # Idempotent, and a no-op without the token so the bootstrap predates it fine.
 [tasks."paseo:pass-login"]
-description = "Log the pod's scoped Proton Pass session in (env-paseo only)"
+description = "Log the pod's Proton Pass session in (the `paseo` access token)"
 hide = true
 run = '''
 mkdir -p "${PROTON_PASS_SESSION_DIR}" && chmod 700 "${PROTON_PASS_SESSION_DIR}"
