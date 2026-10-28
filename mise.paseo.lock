@@ -33,6 +33,17 @@ checksum_source = "mise-versions"
 url = "https://github.com/home-operations/flate/releases/download/v0.6.5/flate_0.6.5_linux_amd64.tar.gz"
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/541337294"
 
+[[tools."github:jdx/fnox"]]
+version = "1.43.0"
+backend = "github:jdx/fnox"
+specifiers = ["latest"]
+
+[tools."github:jdx/fnox"."platforms.linux-x64"]
+checksum = "sha256:6f18dfc22f94e9b6cfd9bb5ed6400abd22cdbd319e7188e586cbc2262d031f16"
+url = "https://github.com/jdx/fnox/releases/download/v1.43.0/fnox-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/677824798"
+provenance = "github-attestations"
+
 [[tools."github:jpillora/sshd-lite"]]
 version = "1.55.4"
 backend = "github:jpillora/sshd-lite"
@@ -43,6 +54,17 @@ checksum = "sha256:fc2e08a1648f9d66759d39697d7197df01085cc268fb5d35d2e400a87740d
 checksum_source = "mise-versions"
 url = "https://github.com/jpillora/sshd-lite/releases/download/v1.55.4/sshd-lite_1.55.4_linux_amd64.gz"
 url_api = "https://api.github.com/repos/jpillora/sshd-lite/releases/assets/587012397"
+
+[[tools."github:protonpass/pass-cli"]]
+version = "2.5.1"
+backend = "github:protonpass/pass-cli"
+specifiers = ["latest"]
+
+[tools."github:protonpass/pass-cli"."platforms.linux-x64"]
+checksum = "sha256:40e27645e0485f5f0db928b81469d1c5a7c8968a162956e940069476244c02b1"
+checksum_source = "mise-versions"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-linux-x86_64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210630"
 
 [[tools.helm]]
 version = "4.3.1"
@@ -77,7 +99,7 @@ url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/asset
 
 [[tools."npm:chrome-devtools-mcp"]]
 version = "1.12.0"
-aube = { path = "locks/mise.paseo/npm-chrome-devtools-mcp/1.12.0", digest = "sha256:0a625298cb87475a660765dfaa086356bd2d1b6dd887feb0a195d77805ee6844" }
+aube = { path = ".mise/locks/mise.paseo/npm-chrome-devtools-mcp/1.12.0", digest = "sha256:0a625298cb87475a660765dfaa086356bd2d1b6dd887feb0a195d77805ee6844" }
 backend = "npm:chrome-devtools-mcp"
 specifiers = ["latest"]
 

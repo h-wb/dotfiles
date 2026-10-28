@@ -3,13 +3,22 @@
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
 #
 # Layers: pod, not workstation (miserc.toml). Cloud models (Claude, Codex) run here:
-# never give this class personal data or anything from fnox. Cluster access is the
-# pod's service account, since no kubeconfig is rendered here.
+# no personal data and no fnox beyond the scoped env-paseo session (paseo:pass-login,
+# below) — that Proton Pass vault holds only what this pod's agents may read
+# (dawarich-regression's secrets); the token itself reaches the pod as
+# PROTON_PASS_TOKEN from the Bitwarden `paseo` item (home-ops agents/paseo).
+# Cluster access is the pod's service account, since no kubeconfig is rendered here.
 
 [settings]
 # Agents work in clones and Paseo worktrees that carry their own mise configs
 # (home-ops' .mise.toml); an untrusted one fails every shim run in that directory.
 trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
+
+[env]
+# Scoped Proton Pass session for this pod's fnox use; a repo's own config
+# (home-ops' .mise.toml) overrides it with its separate session dir there.
+PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo"
+PROTON_PASS_AGENT_REASON = "paseo fnox"
 
 [tools]
 "aqua:anomalyco/opencode" = "latest"
@@ -22,6 +31,15 @@ starship = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
 "github:jpillora/sshd-lite" = "latest"   # the pod's sshd sidecar (home-ops agents/paseo)
+"github:protonpass/pass-cli" = "latest"  # scoped env-paseo session (paseo:pass-login)
+"github:jdx/fnox" = "latest"             # reads env-paseo; repos' fnox.toml ref it
+
+# Checkouts this host is provisioned from: cloned / fast-forwarded into
+# ~/Repositories by `mise bootstrap` (paseo-bootstrap) at every pod start.
+[bootstrap.repos]
+"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
+"~/Repositories/dotfiles"           = { url = "https://github.com/h-wb/dotfiles.git" }
 
 [dotfiles]
 "~/.bashrc"                       = { source = "bashrc", mode = "symlink" }
@@ -91,7 +109,25 @@ fi
 [tasks.bootstrap]
 run = [
   { task = "paseo:mcp" },
+  { task = "paseo:pass-login" },
 ]
+
+# The pod's scoped Proton Pass session. The token (PROTON_PASS_TOKEN, from the
+# Bitwarden `paseo` item via home-ops' ExternalSecret) can open only the
+# env-paseo vault; fnox-based tasks in the repos read the rest from there.
+# Idempotent, and a no-op without the token so the bootstrap predates it fine.
+[tasks."paseo:pass-login"]
+description = "Log the pod's scoped Proton Pass session in (env-paseo only)"
+hide = true
+run = '''
+mkdir -p "${PROTON_PASS_SESSION_DIR}" && chmod 700 "${PROTON_PASS_SESSION_DIR}"
+if [ -z "${PROTON_PASS_TOKEN:-}" ]; then
+    echo "[pass-login] no PROTON_PASS_TOKEN in env; skipping"
+    exit 0
+fi
+pass-cli info >/dev/null 2>&1 && { echo "already logged in"; exit 0; }
+PROTON_PASS_PERSONAL_ACCESS_TOKEN="${PROTON_PASS_TOKEN}" pass-cli login
+'''
 
 # The pod's headless Chromium sidecar. OpenCode gets it from opencode.json.
 [tasks."paseo:mcp"]
