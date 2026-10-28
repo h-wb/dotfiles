@@ -1,0 +1,20 @@
+# POSIX sh profile — the Paseo web UI terminal runs /bin/sh, which never
+# reads ~/.bashrc. This file covers it: mise shims + starship prompt.
+# bash still uses ~/.bashrc (mise activate > shims), so no double-loading.
+
+# PATH for mise tools
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
+
+# mise shims (works in sh; not `mise activate sh`, which is for interactive
+# shells only and we don't know if the web terminal is one)
+eval "$(mise activate sh --shims 2>/dev/null)" || true
+
+# starship prompt (has an sh init mode)
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init sh 2>/dev/null)" || true
+fi
+
+# useful defaults
+export EDITOR=vim
+alias ll="ls -la"
+alias g="git"

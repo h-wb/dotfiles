@@ -46,6 +46,7 @@ starship = "latest"
 
 [dotfiles]
 "~/.bashrc"                       = { source = "bashrc", mode = "symlink" }
+"~/.profile"                      = { source = "profile", mode = "symlink" }
 "~/.config/starship.toml"         = { source = "starship.toml", mode = "symlink" }
 "~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
 "~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
