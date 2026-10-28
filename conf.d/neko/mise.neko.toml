@@ -23,7 +23,6 @@ linux-x64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-x64/stab
 linux-arm64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-arm64/stable" }
 
 [env]
-LANG = "C.UTF-8"                     # Debian ships C.UTF-8 without `locales`
 TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
 # seccomp blocks the kernel keyring pass-cli uses by default; `fs` keeps the key on the PVC.
 PROTON_PASS_KEY_PROVIDER = "fs"
@@ -35,7 +34,6 @@ ef = "exec fish"
 [bootstrap.packages]
 "apt:git" = "latest"
 "apt:fish" = "latest"
-"apt:tmux" = "latest"        # survives a dropped WebRTC session
 "apt:less" = "latest"
 "apt:unzip" = "latest"
 "apt:xz-utils" = "latest"
@@ -70,7 +68,6 @@ ef = "exec fish"
 # neko only: on a Mac these checkouts hold real work. neko-bootstrap passes
 # --skip-dirty, or one dirty repo would stop the desktop provisioning.
 [bootstrap.repos]
-"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
 "~/Repositories/codex"               = { url = "https://github.com/h-wb/codex.git" }
 "~/Repositories/sync-anilist"        = { url = "https://github.com/h-wb/codex-plugins.git" }

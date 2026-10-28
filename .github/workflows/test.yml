@@ -15,10 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { env: personal, os: macos-latest }
-          - { env: neko, os: ubuntu-latest }
-          - { env: cachyos, os: ubuntu-latest }
-          - { env: paseo, os: ubuntu-latest }
+          # layers: what miserc.toml would pick on that machine (it can't see a runner's)
+          - { env: personal, layers: '"workstation", "personal"', os: macos-latest }
+          - { env: neko, layers: '"workstation", "pod", "neko"', os: ubuntu-latest }
+          - { env: cachyos, layers: '"workstation", "cachyos"', os: ubuntu-latest }
+          - { env: paseo, layers: '"pod", "paseo"', os: ubuntu-latest }
     name: ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -31,7 +32,7 @@ jobs:
         run: |
           home="$(mktemp -d)"
           ln -s "$GITHUB_WORKSPACE" "$home/.dotfiles"
-          printf 'env = ["%s"]\n' "${{ matrix.env }}" > miserc.local.toml
+          printf 'env = [%s]\n' '${{ matrix.layers }}' > miserc.local.toml
           echo "HOME=$home" >> "$GITHUB_ENV"
           echo "MISE_CONFIG_DIR=$home/.dotfiles" >> "$GITHUB_ENV"
 
@@ -49,6 +50,15 @@ jobs:
           neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg && grep -q conf.d/anki/mise.neko.toml /tmp/cfg ;;
           cachyos) grep -q conf.d/cachyos/mise.cachyos.toml /tmp/cfg ;;
           paseo)   grep -q conf.d/paseo/mise.paseo.toml /tmp/cfg ;;
+          esac
+          # the layers: workstation everywhere but paseo, pod on the two pods
+          case "${{ matrix.env }}" in
+          paseo) ! grep -q config.workstation.toml /tmp/cfg || { echo "::error::workstation leaked into paseo"; exit 1; } ;;
+          *)     grep -q config.workstation.toml /tmp/cfg || { echo "::error::workstation layer not loaded"; exit 1; } ;;
+          esac
+          case "${{ matrix.env }}" in
+          neko | paseo) grep -q conf.d/pod/mise.pod.toml /tmp/cfg || { echo "::error::pod layer not loaded"; exit 1; } ;;
+          *)            ! grep -q conf.d/pod/mise.pod.toml /tmp/cfg || { echo "::error::pod layer leaked"; exit 1; } ;;
           esac
           # nothing from another machine class or platform leaks in
           for other in personal neko cachyos paseo; do
@@ -83,6 +93,7 @@ jobs:
           paseo)
             test -x "$HOME/.local/bin/paseo-bootstrap"
             test -L "$HOME/.config/opencode/opencode.json"
+            test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: kubectl uses the pod's service account
             test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')" ;;
           esac
           if [ "$RUNNER_OS" = Linux ]; then

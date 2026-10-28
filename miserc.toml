@@ -7,6 +7,15 @@ env_conf_d = true
 # *.macos.toml / *.linux.toml load by OS (default from 2027.6.0).
 auto_env = true
 
-# The machine class. miserc templates cannot read files or exec, only test
-# paths. Unrecognised machine: env = ["..."] in an untracked miserc.local.toml.
-env = ["{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif os() == 'macos' %}personal{% endif %}"]
+# The layers a machine shares, then its class (later wins, so the class can
+# override a layer):
+#   workstation  personal, neko, cachyos: a person works there (fnox, credentialed CLIs)
+#   pod          neko, paseo: Linux pods with only $HOME on a PVC
+# miserc templates cannot read files or exec, only test paths; an empty entry is
+# ignored. Unrecognised machine, or CI: the whole list in an untracked
+# miserc.local.toml, e.g. env = ["workstation", "pod", "neko"].
+env = [
+  "{% if '/etc/paseo' is not exists %}workstation{% endif %}",
+  "{% if '/etc/neko' is exists or '/etc/paseo' is exists %}pod{% endif %}",
+  "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif os() == 'macos' %}personal{% endif %}",
+]
