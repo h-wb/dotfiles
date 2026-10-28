@@ -3,3 +3,7 @@
 *.local.toml
 !*.local.toml.example
 __pycache__/
+# mise writes lock sidecars here when MISE_CONFIG_DIR points at the checkout
+# (pods set it before the ~/.config/mise symlink exists). The committed sidecars
+# live in locks/ at the repo root.
+.mise/
