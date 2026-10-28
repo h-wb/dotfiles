@@ -20,3 +20,21 @@ export MISE_CONFIG_DIR="${HOME}/.dotfiles"
 # .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
 # so the checkout stays clean for the next pull --ff-only.
 git -C "${HOME}/.dotfiles" checkout -- mise.lock mise.*.lock 2>/dev/null || true
+
+# The home-mcp MCP server: the ToolHive mcp-gateway (home-ops llm/toolhive) behind
+# its keyed Envoy route. The x-api-key comes from MCP_GATEWAY_API_KEY (agents/paseo
+# paseo-mcp-gateway ExternalSecret, same Bitwarden `toolhive` item as the route's
+# other clients); the hostname resolves via the pod's hostAlias. `vibe mcp add`
+# writes ~/.vibe/config.toml (PVC state), so remove+add every start keeps it
+# synced with here. Generous timeouts: the gateway cold-starts slowly.
+if [ -n "${MCP_GATEWAY_API_KEY:-}" ]; then
+	vibe mcp remove home-mcp >/dev/null 2>&1 || true
+	vibe mcp add home-mcp \
+		--url "https://mcp.wlab.ovh/mcp" \
+		--transport streamable-http \
+		--api-key-env MCP_GATEWAY_API_KEY \
+		--api-key-header x-api-key \
+		--api-key-format "{token}" \
+		--startup-timeout-sec 60 \
+		--tool-timeout-sec 120
+fi

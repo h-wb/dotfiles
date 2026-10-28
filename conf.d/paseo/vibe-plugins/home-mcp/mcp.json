@@ -1,9 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-  "mcpServers": {
-    "home-mcp": {
-      "type": "streamable-http",
-      "url": "http://localhost:4483/mcp"
-    }
-  }
-}
