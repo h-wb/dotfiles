@@ -1,15 +1,19 @@
 #!/bin/sh
-# Provision a machine from scratch: install mise, clone to ~/.dotfiles, and run
-# `mise run apply` by hand (fnox isn't installed yet). The class comes from
-# miserc.toml; DOTFILES_ENV overrides it.
+# Provision ~/.dotfiles; DOTFILES_ENV overrides the detected class and layers.
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
 DOTFILES_DIR="${HOME}/.dotfiles" # fixed: config.toml links ~/.config/mise here
 export PATH="${HOME}/.local/bin:${PATH}"
 
-command -v mise >/dev/null 2>&1 || curl -fsSL https://mise.run | sh
-MISE="${HOME}/.local/bin/mise"
+case "${DOTFILES_ENV:-}" in
+personal) DOTFILES_LAYERS='"workstation", "personal"' ;;
+neko) DOTFILES_LAYERS='"workstation", "pod", "neko"' ;;
+cachyos) DOTFILES_LAYERS='"workstation", "cachyos"' ;;
+paseo) DOTFILES_LAYERS='"pod", "paseo"' ;;
+"") DOTFILES_LAYERS= ;;
+*) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;
+esac
 
 # The neko image ships curl but no git.
 if ! command -v git >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
@@ -27,10 +31,17 @@ cd "${DOTFILES_DIR}"
 
 # The ~/.config/mise link doesn't exist until this run's dotfiles step.
 export MISE_CONFIG_DIR="${DOTFILES_DIR}"
-[ -n "${DOTFILES_ENV:-}" ] && printf 'env = ["%s"]\n' "${DOTFILES_ENV}" >miserc.local.toml
+[ -z "$DOTFILES_LAYERS" ] || printf 'env = [%s]\n' "$DOTFILES_LAYERS" >miserc.local.toml
+. ./scripts/provision.sh
+ensure_mise || exit 1
 
-MISE="${MISE}" ./scripts/pass-preflight || exit 1
-# fnox's provider shells out to pass-cli, so both must be on PATH.
-# --force-dotfiles: the distro's own config.fish, or an old real ~/.config/mise.
-exec "${MISE}" exec github:jdx/fnox@latest github:protonpass/pass-cli@latest -- \
-	fnox --if-missing error exec -c fnox.toml -- "${MISE}" bootstrap --yes --force-dotfiles
+configs="$("$MISE" config)"
+case "$configs" in
+*config.workstation.toml*)
+	# Activate configured tools and env before login (neko needs the fs key provider).
+	exec "$MISE" exec github:jdx/fnox github:protonpass/pass-cli -- sh -c '
+		./scripts/pass-preflight || exit 1
+		exec fnox --if-missing error exec -c fnox.toml -- "$@"
+	' sh "$MISE" bootstrap --yes --force-dotfiles ;;
+*) exec "$MISE" bootstrap --yes --force-dotfiles ;;
+esac

@@ -17,8 +17,9 @@ LaunchAgents, services, firewall, tools and dotfiles, with secrets injected by
 `~/.dotfiles`, so mise reads every file here under its native name:
 
 ```
-config.toml              every machine: tools, env, vars, shell aliases, tasks, doctor checks
+config.toml              every machine, paseo included: tools, env, vars, shell aliases, doctor checks
 config.macos.toml        every Mac (loaded by platform): brew casks, ssh agent, wireguard
+config.workstation.toml  personal/neko/cachyos: credentialed CLIs, kubeconfigs, apply tasks
 config.personal.toml     the MacBook's own packages
 miserc.toml              shared early-init settings (env_conf_d, auto_env)
 conf.d/
@@ -31,9 +32,11 @@ conf.d/
   neko/                  the neko/xfce container, whole
   anki/                  Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive) (neko)
   cachyos/               the CachyOS gaming desktop, whole
+  paseo/                 the headless coding-agent pod
+  pod/                   shared pod tools, locale and repositories
 home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
 fnox.toml                Proton Pass secret references (no values)
-scripts/                 pass-preflight (gates every apply on a Proton Pass session)
+scripts/                 first-install helpers and Proton Pass preflight
 ```
 
 Each `conf.d/` folder holds its own config and the files it uses; inside it,
@@ -46,9 +49,12 @@ Each `conf.d/` folder holds its own config and the files it uses; inside it,
 | `personal` | the MacBook | auto (macOS) |
 | `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | auto (`/etc/neko`) |
 | `cachyos` | CachyOS KDE gaming desktop | auto (`/etc/pacman.d/cachyos-mirrorlist`) |
+| `paseo` | headless coding-agent pod | auto (`/etc/paseo`) |
 
 `miserc.toml` detects the class; an untracked `miserc.local.toml`
-(`env = ["..."]`) overrides it. Platform files (`*.macos.toml`, `*.linux.toml`)
+overrides the complete layer list (for example,
+`env = ["workstation", "pod", "neko"]`). `personal`, `neko` and `cachyos` use
+`workstation`; `neko` and `paseo` use `pod`. Platform files (`*.macos.toml`, `*.linux.toml`)
 load on their own. `~/.config/mise` → `~/.dotfiles` is itself a `[dotfiles]`
 entry in `config.toml`, so mise creates and maintains the link.
 
@@ -59,8 +65,9 @@ sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/m
 ```
 
 On a Mac, sign in to iCloud and the App Store first. The installer installs mise,
-clones to `~/.dotfiles` and runs `mise bootstrap` under
-fnox. Override the detected class with `DOTFILES_ENV=personal|neko|cachyos`.
+clones to `~/.dotfiles` and runs `mise bootstrap` under fnox for workstation
+machines, or directly for Paseo. Override the detected class with
+`DOTFILES_ENV=personal|neko|cachyos|paseo`; the installer persists its layers too.
 
 ## Everyday use
 
@@ -68,12 +75,35 @@ fnox. Override the detected class with `DOTFILES_ENV=personal|neko|cachyos`.
 mise run diff           # preview what apply would change
 mise run apply          # provision everything, with secrets
 mise run upgrade        # the same, with packages and tools upgraded (then commit the lockfiles)
-mise doctor project     # the repo's invariants (wiring, config keys, lockfiles, file modes, ...)
+mise doctor project     # wiring, config keys, native locked-install preview, tasks, file modes
 mise run dns:edge       # (MacBook) resolve the internal zone via the edge cluster
 ```
 
 Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by
 `mise activate` in zsh and fish alike.
+
+`apply`, `diff` and `upgrade` belong to the workstation layer. Paseo reprovisions
+with `paseo-bootstrap`. `diff` previews bootstrap steps; it does not show rendered
+template differences. `mise bootstrap plan` covers only the resource planner's
+subset of bootstrap, so it is not a replacement for that preview.
+
+## Validate changes
+
+```sh
+python3 tests/test_setup.py -v  # Python 3.11+; isolated homes, no provisioning of this machine
+mise tasks validate
+mise install --locked --dry-run
+```
+
+The locked-install preview uses mise's own validation. PyPI dependency graphs
+need their Python interpreter installed even for a preview; CI installs the
+locked Python and uv first. Commit dependency sidecars along with `mise*.lock`;
+`mise lock --global --sidecars` lists them. mise 2026.10.20 uses `.mise/locks/`
+for this checkout's physical location; older `locks/` references remain readable
+and migrate when mise rewrites the owning lockfile.
+
+See [the mise audit](docs/mise-audit.md) for the feature review and remaining
+tradeoffs.
 
 ### Where values come from
 

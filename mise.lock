@@ -162,77 +162,6 @@ url = "https://github.com/cli/cli/releases/download/v2.100.0/gh_2.100.0_windows_
 url_api = "https://api.github.com/repos/cli/cli/releases/assets/542974322"
 provenance = "github-attestations"
 
-[[tools."github:mistralai/mistral-vibe"]]
-version = "2.26.1"
-backend = "github:mistralai/mistral-vibe"
-specifiers = ["latest"]
-
-[tools."github:mistralai/mistral-vibe".options]
-asset_pattern = "vibe-darwin-aarch64-*.zip"
-
-[tools."github:mistralai/mistral-vibe"."platforms.macos-arm64"]
-checksum = "sha256:8c7e1c391d84cfe2adbdc16d374bb57e233150eea5b0b39594584bff22e1c096"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-darwin-aarch64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319524"
-
-[[tools."github:mistralai/mistral-vibe"]]
-version = "2.26.1"
-backend = "github:mistralai/mistral-vibe"
-
-[tools."github:mistralai/mistral-vibe".options]
-asset_pattern = "vibe-windows-x86_64-*.zip"
-
-[tools."github:mistralai/mistral-vibe"."platforms.windows-x64"]
-checksum = "sha256:58e475380311c3c0bba8495c77a52e2498a856547bbd2ac87ee8fec1388fcee1"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-windows-x86_64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319537"
-
-[[tools."github:mistralai/mistral-vibe"]]
-version = "2.26.1"
-backend = "github:mistralai/mistral-vibe"
-
-[tools."github:mistralai/mistral-vibe".options]
-asset_pattern = "vibe-darwin-x86_64-*.zip"
-
-[tools."github:mistralai/mistral-vibe"."platforms.macos-x64"]
-checksum = "sha256:6c53c71949bff3df8d998a5928b95bb67fa14665e56d147b429a23908ee77134"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-darwin-x86_64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319523"
-
-[[tools."github:mistralai/mistral-vibe"]]
-version = "2.26.1"
-backend = "github:mistralai/mistral-vibe"
-
-[tools."github:mistralai/mistral-vibe".options]
-asset_pattern = "vibe-linux-aarch64-*.zip"
-
-[tools."github:mistralai/mistral-vibe"."platforms.linux-arm64"]
-checksum = "sha256:bab9ea63437440e819174269f2d192c076380b3026af29f435e1f5018f1f363c"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-aarch64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319535"
-
-[tools."github:mistralai/mistral-vibe"."platforms.linux-arm64-musl"]
-checksum = "sha256:bab9ea63437440e819174269f2d192c076380b3026af29f435e1f5018f1f363c"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-aarch64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319535"
-
-[[tools."github:mistralai/mistral-vibe"]]
-version = "2.26.1"
-backend = "github:mistralai/mistral-vibe"
-
-[tools."github:mistralai/mistral-vibe".options]
-asset_pattern = "vibe-linux-x86_64-*.zip"
-
-[tools."github:mistralai/mistral-vibe"."platforms.linux-x64"]
-checksum = "sha256:2915db76b12d31589706a3e1c5aac41de32fa6a12d7b2e694df0dd540c09127e"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-x86_64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319527"
-
-[tools."github:mistralai/mistral-vibe"."platforms.linux-x64-musl"]
-checksum = "sha256:2915db76b12d31589706a3e1c5aac41de32fa6a12d7b2e694df0dd540c09127e"
-url = "https://github.com/mistralai/mistral-vibe/releases/download/v2.26.1/vibe-linux-x86_64-2.26.1.zip"
-url_api = "https://api.github.com/repos/mistralai/mistral-vibe/releases/assets/625319527"
-
 [[tools."github:shoenot/diskard"]]
 version = "0.1.1"
 backend = "github:shoenot/diskard"
@@ -331,6 +260,15 @@ url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-darwin-x64.tar.gz"
 checksum = "sha256:6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba"
 url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip"
 
+[[tools."pipx:mistral-vibe"]]
+version = "3.0.3"
+backend = "pipx:mistral-vibe"
+specifiers = ["latest"]
+uv = { path = "locks/pipx-mistral-vibe/3.0.3~1e8dc067", digest = "sha256:79e64fba871f1a4650d78c2d79586b6e17112c32413604ff47f5d815100dbabd" }
+
+[tools."pipx:mistral-vibe".options]
+python = "3.14"
+
 [[tools.python]]
 version = "3.14.7"
 backend = "core:python"
@@ -410,3 +348,50 @@ url_api = "https://api.github.com/repos/jdx/usage/releases/assets/539847849"
 checksum = "sha256:ecfbf6c425e473fe6bf42e14cbf8ff9e0a87b5dce87f40754cea41ddbfabdd29"
 url = "https://github.com/jdx/usage/releases/download/v6.6.1/usage-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/usage/releases/assets/539826464"
+
+[[tools.uv]]
+version = "0.13.5"
+backend = "aqua:astral-sh/uv"
+specifiers = ["latest"]
+
+[tools.uv."platforms.linux-arm64"]
+checksum = "sha256:4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664335837"
+provenance = "github-attestations"
+
+[tools.uv."platforms.linux-arm64-musl"]
+checksum = "sha256:7906c79adb21c81abd559841ba76bb1d9af9d791acac7a041b2972e03ae16538"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664335857"
+provenance = "github-attestations"
+
+[tools.uv."platforms.linux-x64"]
+checksum = "sha256:f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664336023"
+provenance = "github-attestations"
+
+[tools.uv."platforms.linux-x64-musl"]
+checksum = "sha256:57ef9d9ccb01fb1bd998df995b0dd221b52f7d7841fbea93f2d4463bf61fb7a9"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664336027"
+provenance = "github-attestations"
+
+[tools.uv."platforms.macos-arm64"]
+checksum = "sha256:743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664335803"
+provenance = "github-attestations"
+
+[tools.uv."platforms.macos-x64"]
+checksum = "sha256:b0f52b0e3945b4107d89024ea38e625683011fbfc05a0d98f9fa2d6dcee28c66"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664335993"
+provenance = "github-attestations"
+
+[tools.uv."platforms.windows-x64"]
+checksum = "sha256:a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a"
+url = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/astral-sh/uv/releases/assets/664336006"
+provenance = "github-attestations"

@@ -67,7 +67,8 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
   so a stray `-E neko` on a Mac fails clean).
 - **`min_version = { hard = "2026.10.19" }`** in `config.toml` — for
   `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
-  `depends`. `scripts/provision.sh` (both pods' bootstrap) self-updates below it, because
+  `depends`. The minimum stays at .19; .20 is tested too and fixes sidecar
+  placement for symlinked config directories. `scripts/provision.sh` (installer and both pods' bootstrap) self-updates below it, because
   `self_update.auto` skips unattended runs; it reads the version from this very
   line with `sed`, so keep the inline-table shape. Don't
   raise it to a release under 24h old: self-update and mise-action both wait a
@@ -85,7 +86,7 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
   `mise self-update`, then `mise bootstrap --upgrade`, packages and tools
   upgraded within their ranges — `latest` tools move, so commit the lockfiles).
 - `mise doctor project` — the `[doctor.checks.*]`: wiring, config keys, file
-  modes, lockfile checksums, credential perms, plus per-class ones (k8s-dns,
+  modes, native locked-install preview, task validation, credential perms, plus per-class ones (k8s-dns,
   neko-hold, neko-autostart, gamescope-projector). Fields are
   `description`/`run`/`hint`/`depends`; the first three are Tera-templated
   (2026.10.17), so a check reads `{{ vars.x }}` directly. A check whose
@@ -233,12 +234,14 @@ is v3 (`mise lock --upgrade`).
   Linux tool from the Mac with `MISE_ENV=cachyos mise lock --global --platform
   linux-x64` also adds a linux-x64 entry for numi to `mise.macos.lock`. Check
   `git diff mise*.lock` after any lock and revert what does not belong.
-- **The checksum check was vacuous until 2026-10-01**: headers are
-  `[tools.x."platforms.linux-x64"]` and the check matched `.platforms.`
-  (dot-dot), so it inspected nothing. It matches `"platforms.` now — and
-  surfaced that **aws-cli has never had Linux checksums**: AWS publishes none
-  and `mise lock` does not download, so only a platform that installed it gets
-  one. aws-cli is exempted in the check, by name, with that reason.
+- The lockfile doctor uses native `mise install --locked --dry-run` for the
+  active platform. Missing or corrupt dependency sidecars fail it. A locked
+  PyPI graph requires its Python interpreter installed even for a dry run;
+  CI installs Python and uv before running doctor.
+- Commit the paths printed by `mise lock --global --sidecars`. From .20 the
+  physical `~/.dotfiles` directory determines the layout: `.mise/locks/`,
+  including when accessed through `~/.config/mise`. Older `locks/` references
+  still work and migrate when mise saves that lockfile.
 - `http:` tools are pinned by hand: bump the version and every URL, then lock.
 
 ## The MacBook (`personal`) and every Mac (`macos`)
@@ -405,7 +408,7 @@ The pod mounts `/etc/paseo`, which is what `miserc.toml` detects.
 - **No kubeconfig**: `workstation` renders them and sets `KUBECONFIG`; without it,
   kubectl uses the pod's service account. Doctor `paseo-kube`.
 - **Claude stays on the subscription**: Paseo's built-in Claude provider goes
-  through the Agent SDK, so `paseo:config` turns it off and Claude runs in a
+  through the Agent SDK, so a native `[dotfiles]` JSON merge turns it off and Claude runs in a
   terminal tab. Codex, OpenCode (LiteLLM's local models) and the rest stay in
   Paseo's chat.
 - The pod's Chromium sidecar is CDP on `127.0.0.1:9222`; `paseo:mcp` and

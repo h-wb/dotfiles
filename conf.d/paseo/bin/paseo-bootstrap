@@ -6,7 +6,7 @@ set -u
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 . "${HOME}/.dotfiles/scripts/provision.sh"
-ensure_mise
+ensure_mise || exit 1
 pull_dotfiles "${HOME}/.dotfiles/conf.d/paseo/bin/paseo-bootstrap" "$@"
 
 # The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.

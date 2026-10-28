@@ -7,6 +7,7 @@
 # environment variables in ~/.zshenv, do it where indicated by comments below.
 
 if [ -n "${ZSH_VERSION-}" ]; then
+  export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
   # If you are certain that you must export some environment variables
   # in ~/.zshenv (see comments at the top!), do it here:
   #

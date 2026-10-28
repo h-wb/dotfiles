@@ -24,20 +24,14 @@ yq = "latest"
 [dotfiles]
 "~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
 "~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
+"~/.paseo/config.json/defaults"     = { source = "defaults.json", merge = "missing" }
+"~/.paseo/config.json/providers"    = { source = "providers.json", merge = true }
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 [tasks.bootstrap]
 run = [
-  { task = "paseo:config" },
   { task = "paseo:mcp" },
 ]
-
-# Paseo's chat-mode Claude goes through the Agent SDK; Claude runs from a terminal
-# tab instead, so it stays on the subscription.
-[tasks."paseo:config"]
-description = "Turn off Paseo's built-in Claude provider"
-hide = true
-run = "node tasks/paseo-config.mjs"
 
 # The pod's headless Chromium sidecar. OpenCode gets it from opencode.json.
 [tasks."paseo:mcp"]

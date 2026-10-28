@@ -1,0 +1,9 @@
+{
+  "agents": {
+    "providers": {
+      "claude": {
+        "enabled": false
+      }
+    }
+  }
+}
