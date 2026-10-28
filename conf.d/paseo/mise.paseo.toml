@@ -43,6 +43,7 @@ starship = "latest"
 "~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
 "~/Repositories/dotfiles"           = { url = "https://github.com/h-wb/dotfiles.git" }
+"~/Repositories/sento"              = { url = "https://github.com/h-wb/sento.git" }
 
 # A pull can change a repo's mise config, which invalidates its content-hashed
 # trust marker; without a fresh `mise trust`, every daemon-spawned helper there
@@ -51,7 +52,6 @@ starship = "latest"
 # before the config-dependent parts, so trust the repos as soon as they exist.
 [bootstrap.hooks.post-repos]
 run = "mise bootstrap repos exec -- mise trust"
-"~/Repositories/sento"              = { url = "https://github.com/h-wb/sento.git" }
 
 [dotfiles]
 "~/.bashrc"                       = { source = "bashrc", mode = "symlink" }
