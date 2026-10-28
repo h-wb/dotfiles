@@ -31,7 +31,28 @@ starship = "latest"
 "~/.paseo/config.json/defaults"     = { source = "defaults.json", merge = "missing" }
 "~/.paseo/config.json/providers"    = { source = "providers.json", merge = true }
 
+[shell_alias]
+# Paseo session shortcuts — daemon-managed, so visible on mobile/web/CLI.
+# Use these instead of running claude/codex directly for anything you want
+# to see on another device.
+pc    = "paseo run --provider claude"
+px    = "paseo run --provider codex"
+pls   = "paseo ls"
+patt  = "paseo attach"
+psend = "paseo send"
+
 # ── Tasks ───────────────────────────────────────────────────────────────────
+[tasks."paseo:latest"]
+description = "Attach to the most recent Paseo session"
+run = '''
+id="$(paseo ls -q 2>/dev/null | head -1)"
+if [ -n "$id" ]; then
+    paseo attach "$id"
+else
+    echo "no sessions"
+fi
+'''
+
 [tasks.bootstrap]
 run = [
   { task = "paseo:mcp" },
