@@ -12,4 +12,6 @@ pull_dotfiles "${HOME}/.dotfiles/conf.d/paseo/bin/paseo-bootstrap" "$@"
 # The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
 export MISE_CONFIG_DIR="${HOME}/.dotfiles"
 # --skip-dirty: an agent's uncommitted work in a repo must not fail the pod start.
-exec "$MISE" bootstrap --yes --force-dotfiles --skip-dirty
+# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/;
+#   MISE_CONFIG_DIR makes mise write them under .mise/locks/ instead (gitignored).
+exec "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked

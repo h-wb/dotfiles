@@ -63,10 +63,12 @@ fi
 
 # --skip-dirty: one repo with uncommitted work would fail the whole run.
 # --force-dotfiles: fish writes its own config.fish on first start.
+# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/;
+#   MISE_CONFIG_DIR makes mise write them under .mise/locks/ instead (gitignored).
 case "$MODE" in
-secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty ;;
-fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty ;;
-protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty ;;
+secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
+fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
+protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty --locked ;;
 esac
 
 if ! timeout 900 "$@"; then
