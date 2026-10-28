@@ -39,9 +39,14 @@ configs="$("$MISE" config)"
 case "$configs" in
 *config.workstation.toml*)
 	# Activate configured tools and env before login (neko needs the fs key provider).
-	exec "$MISE" exec github:jdx/fnox github:protonpass/pass-cli -- sh -c '
+	"$MISE" exec github:jdx/fnox github:protonpass/pass-cli -- sh -c '
 		./scripts/pass-preflight || exit 1
 		exec fnox --if-missing error exec -c fnox.toml -- "$@"
-	' sh "$MISE" bootstrap --yes --force-dotfiles ;;
-*) exec "$MISE" bootstrap --yes --force-dotfiles ;;
+	' sh "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
+*) "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
 esac
+
+# MISE_CONFIG_DIR makes mise normalise lock sidecar paths from locks/… to
+# .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
+# so the checkout stays clean for the next pull --ff-only.
+git checkout -- mise.lock mise.*.lock 2>/dev/null || true
