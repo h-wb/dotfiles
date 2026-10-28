@@ -33,13 +33,15 @@ starship = "latest"
 
 [shell_alias]
 # Paseo session shortcuts — daemon-managed, so visible on mobile/web/CLI.
-# Use these instead of running claude/codex directly for anything you want
-# to see on another device.
+# Use these instead of running claude/codex/vibe directly for anything you
+# want to see on another device.
 pc    = "paseo run --provider claude"
 px    = "paseo run --provider codex"
+pv    = "paseo run --provider mistral-vibe"
 pls   = "paseo ls"
 patt  = "paseo attach"
 psend = "paseo send"
+pstop = "paseo stop"
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 [tasks."paseo:latest"]
@@ -50,6 +52,39 @@ if [ -n "$id" ]; then
     paseo attach "$id"
 else
     echo "no sessions"
+fi
+'''
+
+[tasks."paseo:latest-claude"]
+description = "Attach to the most recent Claude session"
+run = '''
+id="$(paseo ls -q --provider claude 2>/dev/null | head -1)"
+if [ -n "$id" ]; then
+    paseo attach "$id"
+else
+    echo "no claude sessions"
+fi
+'''
+
+[tasks."paseo:latest-codex"]
+description = "Attach to the most recent Codex session"
+run = '''
+id="$(paseo ls -q --provider codex 2>/dev/null | head -1)"
+if [ -n "$id" ]; then
+    paseo attach "$id"
+else
+    echo "no codex sessions"
+fi
+'''
+
+[tasks."paseo:latest-vibe"]
+description = "Attach to the most recent Mistral Vibe session"
+run = '''
+id="$(paseo ls -q --provider mistral-vibe 2>/dev/null | head -1)"
+if [ -n "$id" ]; then
+    paseo attach "$id"
+else
+    echo "no vibe sessions"
 fi
 '''
 
