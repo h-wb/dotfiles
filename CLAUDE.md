@@ -362,7 +362,7 @@ name would regenerate every client's key).
   `seccompProfile: Unconfined`.
 - **GUI apps**: not brew (installs outside the PVC; Linux casks are font-only),
   not apt (wiped), not flatpak (bubblewrap needs a user namespace; a sandboxed
-  VS Code cannot see the mise toolchain). `github:` with `extract_all`, or a
+  VS Code cannot see the mise toolchain). `github:` (archives unpack whole, no `extract_all`), or a
   pinned `http:` with a `[platforms]` table (Obsidian: its GitHub "latest" is an
   APK). `ubi:` is deprecated. Menu entries' `Exec` is the mise shim, stable
   across bumps.
@@ -407,10 +407,11 @@ The pod mounts `/etc/paseo`, which is what `miserc.toml` detects.
   `neko-bootstrap`.
 - **No kubeconfig**: `workstation` renders them and sets `KUBECONFIG`; without it,
   kubectl uses the pod's service account. Doctor `paseo-kube`.
-- **Claude stays on the subscription**: Paseo's built-in Claude provider goes
-  through the Agent SDK, so a native `[dotfiles]` JSON merge turns it off and Claude runs in a
-  terminal tab. Codex, OpenCode (LiteLLM's local models) and the rest stay in
-  Paseo's chat.
+- **Providers are a native `[dotfiles]` JSON merge** (`providers.json`, `merge =
+  true`) over Paseo's own `~/.paseo/config.json`; `defaults.json` is `merge =
+  "missing"`. Claude is enabled, so it runs in Paseo's chat like Codex,
+  OpenCode (LiteLLM's local models) and Vibe (which gets `home-mcp` through
+  its provider env).
 - The pod's Chromium sidecar is CDP on `127.0.0.1:9222`; `paseo:mcp` and
   `opencode.json` register `chrome-devtools-mcp` against it.
 - sshd is not mise's job (it would need apt): it is a home-ops sidecar.
