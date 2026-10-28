@@ -14,6 +14,10 @@ fish_add_path() { :; }  # no-op if something sources fish helpers
 eval "$(mise activate bash)"
 #mise#
 
+#mise# — completions for mise itself
+eval "$(mise completion bash)"
+#mise#
+
 #mise# — starship prompt (single static binary, installed by mise)
 eval "$(starship init bash)"
 #mise#
