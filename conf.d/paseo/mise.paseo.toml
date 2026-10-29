@@ -146,7 +146,7 @@ PROTON_PASS_PERSONAL_ACCESS_TOKEN="${PROTON_PASS_TOKEN}" pass-cli login
 
 # The pod's headless Chromium sidecar. OpenCode gets it from opencode.json.
 [tasks."paseo:mcp"]
-description = "Register the browser MCP with Claude Code and Codex"
+description = "Register the browser MCP with Claude Code, Codex and Vibe"
 hide = true
 run = '''
 url=http://127.0.0.1:9222
@@ -156,6 +156,8 @@ claude mcp get chrome-devtools >/dev/null 2>&1 ||
 	claude mcp add -s user chrome-devtools -- chrome-devtools-mcp --browserUrl "$url"
 codex mcp get chrome-devtools >/dev/null 2>&1 ||
 	codex mcp add chrome-devtools -- chrome-devtools-mcp --browserUrl "$url"
+# `vibe mcp add` is idempotent: a no-op when the server is already configured.
+vibe mcp add chrome-devtools --transport stdio --command chrome-devtools-mcp --arg=--browserUrl --arg="$url"
 '''
 
 # ── Doctor checks ───────────────────────────────────────────────────────────
