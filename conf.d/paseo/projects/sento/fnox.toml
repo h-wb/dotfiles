@@ -1,0 +1,12 @@
+# Private reference map for Sento; no secret values are stored here.
+[providers.protonpass]
+type = "proton-pass"
+vault = "Homelab"
+agent_reason = "sento fnox"
+
+[secrets]
+SENTO_QBITTORRENT_USERNAME = { provider = "protonpass", value = "pass://Homelab/qBittorrent/username" }
+SENTO_QBITTORRENT_PASSWORD = { provider = "protonpass", value = "pass://Homelab/qBittorrent/password" }
+SENTO_PROWLARR_API_KEY = { provider = "protonpass", value = "pass://Homelab/Prowlarr/api-key" }
+# Repository-scoped GitHub token: grant explicitly with `mise x --secrets GH_TOKEN -- gh ...`.
+GH_TOKEN = { provider = "protonpass", value = "pass://Homelab/sento-agents/password" }
