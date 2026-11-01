@@ -63,6 +63,11 @@ run = "mise bootstrap repos exec -- mise trust"
 "~/.paseo/config.json/defaults"     = { source = "defaults.json", merge = "missing" }
 "~/.paseo/config.json/providers"    = { source = "providers.json", merge = true }
 
+# Host-owned Sento defaults and vault references. Copy, rather than symlink,
+# so Paseo can propagate these ignored files into fresh worktrees.
+"~/Repositories/sento/mise.local.toml" = { source = "projects/sento/mise.toml", mode = "copy", permissions = "600" }
+"~/Repositories/sento/fnox.toml" = { source = "projects/sento/fnox.toml", mode = "copy", permissions = "600" }
+
 [shell_alias]
 # Paseo session shortcuts — daemon-managed, so visible on mobile/web/CLI.
 # Use these instead of running claude/codex/vibe directly for anything you
