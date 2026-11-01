@@ -1,0 +1,18 @@
+# Private Sento integration, provisioned by the Paseo host's dotfiles.
+# The host authenticates Proton Pass during its normal bootstrap. Credentials
+# are resolved only for this task or an explicit `mise x --secrets` command.
+[tools]
+"github:jdx/fnox" = "1.46.0"
+"github:protonpass/pass-cli" = "2.5.1"
+
+[env]
+SENTO_QBITTORRENT_URL = "http://qbittorrent-vpn.downloads.svc.cluster.local:8080"
+SENTO_QBITTORRENT_CATEGORY = "sento-test"
+SENTO_PROWLARR_URL = "http://prowlarr.downloads.svc.cluster.local"
+
+[secrets.fnox]
+
+[tasks."run:watch"]
+description = "Run the supervised Sento backend with task-scoped test credentials"
+secrets = ["SENTO_QBITTORRENT_USERNAME", "SENTO_QBITTORRENT_PASSWORD", "SENTO_PROWLARR_API_KEY"]
+run = "bash scripts/watch-api.sh"
