@@ -4,10 +4,14 @@
 type = "proton-pass"
 vault = "env-dotfiles"
 
+[providers.automation]
+type = "proton-pass"
+vault = "Automation"
+
 [secrets]
 SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://env-dotfiles/Truenas/host" }
 SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://env-dotfiles/Truenas/username" }
-WG0_HOME_CONF = { provider = "protonpass", value = "pass://env-dotfiles/wg0.conf/note" }
+WG0_HOME_CONF = { provider = "automation", value = "pass://Automation/wg0.conf/note" }
 # Internal addresses in a public repo; conf.d/k8s-dns reads them as bootstrap secrets.
 K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://env-dotfiles/k8s gateway/ip address" }
 K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://env-dotfiles/k8s gateway/ip address edge" }
@@ -17,8 +21,8 @@ KUBECONFIG_MAIN = { provider = "protonpass", value = "pass://env-dotfiles/Kubeco
 KUBECONFIG_EDGE = { provider = "protonpass", value = "pass://env-dotfiles/Kubeconfig/edge" }
 
 # GH_TOKEN is only really needed in neko (the Macs' keychain covers git and gh).
-GIT_EMAIL = { provider = "protonpass", value = "pass://env-dotfiles/GitHub/email" }
-GH_TOKEN = { provider = "protonpass", value = "pass://env-dotfiles/GitHub/token" }
+GIT_EMAIL = { provider = "automation", value = "pass://Automation/github-workstation/email" }
+GH_TOKEN = { provider = "automation", value = "pass://Automation/github-workstation/token" }
 
 # AnkiConnect's apiKey (conf.d/anki); n8n holds the same value.
 ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://env-dotfiles/AnkiConnect/password" }
