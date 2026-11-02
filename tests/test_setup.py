@@ -224,6 +224,149 @@ esac
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(target.read_text(), '{"unfinished":')
 
+    def mock_proton(self):
+        self.fake("uname", 'echo "${TEST_OS:-Linux}"')
+        self.fake("security", '''
+printf '%s\\n' "$*" >> "$HOME/keychain.calls"
+[ -n "${TEST_KEYCHAIN_TOKEN:-}" ] || exit 1
+printf '%s' "$TEST_KEYCHAIN_TOKEN"
+''')
+        self.fake("pass-cli", '''
+printf '%s:%s\\n' "${PROTON_PASS_SESSION_DIR##*/}" "$*" >> "$HOME/pass.calls"
+case "$1" in
+info) [ -f "$PROTON_PASS_SESSION_DIR/authenticated" ] && [ "${TEST_SESSION_EXPIRED:-0}" != 1 ] ;;
+logout)
+    [ "${TEST_LOGOUT_FAIL:-0}" != 1 ] || exit 1
+    rm -f "$PROTON_PASS_SESSION_DIR/authenticated" ;;
+login)
+    mkdir -p "$PROTON_PASS_SESSION_DIR"
+    # Simulate a partial cache even when the login is rejected.
+    printf '%s' "$PROTON_PASS_PERSONAL_ACCESS_TOKEN" > "$PROTON_PASS_SESSION_DIR/authenticated"
+    [ "${TEST_LOGIN_FAIL:-0}" != 1 ] ;;
+esac
+''')
+
+    def proton_login(self, session="home-ops", **env):
+        return self.mise("run", "--skip-tools", "proton:login", session,
+                         ok=False, env={**self.env, **env})
+
+    def test_proton_login_rotates_reuses_and_refreshes_only_its_session(self):
+        self.mock_proton()
+        session = self.home / ".local/state/pass-cli/home-ops"
+        other = self.home / ".local/state/pass-cli/obsidian-workspace/authenticated"
+        other.parent.mkdir(parents=True)
+        other.write_text("other-session")
+        for token, expired, expected_logins in (("first", "0", 1), ("first", "0", 1),
+                                                ("second", "0", 2), ("second", "1", 3)):
+            with self.subTest(token=token, expired=expired):
+                result = self.proton_login(PROTON_PASS_TOKEN=token, TEST_SESSION_EXPIRED=expired)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual((session / "authenticated").read_text(), token)
+                self.assertEqual((self.home / "pass.calls").read_text().count("home-ops:login\n"), expected_logins)
+                self.assertEqual(other.read_text(), "other-session")
+                self.assertEqual(session.stat().st_mode & 0o777, 0o700)
+                self.assertEqual((session / ".token-fingerprint").stat().st_mode & 0o777, 0o600)
+
+    def test_proton_login_clears_cached_access_when_token_removed_or_rejected(self):
+        self.mock_proton()
+        session = self.home / ".local/state/pass-cli/home-ops"
+        for failure in ({"PROTON_PASS_TOKEN": "", "TEST_LOGOUT_FAIL": "1"},
+                        {"PROTON_PASS_TOKEN": "rejected-dummy-token", "TEST_LOGIN_FAIL": "1"}):
+            with self.subTest(failure=failure):
+                result = self.proton_login(PROTON_PASS_TOKEN="old-dummy-token")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                result = self.proton_login(**failure)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(session.exists())
+                for token in ("old-dummy-token", "rejected-dummy-token"):
+                    self.assertNotIn(token, result.stdout + result.stderr)
+                    self.assertNotIn(token, (self.home / "pass.calls").read_text())
+
+    def test_proton_login_uses_macos_keychain_and_does_not_fall_back(self):
+        self.mock_proton()
+        env = {"TEST_OS": "Darwin", "USER": "fixture-user", "PROTON_PASS_TOKEN": "unrelated-dummy-token"}
+        result = self.proton_login(TEST_KEYCHAIN_TOKEN="keychain-first", **env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        session = self.home / ".local/state/pass-cli/home-ops"
+        self.assertEqual((session / "authenticated").read_text(), "keychain-first")
+        self.assertIn("-s pass-cli-home-ops -a fixture-user -w", (self.home / "keychain.calls").read_text())
+        result = self.proton_login(TEST_KEYCHAIN_TOKEN="keychain-second", **env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((session / "authenticated").read_text(), "keychain-second")
+        result = self.proton_login(**env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(session.exists())
+
+    def test_proton_login_is_global_and_repo_wrapper_uses_named_session(self):
+        self.mock_proton()
+        project = self.home / "project"
+        project.mkdir()
+        (project / "mise.toml").write_text('''
+[env]
+PROTON_PASS_SESSION_DIR = "{{env.HOME}}/.local/state/pass-cli/obsidian-workspace"
+[tasks."pass:login"]
+extends = "proton-login"
+env.PROTON_PASS_LOGIN_SESSION = "obsidian-workspace"
+''')
+        for monorepo in (False, True):
+            with self.subTest(monorepo=monorepo):
+                if monorepo:
+                    config = project / "mise.toml"
+                    config.write_text("monorepo_root = true\n" + config.read_text())
+                result = self.mise("-C", str(project), "run", "--skip-tools", "pass:login", ok=False,
+                                   env={**self.env, "PROTON_PASS_TOKEN": "repo-dummy-token"})
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        session = self.home / ".local/state/pass-cli/obsidian-workspace"
+        self.assertEqual((session / "authenticated").read_text(), "repo-dummy-token")
+        self.assertFalse((self.home / ".local/state/pass-cli/paseo-general").exists())
+
+    def test_proton_login_rejects_session_paths_before_mutation(self):
+        self.mock_proton()
+        result = self.proton_login("../outside", PROTON_PASS_TOKEN="dummy-token")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.home / "pass.calls").exists())
+
+    def test_proton_login_finishes_before_task_secrets_are_resolved(self):
+        self.mock_proton()
+        self.fake("fnox", '''
+if [ "$1" = --version ]; then echo 'fnox 1.42.1'; exit 0; fi
+case "$*" in
+*--describe*)
+    printf '%s\\n' '{"schema":1,"fnox_version":"1.42.1","profile":["default"],"keys":[{"key":"FIXTURE_SECRET","kind":"secret","env":"exec","injectable":{"exec":true,"shell":false}}],"dynamic_leases":[]}' ;;
+*)
+    [ -f "$PROTON_PASS_SESSION_DIR/authenticated" ] || exit 1
+    printf '%s\\n' resolved >> "$HOME/fnox.calls"
+    printf '%s\\n' '{"schema":1,"fnox_version":"1.42.1","scope":"exec","profile":["default"],"set":{"FIXTURE_SECRET":"dummy-secret"},"files":{},"remove":[],"missing":[],"leases":[]}' ;;
+esac
+''')
+        project = self.home / "secret-project"
+        project.mkdir()
+        (project / "mise.toml").write_text('''
+[settings]
+experimental = true
+[env]
+PROTON_PASS_SESSION_DIR = "{{env.HOME}}/.local/state/pass-cli/obsidian-workspace"
+[secrets.fnox]
+[tasks."pass:login"]
+extends = "proton-login"
+env.PROTON_PASS_LOGIN_SESSION = "obsidian-workspace"
+[tasks.consume]
+depends = ["pass:login"]
+secrets = ["FIXTURE_SECRET"]
+run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
+''')
+        (project / "fnox.toml").write_text('[secrets.FIXTURE_SECRET]\nvalue = "unused"\n')
+        args = ("-C", str(project), "run", "--skip-tools", "consume")
+        result = self.mise(*args, ok=False, env={**self.env, "PROTON_PASS_TOKEN": "dummy-token"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((self.home / "consumed").exists())
+        calls = (self.home / "fnox.calls").read_text()
+        (self.home / "consumed").unlink()
+        result = self.mise(*args, ok=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.home / "consumed").exists())
+        self.assertEqual(calls, (self.home / "fnox.calls").read_text())
+
     def test_installer_layers_and_secret_routing(self):
         self.fake_mise()
         self.fake("git", "exit 0")

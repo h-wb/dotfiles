@@ -1,0 +1,10 @@
+[task_templates.proton-login]
+usage = '''
+arg "[session]" help="Session name; defaults to the task's PROTON_PASS_LOGIN_SESSION"
+'''
+run = "sh {{ mise_config_dir | quote }}/conf.d/proton-pass/tasks/login.sh"
+
+[tasks."proton:login"]
+extends = "proton-login"
+description = "Authenticate a named Proton Pass session (macOS Keychain or pod token)"
+quiet = true

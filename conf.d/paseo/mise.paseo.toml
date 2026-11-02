@@ -129,30 +129,18 @@ fi
 '''
 
 [tasks.bootstrap]
-run = [{ task = "paseo:mcp" }, { task = "paseo:pass-login" }]
+run = [
+  { task = "paseo:pass-login" },
+  { task = "paseo:mcp" },
+]
 
 # Each pod receives its own scoped token. General must not include the private
 # Obsidian vault. Re-authenticate on bootstrap so token changes take effect.
 [tasks."paseo:pass-login"]
-description = "Log the pod's Proton Pass session in (the `paseo` access token)"
+extends = "proton-login"
+description = "Authenticate this pod's scoped Proton Pass session"
 hide = true
-run = '''
-set -eu
-mkdir -p "${PROTON_PASS_SESSION_DIR}" && chmod 700 "${PROTON_PASS_SESSION_DIR}"
-if [ -z "${PROTON_PASS_TOKEN:-}" ]; then
-    echo "[pass-login] no PROTON_PASS_TOKEN in env; skipping"
-    exit 0
-fi
-fingerprint="$(printf '%s' "$PROTON_PASS_TOKEN" | sha256sum | cut -d ' ' -f 1)"
-marker="$PROTON_PASS_SESSION_DIR/.token-fingerprint"
-if [ -f "$marker" ] && [ "$(cat "$marker")" = "$fingerprint" ] && pass-cli info >/dev/null 2>&1; then
-    exit 0
-fi
-pass-cli logout >/dev/null 2>&1 || true
-PROTON_PASS_PERSONAL_ACCESS_TOKEN="${PROTON_PASS_TOKEN}" pass-cli login
-printf '%s' "$fingerprint" > "$marker"
-chmod 600 "$marker"
-'''
+env.PROTON_PASS_LOGIN_SESSION = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 
 # The pod's headless Chromium sidecar. OpenCode gets it from opencode.json.
 [tasks."paseo:mcp"]
