@@ -45,6 +45,14 @@ class SetupTests(unittest.TestCase):
             "NO_COLOR": "1",
         }
         self.select("paseo")
+        # The paseo layer merges the home-ops scope fragments from
+        # /etc/paseo/scope; retarget that mount into the throwaway HOME (the
+        # repo's convention for privileged paths) with the test fixtures.
+        self.scope_dir = self.home / "etc-paseo/scope"
+        shutil.copytree(ROOT / "tests/fixtures/paseo-scope", self.scope_dir)
+        paseo_toml = self.repo / "conf.d/paseo/mise.paseo.toml"
+        paseo_toml.write_text(paseo_toml.read_text().replace(
+            "/etc/paseo/scope", str(self.scope_dir)))
 
     def select(self, machine):
         (self.repo / "miserc.local.toml").write_text(
@@ -170,11 +178,25 @@ esac
         target.write_text(json.dumps(before))
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         after = json.loads(target.read_text())
-        # apply merges only defaults (missing keys). Provider grants are rendered
-        # by home-ops' mounted policy script at pod start, never by this merge.
+        # apply merges defaults (missing keys) and the scope fragment (merge
+        # overrides the scope keys, keeps everything else).
         self.assertIn("fresh-worktrees", after.pop("plugins"))
         self.assertTrue(after.pop("pluginsEnabled"))
-        self.assertEqual(after, before)
+        self.assertEqual(after, {
+            "version": 2, "theme": "dark",
+            "agents": {"providers": {
+                # scope.json overrides enabled, keeps the unrelated key
+                "claude": {"enabled": False, "custom": "keep"},
+                "codex": {"enabled": True},  # not in the fixture: untouched
+                "mistral-vibe": {"enabled": True, "env": {
+                    "VIBE_MCP_SERVERS": "[{\"name\":\"toolhive-fixture\"}]"}},
+            }},
+        })
+        # The scope fragments also land in the native client configs.
+        claude = json.loads((self.home / ".claude.json").read_text())["mcpServers"]
+        self.assertEqual("https://mcp-fixture.example/mcp", claude["toolhive-fixture"]["url"])
+        codex = tomllib.loads((self.home / ".codex/config.toml").read_text())
+        self.assertIn("toolhive-fixture", codex["mcp_servers"])
         stamp = target.stat().st_mtime_ns
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         self.assertEqual(target.stat().st_mtime_ns, stamp)
@@ -184,8 +206,15 @@ esac
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         config = json.loads((self.home / ".paseo/config.json").read_text())
         self.assertEqual(config["version"], 1)
-        # No providers: home-ops' mounted policy script renders them at pod start.
-        self.assertNotIn("agents", config)
+        # Providers come from the home-ops scope fragment merged at bootstrap.
+        self.assertFalse(config["agents"]["providers"]["claude"]["enabled"])
+        self.assertTrue(config["agents"]["providers"]["mistral-vibe"]["enabled"])
+
+    def test_paseo_merge_fails_closed_without_scope_fragments(self):
+        shutil.rmtree(self.scope_dir)
+        result = self.mise("bootstrap", "dotfiles", "apply", "--yes", ok=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.home / ".paseo/config.json").exists())
 
     def test_paseo_merge_refuses_invalid_json(self):
         target = self.home / ".paseo/config.json"
