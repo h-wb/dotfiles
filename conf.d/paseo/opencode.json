@@ -11,11 +11,17 @@
       "models": {
         "qwen3.5-9b": {
           "name": "Qwen3.5 9B (MacBook)",
-          "limit": { "context": 32768, "output": 8192 }
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
         },
         "qwen3.5-9b-chat": {
           "name": "Qwen3.5 9B no-think (MacBook)",
-          "limit": { "context": 32768, "output": 8192 }
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
         }
       }
     }
@@ -24,6 +30,20 @@
     "chrome-devtools": {
       "type": "local",
       "command": ["chrome-devtools-mcp", "--browserUrl", "http://127.0.0.1:9222"]
+    },
+    "toolhive-general": {
+      "type": "remote",
+      "url": "https://mcp-general.wlab.ovh/mcp",
+      "headers": {
+        "x-api-key": "{env:MCP_API_KEY}"
+      }
+    },
+    "memini-general": {
+      "type": "remote",
+      "url": "http://memini-general.llm.svc.cluster.local:8080/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:MEMINI_API_KEY}"
+      }
     }
   }
 }

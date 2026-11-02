@@ -2,12 +2,9 @@
 # image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
 #
-# Layers: pod, not workstation (miserc.toml). Cloud models (Claude, Codex) run here:
-# no personal data; fnox goes through the `paseo` Proton Pass access token
-# (paseo:pass-login, below), which reads the Homelab, env-home-ops, env-dlt and
-# env-dotfiles vaults. The token reaches the pod as PROTON_PASS_TOKEN from the
-# Bitwarden `paseo` item (home-ops agents/paseo).
-# Cluster access is the pod's service account, since no kubeconfig is rendered here.
+# Layers: pod, not workstation. home-ops supplies PASEO_DATA_SCOPE and
+# /etc/paseo/policy.json. Mistral may run in either scope; only private-approved
+# providers run on the private host. Each host has its own home and token.
 
 [settings]
 # Agents work in clones and Paseo worktrees that carry their own mise configs
@@ -17,8 +14,8 @@ trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
 [env]
 # Scoped Proton Pass session for this pod's fnox use; a repo's own config
 # (home-ops' .mise.toml) overrides it with its separate session dir there.
-PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo"
-PROTON_PASS_AGENT_REASON = "paseo fnox"
+PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
+PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
 # seccomp blocks the kernel keyring pass-cli uses by default; `fs` keeps the key
 # on the PVC (same as neko).
 PROTON_PASS_KEY_PROVIDER = "fs"
@@ -33,18 +30,18 @@ yq = "latest"
 starship = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
-"github:jpillora/sshd-lite" = "latest"   # the pod's sshd sidecar (home-ops agents/paseo)
-"github:protonpass/pass-cli" = "latest"  # the `paseo` token's session (paseo:pass-login)
-"github:jdx/fnox" = "latest"             # repos' fnox.toml ref their vaults
+"github:jpillora/sshd-lite" = "latest" # the pod's sshd sidecar (home-ops agents/paseo)
+"github:protonpass/pass-cli" = "latest" # the `paseo` token's session (paseo:pass-login)
+"github:jdx/fnox" = "latest" # repos' fnox.toml ref their vaults
 
 # Checkouts this host is provisioned from: cloned / fast-forwarded into
 # ~/Repositories by `mise bootstrap` (paseo-bootstrap) at every pod start.
 [bootstrap.repos]
-"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
-"~/Repositories/dotfiles"           = { url = "https://github.com/h-wb/dotfiles.git" }
-"~/Repositories/sento"              = { url = "https://github.com/h-wb/sento.git" }
-"~/Repositories/pipelines"          = { url = "https://github.com/h-wb/pipelines.git" }
+"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
+"~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git" }
+"~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git" }
 
 # A pull can change a repo's mise config, which invalidates its content-hashed
 # trust marker; without a fresh `mise trust`, every daemon-spawned helper there
@@ -55,13 +52,13 @@ starship = "latest"
 run = "mise bootstrap repos exec -- mise trust"
 
 [dotfiles]
-"~/.bashrc"                       = { source = "bashrc", mode = "symlink" }
-"~/.profile"                      = { source = "profile", mode = "symlink" }
-"~/.config/starship.toml"         = { source = "starship.toml", mode = "symlink" }
-"~/.local/bin"                     = { source = "bin", mode = "symlink-each" }
+"~/.bashrc" = { source = "bashrc", mode = "symlink" }
+"~/.profile" = { source = "profile", mode = "symlink" }
+"~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
+"~/.local/bin" = { source = "bin", mode = "symlink-each" }
 "~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
-"~/.paseo/config.json/defaults"     = { source = "defaults.json", merge = "missing" }
-"~/.paseo/config.json/providers"    = { source = "providers.json", merge = true }
+"~/.paseo/config.json/defaults" = { source = "defaults.json", merge = "missing" }
+
 
 # Host-owned Sento defaults and vault references. Copy, rather than symlink,
 # so Paseo can propagate these ignored files into fresh worktrees.
@@ -72,11 +69,11 @@ run = "mise bootstrap repos exec -- mise trust"
 # Paseo session shortcuts — daemon-managed, so visible on mobile/web/CLI.
 # Use these instead of running claude/codex/vibe directly for anything you
 # want to see on another device.
-pc    = "paseo run --provider claude"
-px    = "paseo run --provider codex"
-pv    = "paseo run --provider mistral-vibe"
-pls   = "paseo ls"
-patt  = "paseo attach"
+pc = "paseo run --provider claude"
+px = "paseo run --provider codex"
+pv = "paseo run --provider mistral-vibe"
+pls = "paseo ls"
+patt = "paseo attach"
 psend = "paseo send"
 pstop = "paseo stop"
 
@@ -126,27 +123,29 @@ fi
 '''
 
 [tasks.bootstrap]
-run = [
-  { task = "paseo:mcp" },
-  { task = "paseo:pass-login" },
-]
+run = [{ task = "paseo:policy" }, { task = "paseo:mcp" }, { task = "paseo:pass-login" }]
 
-# The pod's Proton Pass session. The token (PROTON_PASS_TOKEN, from the
-# Bitwarden `paseo` item via home-ops' ExternalSecret) opens the Homelab,
-# env-home-ops, env-dlt and env-dotfiles vaults; repos' pass:login tasks log the
-# same token into their own session dirs.
-# Idempotent, and a no-op without the token so the bootstrap predates it fine.
+# Each pod receives its own scoped token. General must not include the private
+# Obsidian vault. Re-authenticate on bootstrap so token changes take effect.
 [tasks."paseo:pass-login"]
 description = "Log the pod's Proton Pass session in (the `paseo` access token)"
 hide = true
 run = '''
+set -eu
 mkdir -p "${PROTON_PASS_SESSION_DIR}" && chmod 700 "${PROTON_PASS_SESSION_DIR}"
 if [ -z "${PROTON_PASS_TOKEN:-}" ]; then
     echo "[pass-login] no PROTON_PASS_TOKEN in env; skipping"
     exit 0
 fi
-pass-cli info >/dev/null 2>&1 && { echo "already logged in"; exit 0; }
+fingerprint="$(printf '%s' "$PROTON_PASS_TOKEN" | sha256sum | cut -d ' ' -f 1)"
+marker="$PROTON_PASS_SESSION_DIR/.token-fingerprint"
+if [ -f "$marker" ] && [ "$(cat "$marker")" = "$fingerprint" ] && pass-cli info >/dev/null 2>&1; then
+    exit 0
+fi
+pass-cli logout >/dev/null 2>&1 || true
 PROTON_PASS_PERSONAL_ACCESS_TOKEN="${PROTON_PASS_TOKEN}" pass-cli login
+printf '%s' "$fingerprint" > "$marker"
+chmod 600 "$marker"
 '''
 
 # The pod's headless Chromium sidecar. OpenCode gets it from opencode.json.
@@ -154,6 +153,7 @@ PROTON_PASS_PERSONAL_ACCESS_TOKEN="${PROTON_PASS_TOKEN}" pass-cli login
 description = "Register the browser MCP with Claude Code, Codex and Vibe"
 hide = true
 run = '''
+[ "${PASEO_DATA_SCOPE:-general}" = general ] || exit 0
 url=http://127.0.0.1:9222
 # codex refuses to start when its home is missing, as on a fresh PVC.
 mkdir -p "${CODEX_HOME:-$HOME/.codex}"
@@ -165,11 +165,17 @@ codex mcp get chrome-devtools >/dev/null 2>&1 ||
 vibe mcp add chrome-devtools --transport stdio --command chrome-devtools-mcp --arg=--browserUrl --arg="$url"
 '''
 
+[tasks."paseo:policy"]
+description = "Apply home-ops data scope, provider, MCP and metadata policy"
+hide = true
+run = "python3 tasks/policy.py"
+
 # ── Doctor checks ───────────────────────────────────────────────────────────
 [doctor.checks.paseo-kube]
 description = "kubectl reaches the cluster through the pod's service account"
 hint = "KUBECONFIG must be unset (the workstation layer sets it); check the paseo ServiceAccount's bindings in home-ops"
 run = '''
+[ "${PASEO_DATA_SCOPE:-general}" = general ] || exit 0
 [ -z "${KUBECONFIG:-}" ] || { echo "KUBECONFIG is set ($KUBECONFIG)"; exit 1; }
 kubectl auth can-i list pods --all-namespaces >/dev/null || { echo "service account cannot list pods"; exit 1; }
 '''
