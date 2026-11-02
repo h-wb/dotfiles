@@ -2,10 +2,9 @@
 # image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
 #
-# Layers: pod, not workstation. home-ops supplies PASEO_DATA_SCOPE and renders
-# the provider/MCP configuration from its own data policy after this bootstrap
-# (provision.sh runs its mounted renderer); dotfiles stays scope-agnostic and
-# only names the per-scope Proton Pass session directory with the env var.
+# Layers: pod, not workstation. home-ops supplies PASEO_DATA_SCOPE and mounts
+# static provider/MCP fragments at /etc/paseo/scope. This bootstrap merges them
+# through mise dotfiles; the env var names the per-scope Proton Pass session.
 
 [settings]
 # Agents work in clones and Paseo worktrees that carry their own mise configs

@@ -399,9 +399,10 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   Mistral Vibe. Both have separate homes and credentials. General retains its
   Kubernetes service-account permissions; private mounts no service-account token.
 - The canonical backend/provider eligibility policy lives in home-ops
-  (`kubernetes/components/agent-data-policy/`), and each Paseo app overlay ships
-  a static per-scope fragment (`paseo-<scope>/app/scope.json` + native client
-  fragments) mounted at `/etc/paseo/scope`. This repo merges those fragments
+  (`kubernetes/components/agent-data-policy/`), and each Paseo app overlay selects
+  static fragments from that component's `scopes/<scope>/` directory, mounted
+  read-only at `/etc/paseo/scope` in the init, app and SSH containers.
+  This repo merges those fragments
   into `~/.paseo/config.json`, `~/.claude.json` and `~/.codex/config.toml` via
   the `[dotfiles]` merge entries in `conf.d/paseo/mise.paseo.toml`; a missing
   mount fails bootstrap (fail closed). Dotfiles itself contains no provider
