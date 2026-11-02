@@ -101,6 +101,15 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
 
 ## Secrets: the silent-overwrite trap
 
+Managed agent sessions use the global `proton-login` task template in
+`conf.d/proton-pass/mise.toml`. Repositories define `pass:login` with
+`extends = "proton-login"` and `env.PROTON_PASS_LOGIN_SESSION = "<name>"`,
+and keep `PROTON_PASS_SESSION_DIR` pointed at that name. Credential-consuming
+tasks depend on login. The shared task selects `pass-cli-<name>` from macOS
+Keychain or `PROTON_PASS_TOKEN` on Linux, checks token rotation and expiry,
+and clears the named session on missing/rejected credentials. See
+`conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
+
 `fnox exec` defaults to `--if-missing warn`: a dead Proton Pass session is a
 WARN, fnox exits 0, the bootstrap runs with every secret unset, and the
 secret-gated templates render their empty fallback **over the good copies**
@@ -413,7 +422,7 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 - Vibe gets the scope's ToolHive endpoint. General native clients and OpenCode
   get `mcp-general` plus `memini-general`; private memory goes through ToolHive.
   MCP configuration stores environment references, never rendered credentials.
-- Proton Pass uses a per-scope session and token fingerprint. General must not
+- Proton Pass uses the global login template with a per-scope session and token fingerprint. General must not
   hold the token for `env-paseo-private`. Old sessions require migration cleanup
   and revocation of the old broad token; a new config cannot erase old access.
 - Provisioning is still `bin/paseo-bootstrap` and shared `scripts/provision.sh`.
