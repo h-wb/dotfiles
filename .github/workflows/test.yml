@@ -30,6 +30,13 @@ jobs:
           install: false
       - run: python3 tests/test_setup.py -v
 
+  # The data-scope policy consumer: plain python3, no mise needed.
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tests/test_paseo_policy.py -v
+
   machine:
     strategy:
       fail-fast: false
