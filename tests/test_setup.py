@@ -170,8 +170,8 @@ esac
         target.write_text(json.dumps(before))
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         after = json.loads(target.read_text())
-        # apply merges only defaults (missing keys). Provider grants come from
-        # the data policy via the paseo:policy task, never from this merge.
+        # apply merges only defaults (missing keys). Provider grants are rendered
+        # by home-ops' mounted policy script at pod start, never by this merge.
         self.assertIn("fresh-worktrees", after.pop("plugins"))
         self.assertTrue(after.pop("pluginsEnabled"))
         self.assertEqual(after, before)
@@ -184,7 +184,7 @@ esac
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         config = json.loads((self.home / ".paseo/config.json").read_text())
         self.assertEqual(config["version"], 1)
-        # No providers: paseo:policy renders them from the mounted data policy.
+        # No providers: home-ops' mounted policy script renders them at pod start.
         self.assertNotIn("agents", config)
 
     def test_paseo_merge_refuses_invalid_json(self):
