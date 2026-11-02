@@ -59,6 +59,12 @@ run = "mise bootstrap repos exec -- mise trust"
 "~/.local/bin" = { source = "bin", mode = "symlink-each" }
 "~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
 "~/.paseo/config.json/defaults" = { source = "defaults.json", merge = "missing" }
+# Per-scope agent config mounted by home-ops at /etc/paseo/scope (ConfigMap
+# ${APP}-scope). merge=true overrides the scope keys, preserves everything else.
+# A missing mount fails bootstrap: the pod refuses to start unconfigured.
+"~/.paseo/config.json/scope" = { source = "/etc/paseo/scope/scope.json", merge = true }
+"~/.claude.json/scope" = { source = "/etc/paseo/scope/claude.json", merge = true }
+"~/.codex/config.toml/scope" = { source = "/etc/paseo/scope/codex.toml", merge = true }
 
 
 # Host-owned Sento defaults and vault references. Copy, rather than symlink,

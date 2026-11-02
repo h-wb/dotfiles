@@ -399,13 +399,16 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   Mistral Vibe. Both have separate homes and credentials. General retains its
   Kubernetes service-account permissions; private mounts no service-account token.
 - The canonical backend/provider eligibility policy lives in home-ops
-  (`kubernetes/components/agent-data-policy/`), together with the renderer it
-  mounts at `/etc/paseo/policy.py`. home-ops' `provision.sh` runs that renderer
-  after this repo's bootstrap; dotfiles contains no provider lists and is
-  scope-agnostic except the `PASEO_DATA_SCOPE` env var naming the Proton Pass
-  session directory. Missing or invalid policy fails the pod start. Private
-  metadata stays on Mistral and private orchestration disables automatic agent
-  handoffs.
+  (`kubernetes/components/agent-data-policy/`), and each Paseo app overlay ships
+  a static per-scope fragment (`paseo-<scope>/app/scope.json` + native client
+  fragments) mounted at `/etc/paseo/scope`. This repo merges those fragments
+  into `~/.paseo/config.json`, `~/.claude.json` and `~/.codex/config.toml` via
+  the `[dotfiles]` merge entries in `conf.d/paseo/mise.paseo.toml`; a missing
+  mount fails bootstrap (fail closed). Dotfiles itself contains no provider
+  lists and is scope-agnostic except the `PASEO_DATA_SCOPE` env var naming the
+  Proton Pass session directory. Private metadata stays on Mistral and private
+  orchestration disables automatic agent handoffs (both set by the private
+  fragment).
 - Vibe gets the scope's ToolHive endpoint. General native clients and OpenCode
   get `mcp-general` plus `memini-general`; private memory goes through ToolHive.
   MCP configuration stores environment references, never rendered credentials.
