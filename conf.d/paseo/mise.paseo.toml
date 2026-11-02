@@ -2,9 +2,10 @@
 # image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
 #
-# Layers: pod, not workstation. home-ops supplies PASEO_DATA_SCOPE and
-# /etc/paseo/policy.json. Mistral may run in either scope; only private-approved
-# providers run on the private host. Each host has its own home and token.
+# Layers: pod, not workstation. home-ops supplies PASEO_DATA_SCOPE and renders
+# the provider/MCP configuration from its own data policy after this bootstrap
+# (provision.sh runs its mounted renderer); dotfiles stays scope-agnostic and
+# only names the per-scope Proton Pass session directory with the env var.
 
 [settings]
 # Agents work in clones and Paseo worktrees that carry their own mise configs
@@ -123,7 +124,7 @@ fi
 '''
 
 [tasks.bootstrap]
-run = [{ task = "paseo:policy" }, { task = "paseo:mcp" }, { task = "paseo:pass-login" }]
+run = [{ task = "paseo:mcp" }, { task = "paseo:pass-login" }]
 
 # Each pod receives its own scoped token. General must not include the private
 # Obsidian vault. Re-authenticate on bootstrap so token changes take effect.
@@ -165,10 +166,6 @@ codex mcp get chrome-devtools >/dev/null 2>&1 ||
 vibe mcp add chrome-devtools --transport stdio --command chrome-devtools-mcp --arg=--browserUrl --arg="$url"
 '''
 
-[tasks."paseo:policy"]
-description = "Apply home-ops data scope, provider, MCP and metadata policy"
-hide = true
-run = "python3 tasks/policy.py"
 
 # ── Doctor checks ───────────────────────────────────────────────────────────
 [doctor.checks.paseo-kube]

@@ -398,10 +398,14 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 - General runs Claude, Codex, Mistral Vibe and OpenCode. Private enables only
   Mistral Vibe. Both have separate homes and credentials. General retains its
   Kubernetes service-account permissions; private mounts no service-account token.
-- The canonical backend/provider eligibility policy is mounted by home-ops as
-  `/etc/paseo/policy.json`. `paseo:policy` consumes it; do not copy the lists into
-  dotfiles. Missing or invalid policy fails bootstrap. Private metadata stays
-  on Mistral and private orchestration disables automatic agent handoffs.
+- The canonical backend/provider eligibility policy lives in home-ops
+  (`kubernetes/components/agent-data-policy/`), together with the renderer it
+  mounts at `/etc/paseo/policy.py`. home-ops' `provision.sh` runs that renderer
+  after this repo's bootstrap; dotfiles contains no provider lists and is
+  scope-agnostic except the `PASEO_DATA_SCOPE` env var naming the Proton Pass
+  session directory. Missing or invalid policy fails the pod start. Private
+  metadata stays on Mistral and private orchestration disables automatic agent
+  handoffs.
 - Vibe gets the scope's ToolHive endpoint. General native clients and OpenCode
   get `mcp-general` plus `memini-general`; private memory goes through ToolHive.
   MCP configuration stores environment references, never rendered credentials.
