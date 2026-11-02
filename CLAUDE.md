@@ -422,8 +422,9 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 - Vibe gets the scope's ToolHive endpoint. General native clients and OpenCode
   get `mcp-general` plus `memini-general`; private memory goes through ToolHive.
   MCP configuration stores environment references, never rendered credentials.
-- Proton Pass uses the global login template with a per-scope session and token fingerprint. General must not
-  hold the token for `env-paseo-private`. Old sessions require migration cleanup
+- Proton Pass uses the global login template with a per-scope session and token fingerprint. Grant tokens access only to approved items: general must not
+  read the existing `Homelab/Obsidian` login. Machine-only external credentials
+  live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
   and revocation of the old broad token; a new config cannot erase old access.
 - Provisioning is still `bin/paseo-bootstrap` and shared `scripts/provision.sh`.
   Chromium and sshd remain pod sidecars. The private home is a separate PVC.
