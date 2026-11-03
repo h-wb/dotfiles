@@ -436,6 +436,22 @@ esac
                           env=env)
                 self.assertEqual((self.home / "resolved-profile").read_text(), expected)
 
+    def test_private_bootstrap_skips_general_repositories(self):
+        self.fake_mise()
+        self.fake("git", "exit 0")
+        script = self.repo / "conf.d/paseo/bin/paseo-bootstrap"
+        for scope in ["", "general", "private"]:
+            with self.subTest(scope=scope):
+                log = self.home / "mise.calls"
+                log.unlink(missing_ok=True)
+                self.run_cmd("sh", str(script), env={**self.env,
+                    "DOTFILES_PULLED": "1", "PASEO_DATA_SCOPE": scope})
+                command = next(line for line in log.read_text().splitlines()
+                               if line.startswith("bootstrap "))
+                self.assertEqual("--skip repos" in command, scope == "private")
+                self.assertIn("--locked", command)
+                self.assertIn("--force-dotfiles", command)
+
     def test_installer_layers_and_secret_routing(self):
         self.fake_mise()
         self.fake("git", "exit 0")

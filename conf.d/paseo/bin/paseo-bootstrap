@@ -14,7 +14,13 @@ export MISE_CONFIG_DIR="${HOME}/.dotfiles"
 # --skip-dirty: an agent's uncommitted work in a repo must not fail the pod start.
 # --locked: never rewrite mise.lock / its sidecars — they are committed at locks/;
 #   MISE_CONFIG_DIR makes mise write them under .mise/locks/ instead (gitignored).
-"$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked || exit 1
+set -- bootstrap --yes --force-dotfiles --skip-dirty --locked
+# Private receives no general GitHub credential. Its Obsidian tooling is copied
+# over SSH separately; keep the shared tools/dotfiles without cloning general repos.
+if [ "${PASEO_DATA_SCOPE:-general}" = private ]; then
+	set -- "$@" --skip repos
+fi
+"$MISE" "$@" || exit 1
 
 # MISE_CONFIG_DIR makes mise normalise lock sidecar paths from locks/… to
 # .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
