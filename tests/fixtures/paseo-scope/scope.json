@@ -1,0 +1,11 @@
+{
+  "agents": {
+    "providers": {
+      "claude": { "enabled": false },
+      "mistral-vibe": {
+        "enabled": true,
+        "env": { "VIBE_MCP_SERVERS": "[{\"name\":\"toolhive-fixture\"}]" }
+      }
+    }
+  }
+}
