@@ -110,6 +110,13 @@ Keychain or `PROTON_PASS_TOKEN` on Linux, checks token rotation and expiry,
 and clears the named session on missing/rejected credentials. See
 `conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
 
+Repos that need readable item titles with item-only agent grants can use the
+shared fnox Lua provider copied to `~/.config/fnox/proton-pass-items.lua`.
+References are `Item Title/field`; `options.vault` selects the canonical vault
+when visible, otherwise lookup is limited to explicit item shares. Duplicate
+titles fail. See `conf.d/proton-pass/README.md`. Do not add per-repo ID maps or
+another login implementation.
+
 `fnox exec` defaults to `--if-missing warn`: a dead Proton Pass session is a
 WARN, fnox exits 0, the bootstrap runs with every secret unset, and the
 secret-gated templates render their empty fallback **over the good copies**
