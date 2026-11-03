@@ -1,4 +1,4 @@
-# Claude Desktop → home-ops' mcp-ops ToolHive gateway (Anki, kubectl, flux,
+# Claude Desktop → home-ops' mcp-general ToolHive gateway (Anki, kubectl, flux,
 # GitHub, n8n), the one Claude Code uses. Desktop's config file only launches
 # local commands, so mcp-remote bridges to the remote server.
 
@@ -7,7 +7,7 @@
 
 # Desktop writes its own `preferences` into the file, so it is merged, not rendered.
 [tasks."claude-desktop:mcp"]
-description = "Add the mcp-ops gateway to Claude Desktop's MCP servers"
+description = "Add the mcp-general gateway to Claude Desktop's MCP servers"
 hide = true
 skip_if = '[ ! -d "/Applications/Claude.app" ]'
 run = "sh tasks/mcp.sh"

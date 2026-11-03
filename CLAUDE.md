@@ -28,28 +28,28 @@ work — `/etc/neko` (neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS),
 is a list, applied in order (later wins), and an entry that templates to empty is
 ignored:
 
-| env | machines | holds |
-| --- | --- | --- |
+| env                   | machines                | holds                                                                                                               |
+| --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `workstation` (layer) | personal, neko, cachyos | credentialed CLIs (aws, bws, pass-cli, fnox, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
-| `pod` (layer) | neko, paseo | `$HOME`-only pods: tmux, `LANG`, the home-ops checkout |
-| the class | one machine | everything else |
+| `pod` (layer)         | neko, paseo             | `$HOME`-only pods: tmux, `LANG`, the home-ops checkout                                                              |
+| the class             | one machine             | everything else                                                                                                     |
 
-So `config.toml` is only what *every* machine wants, the paseo agent host
+So `config.toml` is only what _every_ machine wants, the paseo agent host
 included; a layer never has to be taken back out by a class. An unrecognised
 machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
 `miserc.local.toml` overrides with the whole list (`env = ["workstation", "pod",
 "neko"]`), which is also how CI pins each matrix job.
 
-| file | loads when |
-| --- | --- |
-| `config.toml` | always (what every machine wants: tools, env, vars, `[shell_alias]`, doctor) |
-| `config.workstation.toml` | layer `workstation` |
-| `config.macos.toml` | any Mac — **platform environment** via `auto_env` |
-| `config.personal.toml` | machine class `personal` |
-| `conf.d/<feature>/mise.<env>.toml` | that env or platform — **folder fragments** |
-| `config.local.toml` | always, last (untracked per-machine `[vars]`) |
-| `miserc.toml` | early init, committed: `env_conf_d`, `auto_env` |
-| `miserc.local.toml` | early init, untracked, optional: overrides the detected class and layers |
+| file                               | loads when                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `config.toml`                      | always (what every machine wants: tools, env, vars, `[shell_alias]`, doctor) |
+| `config.workstation.toml`          | layer `workstation`                                                          |
+| `config.macos.toml`                | any Mac — **platform environment** via `auto_env`                            |
+| `config.personal.toml`             | machine class `personal`                                                     |
+| `conf.d/<feature>/mise.<env>.toml` | that env or platform — **folder fragments**                                  |
+| `config.local.toml`                | always, last (untracked per-machine `[vars]`)                                |
+| `miserc.toml`                      | early init, committed: `env_conf_d`, `auto_env`                              |
+| `miserc.local.toml`                | early init, untracked, optional: overrides the detected class and layers     |
 
 - **Folder fragments** (mise 2026.9.14): a folder in `conf.d/` reads only
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
@@ -101,6 +101,15 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
 
 ## Secrets: the silent-overwrite trap
 
+Managed agent sessions use the global `proton-login` task template in
+`conf.d/proton-pass/mise.toml`. Repositories define `pass:login` with
+`extends = "proton-login"` and `env.PROTON_PASS_LOGIN_SESSION = "<name>"`,
+and keep `PROTON_PASS_SESSION_DIR` pointed at that name. Credential-consuming
+tasks depend on login. The shared task selects `pass-cli-<name>` from macOS
+Keychain or `PROTON_PASS_TOKEN` on Linux, checks token rotation and expiry,
+and clears the named session on missing/rejected credentials. See
+`conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
+
 `fnox exec` defaults to `--if-missing warn`: a dead Proton Pass session is a
 WARN, fnox exits 0, the bootstrap runs with every secret unset, and the
 secret-gated templates render their empty fallback **over the good copies**
@@ -121,7 +130,7 @@ secret-gated templates render their empty fallback **over the good copies**
 ### `[bootstrap.secrets]`: used for k8s-dns, deliberately NOT for the shared templates
 
 A declared secret is resolved **before any mutation**; missing or empty, the
-whole bootstrap aborts with nothing written. Only secrets the *selected*
+whole bootstrap aborts with nothing written. Only secrets the _selected_
 template branch references are resolved (verified 2026-10-01: with `edge`
 picked, a missing main IP is fine).
 
@@ -135,7 +144,7 @@ picked, a missing main IP is fine).
   `secrets`/`fresh`/`protect` modes in `neko-bootstrap` cover that ground more
   precisely; keep them.
 - **Never `remove_empty = true` on a secret-gated template**: a dead session
-  would then *delete* `~/.ssh/config` instead of blanking it.
+  would then _delete_ `~/.ssh/config` instead of blanking it.
 
 ## mise behaviour worth knowing (verified, not guessed)
 
@@ -149,13 +158,13 @@ picked, a missing main IP is fine).
   internal ones are `hide = true`. Bodies longer than a few lines are scripts in
   the folder's `tasks/` (`run = "sh tasks/x.sh"`, not templated, not on PATH,
   committed non-executable). `skip_if` gets the task's env (`$TZ` from `[env]`).
-- **Templated vs literal.** Templated: task fields, dotfile *content*
+- **Templated vs literal.** Templated: task fields, dotfile _content_
   (`mode = "template"`), `[bootstrap.files]` content **with `template = true`**,
   launchd agent and systemd unit values, hook commands, `[shell_alias]`, doctor
-  `run`/`description`/`hint`. Literal: every *key* (so `/etc/resolver/example.test`
+  `run`/`description`/`hint`. Literal: every _key_ (so `/etc/resolver/example.test`
   is spelled out), dotfile `source`, package specs, macOS defaults.
 - **Task arguments need a `usage` spec.** Without one, `mise run <task> foo`
-  appends `foo` to the *last line* of a multi-line script instead of making it
+  appends `foo` to the _last line_ of a multi-line script instead of making it
   `$1`. With `usage = 'arg "<x>" { choices "a" "b"; }'` (or `flag "--y"`) it
   is validated and read as `{{ usage.x }}` (`--dry-run` → `usage.dry_run`).
   A nested `mise run` keeps the terminal on stdin, so wrappers like `diff` →
@@ -165,7 +174,7 @@ picked, a missing main IP is fine).
   sub-commands like `mise bootstrap macos defaults apply`.
 - **A hook that writes a file the dotfiles step renders is erased by it** — git
   resolves `--global` to the rendered `~/.config/git/config`. Anything that must
-  stick goes in the *source template*.
+  stick goes in the _source template_.
 - **Templates can branch on the platform**: `{% if os() == "linux" %}`
   (`os_family()` → `unix`, `arch()` → `x64`).
 - **`[dotfiles]` never sudos.** `[bootstrap.files]` (phase 3) is the only way to
@@ -190,7 +199,7 @@ picked, a missing main IP is fine).
 - **Bare `mise bootstrap` really bootstraps** — use `--dry-run` to look.
 - **`mise env` in a `#!/bin/sh` script needs `--shell bash`**: it honours an
   inherited `MISE_SHELL`, and from fish it emits `set -gx`, on which dash
-  *exits* (POSIX special builtin), past any `|| true`.
+  _exits_ (POSIX special builtin), past any `|| true`.
 - **`[shell_alias]` is set by `mise activate`** (zsh, bash, fish), templated,
   merged across configs like everything else — and not available in tasks or
   `mise exec`.
@@ -205,7 +214,7 @@ picked, a missing main IP is fine).
 - Build a sandbox `HOME` whose `.config/mise` symlinks to a copy (or worktree),
   then run **from a directory inside that sandbox**. Run from `~/.dotfiles`
   instead and mise walks up to the real `/Users/hugo/.config/mise` and loads
-  your *live* config as a project config on top — results are garbage
+  your _live_ config as a project config on top — results are garbage
   (`not trusted` errors, settings warnings).
 - `[bootstrap.files]` entries apply for real even in a "test": probing the
   resolver template applies `/etc/resolver` too unless the entry itself is
@@ -217,7 +226,7 @@ picked, a missing main IP is fine).
 
 ## Lockfiles
 
-mise writes one lockfile per config *file*, and with the repo as config dir
+mise writes one lockfile per config _file_, and with the repo as config dir
 they all land in the repo: `mise.lock` (config.toml **and** env-less folder
 fragments), `mise.macos.lock`, `mise.workstation.lock`, `mise.pod.lock`,
 `mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`
@@ -316,20 +325,20 @@ hand-written file cannot win a context-name collision.
 
 ### Claude Desktop (`conf.d/claude-desktop/`)
 
-Desktop gets home-ops' `mcp-ops` ToolHive gateway (Anki, kubectl, flux, GitHub,
+Desktop gets home-ops' `mcp-general` ToolHive gateway (Anki, kubectl, flux, GitHub,
 n8n), the same one Claude Code uses, with the same `claude-code` key (Proton
-Pass `env-dotfiles/mcp-ops`; the in-cluster generator is `CreatedOnce`, so a new key
+Pass `Automation/mcp-general-desktop`; the in-cluster generator is `CreatedOnce`, so a new key
 name would regenerate every client's key).
 
 - **Merged, not rendered**: Desktop writes its own `preferences` into
   `claude_desktop_config.json`. A `post-dotfiles` hook runs
-  `claude-desktop:mcp`, which sets only `mcpServers.toolhive-ops` with jq.
+  `claude-desktop:mcp`, which sets only `mcpServers.toolhive-general` with jq.
   Without the key it leaves the entry alone. A running Desktop reads it on its
   next start.
 - Desktop's config only launches local commands, so `npm:mcp-remote` (pinned,
   lock under `locks/`) bridges. `command` is its mise shim: launchd's PATH
   has `/usr/bin` (the npm wrapper needs `dirname`) but no mise.
-- The key is in `env`, and mcp-remote expands `${MCP_OPS_API_KEY}` in the
+- The key is in `env`, and mcp-remote expands `${MCP_GENERAL_API_KEY}` in the
   header arg itself, so it never shows in `ps`.
 - claude.ai (web, phone) is out of reach: its connectors call from Anthropic's
   cloud and want OAuth, and `mcp-ops` is internal with a static key.
@@ -372,8 +381,8 @@ name would regenerate every client's key).
   add-on on :3141 (home-ops has both Services; ToolHive's `anki`
   MCPServerEntry). `anki:setup` = `anki:addon` (links both add-ons, writes
   their `meta.json`) then `anki:start` (`supervisorctl update anki`). Bind
-  `0.0.0.0` only ever with a key (Proton Pass `env-dotfiles/AnkiConnect`,
-  `env-dotfiles/AnkiMCP`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
+  `0.0.0.0` only ever with a key (Proton Pass `Automation/anki-connect`,
+  `Automation/anki-mcp`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
   `update_enabled: false` or Anki's updater deletes the linked add-on.
   AnkiMCP's `http_allowed_hosts` must list the Service name ToolHive dials,
   or every request is a 421 (a wrong key is a 403). The `.ankiaddon` needs
@@ -389,32 +398,38 @@ name would regenerate every client's key).
   Kustomization; the backstop is kopiur (daily 04:45 to the NAS) — check
   `kubectl get snapshotpolicy -n default neko-desktop -o yaml` before trusting it.
 
-## The paseo agent host (`conf.d/paseo/`)
+## The Paseo agent hosts (`conf.d/paseo/`)
 
-home-ops `kubernetes/apps/main/agents/paseo`: the Paseo daemon (coding agents
-driven from desktop, web and phone) on `ghcr.io/getpaseo/paseo`, Debian bookworm,
-user `paseo`, **no sudo, no apt, no systemd**. Only `/home/paseo` is on a PVC.
-The pod mounts `/etc/paseo`, which is what `miserc.toml` detects.
+Home-ops defines `paseo-general` and `paseo-private` using one shared pod base.
+Both detect the same mise class through `/etc/paseo`; `PASEO_DATA_SCOPE` is the
+scope selector. The existing general release/PVC keeps its `paseo` identity.
 
-- **Cloud models run here**, so the class holds no secrets and no personal data:
-  layers `pod` only, not `workstation`, so no fnox and none of the credentialed
-  CLIs. Credentials (`GH_TOKEN`, `GIT_EMAIL`, `LITELLM_API_KEY`) are pod env from
-  home-ops' ExternalSecrets; templates read them like any `[vars]` default.
-- **Reprovisioning**: the pod's `tools` init container clones `~/.dotfiles` on a
-  fresh PVC and runs `bin/paseo-bootstrap` at every start: one plain `mise
-  bootstrap`, no secret modes. `scripts/provision.sh` (mise present and at the
-  hard `min_version`, checkout fast-forwarded and re-exec'd) is shared with
-  `neko-bootstrap`.
-- **No kubeconfig**: `workstation` renders them and sets `KUBECONFIG`; without it,
-  kubectl uses the pod's service account. Doctor `paseo-kube`.
-- **Providers are a native `[dotfiles]` JSON merge** (`providers.json`, `merge =
-  true`) over Paseo's own `~/.paseo/config.json`; `defaults.json` is `merge =
-  "missing"`. Claude is enabled, so it runs in Paseo's chat like Codex,
-  OpenCode (LiteLLM's local models) and Vibe (which gets `home-mcp` through
-  its provider env).
-- The pod's Chromium sidecar is CDP on `127.0.0.1:9222`; `paseo:mcp` and
-  `opencode.json` register `chrome-devtools-mcp` against it.
-- sshd is not mise's job (it would need apt): it is a home-ops sidecar.
+- General runs Claude, Codex, Mistral Vibe and OpenCode. Private enables only
+  Mistral Vibe. Both have separate homes and credentials. General retains its
+  Kubernetes service-account permissions; private mounts no service-account token.
+- The canonical backend/provider eligibility policy lives in home-ops
+  (`kubernetes/components/agent-data-policy/`), and each Paseo app overlay selects
+  static fragments from that component's `scopes/<scope>/` directory, mounted
+  read-only at `/etc/paseo/scope` in the init, app and SSH containers.
+  This repo merges those fragments
+  into `~/.paseo/config.json`, `~/.claude.json` and `~/.codex/config.toml` via
+  the `[dotfiles]` merge entries in `conf.d/paseo/mise.paseo.toml`; a missing
+  mount fails bootstrap (fail closed). Dotfiles itself contains no provider
+  lists and is scope-agnostic except the `PASEO_DATA_SCOPE` env var naming the
+  Proton Pass session directory. Private metadata stays on Mistral and private
+  orchestration disables automatic agent handoffs (both set by the private
+  fragment).
+- Vibe gets the scope's ToolHive endpoint. General native clients and OpenCode
+  get `mcp-general` plus `memini-general`; private memory goes through ToolHive.
+  MCP configuration stores environment references, never rendered credentials.
+- Proton Pass uses the global login template with a per-scope session and token fingerprint. Grant tokens access only to approved items: general must not
+  read the existing `Homelab/Obsidian` login. Machine-only external credentials
+  live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
+  and revocation of the old broad token; a new config cannot erase old access.
+- Provisioning is still `bin/paseo-bootstrap` and shared `scripts/provision.sh`.
+  Chromium and sshd remain pod sidecars. The private home is a separate PVC.
+- This is normal-workflow separation: general agents retain cluster administration
+  as an accepted route around it. See home-ops `agents/README.md` for rollout.
 
 ## The CachyOS desktop (`conf.d/cachyos/`)
 
@@ -426,7 +441,7 @@ of the neko constraints: apps are `pacman:` packages.
   cursor, animation speed and the fish prompt are CachyOS's `/etc/skel`
   defaults — don't re-declare them. `pacman -Qm` lib32 entries are orphans.
 - No AUR helper needed (zen-browser-bin, gamescope-session-cachyos are in the
-  cachyos repo). RetroDECK is a *system* flatpak; Arch's flatpak ships the
+  cachyos repo). RetroDECK is a _system_ flatpak; Arch's flatpak ships the
   flathub remote, so the pre-packages hook only ensures flatpak exists.
 - **KDE settings are `kwriteconfig6` keys, not dotfiles** — Plasma and Claude
   Code rewrite those rc files and `mimeapps.list` themselves. No D-Bus needed.
@@ -464,7 +479,7 @@ of the neko constraints: apps are `pacman:` packages.
   git history), no `target` variants, and it needs its git remote before
   anything is provisioned. `symlink` + this repo's git already give both halves.
 - **An extra env as a per-moment toggle** (e.g. `env = ["personal", "edge"]`
-  for DNS): works, but puts a toggle into config *discovery* and `MISE_ENV`
+  for DNS): works, but puts a toggle into config _discovery_ and `MISE_ENV`
   order is literal last-wins — `["edge", "personal"]` silently picks main.
   Layers are the opposite case: fixed per machine, and they never set the same
   key as each other, so their order cannot change the result.
