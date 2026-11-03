@@ -56,7 +56,9 @@ run = "mise bootstrap repos exec -- mise trust"
 "~/.profile" = { source = "profile", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
 "~/.local/bin" = { source = "bin", mode = "symlink-each" }
-"~/.config/opencode/opencode.json" = { source = "opencode.json", mode = "symlink" }
+# Existing unscoped hosts retain their pre-rollout client configuration.
+# Scoped general receives its new endpoints only with the matching pod env.
+"~/.config/opencode/opencode.json" = { source = "opencode.json.tera", mode = "template" }
 "~/.paseo/config.json/defaults" = { source = "defaults.json", merge = "missing" }
 # Per-scope agent config mounted by home-ops at /etc/paseo/scope (ConfigMap
 # ${APP}-scope). merge=true overrides the scope keys, preserves everything else.
