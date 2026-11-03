@@ -14,4 +14,4 @@ SENTO_QBITTORRENT_USERNAME = { provider = "protonpass", value = "pass://Homelab/
 SENTO_QBITTORRENT_PASSWORD = { provider = "protonpass", value = "pass://Homelab/qBittorrent/password" }
 SENTO_PROWLARR_API_KEY = { provider = "protonpass", value = "pass://Homelab/Prowlarr/api-key" }
 # Repository-scoped GitHub token: grant explicitly with `mise x --secrets GH_TOKEN -- gh ...`.
-GH_TOKEN = { provider = "automation", value = "pass://Automation/sento-agents/password" }
+GH_TOKEN = { provider = "automation", value = "pass://Automation/github-sento/password" }
