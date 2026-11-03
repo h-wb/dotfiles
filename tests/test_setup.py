@@ -389,6 +389,44 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertFalse((self.home / "consumed").exists())
         self.assertEqual(calls, (self.home / "fnox.calls").read_text())
 
+    def test_sento_profile_reaches_task_secret_resolution(self):
+        project = self.home / "sento-profile-project"
+        project.mkdir()
+        source = self.repo / "conf.d/paseo/projects/sento/mise.toml"
+        (project / "mise.toml").write_text("[settings]\nexperimental = true\n" + source.read_text().replace(
+            'run = "bash scripts/watch-api.sh"',
+            "run = 'test -n \"$SENTO_PROWLARR_API_KEY\"'"))
+        (project / "fnox.toml").write_text('[secrets]\n')
+        keys = ["SENTO_QBITTORRENT_USERNAME", "SENTO_QBITTORRENT_PASSWORD",
+                "SENTO_PROWLARR_API_KEY"]
+        describe = json.dumps({"schema": 1, "fnox_version": "1.46.0",
+            "profile": ["default"], "keys": [{"key": key, "kind": "secret",
+            "env": "exec", "injectable": {"exec": True, "shell": False}}
+            for key in keys], "dynamic_leases": []})
+        export = json.dumps({"schema": 1, "fnox_version": "1.46.0",
+            "scope": "exec", "profile": ["default"],
+            "set": {key: "dummy-secret" for key in keys}, "files": {},
+            "remove": [], "missing": [], "leases": []})
+        self.fake("fnox", f'''
+if [ "$1" = --version ]; then echo 'fnox 1.46.0'; exit 0; fi
+printf '%s' "$FNOX_PROFILE" > "$HOME/resolved-profile"
+case "$*" in
+*--describe*) printf '%s\\n' '{describe}' ;;
+*) printf '%s\\n' '{export}' ;;
+esac
+''')
+        for scope, explicit, expected in [
+            ("", None, "default"), ("general", None, "paseo-general"),
+            ("private", None, "default"), ("general", "custom", "custom"),
+        ]:
+            with self.subTest(scope=scope, explicit=explicit):
+                env = {**self.env, "PASEO_DATA_SCOPE": scope}
+                if explicit:
+                    env["FNOX_PROFILE"] = explicit
+                self.mise("-C", str(project), "run", "--skip-tools", "run:watch",
+                          env=env)
+                self.assertEqual((self.home / "resolved-profile").read_text(), expected)
+
     def test_installer_layers_and_secret_routing(self):
         self.fake_mise()
         self.fake("git", "exit 0")

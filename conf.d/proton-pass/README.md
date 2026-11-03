@@ -96,3 +96,13 @@ Older checkouts on this host have reference-only `fnox.local.toml` compatibility
 overrides. Remove those once their tracked maps include this migration. These
 files contain references, not credential values; current code uses the native
 fnox/mise paths without a second secret loader.
+
+## Item-scoped general reader
+
+The host-owned Sento configuration selects fnox's `paseo-general` profile when
+`PASEO_DATA_SCOPE=general`. The profile contains direct item-share/item-ID
+references for the approved general reader; an explicit `FNOX_PROFILE` takes
+precedence. Unscoped hosts retain the default named-vault references. Other
+repositories declare this selection in their own mise config, so unrelated
+projects do not inherit a profile they have not defined. Credentials are still
+resolved only for each task's secret grants.
