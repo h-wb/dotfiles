@@ -1,0 +1,4 @@
+# Keep the provisioned checkout on the existing in-cluster Prefect endpoint.
+# Scope selects the reader; fnox's native profile inheritance combines both.
+[secrets.fnox]
+profile = "{% if get_env(name='PASEO_DATA_SCOPE', default='') == 'general' %}paseo-general-cluster{% else %}cluster{% endif %}"
