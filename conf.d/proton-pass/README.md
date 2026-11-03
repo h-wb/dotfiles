@@ -58,6 +58,12 @@ Then update dotfiles and dependent repository tooling. The separate
 general/private host rollout replaces the transitional inputs with its own
 scope fragments after its credential and provisioning prerequisites are met.
 
+OpenCode's config is rendered through mise's native template mode. Existing
+hosts without `PASEO_DATA_SCOPE=general` retain their previous tools; scoped
+general gets the corresponding MCP endpoints and runtime environment references.
+No credential values are rendered into this file. Bootstrap replaces the old
+managed symlink when applying the template.
+
 ## Credential naming and ownership
 
 Vault names describe purpose, not the consuming repository:

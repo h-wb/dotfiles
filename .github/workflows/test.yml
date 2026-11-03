@@ -119,7 +119,7 @@ jobs:
             grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" "$HOME/.local/share/applications/ludo.desktop" ;;
           paseo)
             test -x "$HOME/.local/bin/paseo-bootstrap"
-            test -L "$HOME/.config/opencode/opencode.json"
+            test -f "$HOME/.config/opencode/opencode.json"
             test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: kubectl uses the pod's service account
             test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')"
             # the home-ops scope fragments merged into the agent configs
