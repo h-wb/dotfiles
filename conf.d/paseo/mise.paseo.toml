@@ -70,6 +70,7 @@ run = "mise bootstrap repos exec -- mise trust"
 
 # Host-owned Sento defaults and vault references. Copy, rather than symlink,
 # so Paseo can propagate these ignored files into fresh worktrees.
+"~/Repositories/pipelines/mise.local.toml" = { source = "projects/pipelines/mise.toml.tera", mode = "template", permissions = "600" }
 "~/Repositories/sento/mise.local.toml" = { source = "projects/sento/mise.toml", mode = "copy", permissions = "600" }
 "~/Repositories/sento/fnox.toml" = { source = "projects/sento/fnox.toml", mode = "copy", permissions = "600" }
 

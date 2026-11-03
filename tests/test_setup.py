@@ -389,6 +389,15 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertFalse((self.home / "consumed").exists())
         self.assertEqual(calls, (self.home / "fnox.calls").read_text())
 
+    def test_pipelines_cluster_profile_tracks_host_scope(self):
+        target = self.home / "Repositories/pipelines/mise.local.toml"
+        for scope, expected in [("", "cluster"), ("general", "paseo-general-cluster")]:
+            with self.subTest(scope=scope):
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force",
+                          str(target), env={**self.env, "PASEO_DATA_SCOPE": scope})
+                config = tomllib.loads(target.read_text())
+                self.assertEqual(config["secrets"]["fnox"]["profile"], expected)
+
     def test_sento_profile_reaches_task_secret_resolution(self):
         project = self.home / "sento-profile-project"
         project.mkdir()
