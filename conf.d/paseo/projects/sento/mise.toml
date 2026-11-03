@@ -6,6 +6,9 @@
 "github:protonpass/pass-cli" = "2.5.1"
 
 [env]
+# Select the item-scoped reader only on the scoped general host. Preserve an
+# explicitly selected fnox profile and the workstation's default references.
+FNOX_PROFILE = "{{ get_env(name='FNOX_PROFILE', default='paseo-general' if get_env(name='PASEO_DATA_SCOPE', default='') == 'general' else 'default') }}"
 SENTO_QBITTORRENT_URL = "http://qbittorrent-vpn.downloads.svc.cluster.local:8080"
 SENTO_QBITTORRENT_CATEGORY = "sento-test"
 SENTO_PROWLARR_URL = "http://prowlarr.downloads.svc.cluster.local"
