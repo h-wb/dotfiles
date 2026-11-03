@@ -30,7 +30,7 @@
     "chrome-devtools": {
       "type": "local",
       "command": ["chrome-devtools-mcp", "--browserUrl", "http://127.0.0.1:9222"]
-    },
+    }{% if get_env(name="PASEO_DATA_SCOPE", default="") == "general" %},
     "toolhive-general": {
       "type": "remote",
       "url": "https://mcp-general.example.test/mcp",
@@ -44,6 +44,6 @@
       "headers": {
         "Authorization": "Bearer {env:MEMINI_API_KEY}"
       }
-    }
+    }{% endif %}
   }
 }

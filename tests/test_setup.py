@@ -210,6 +210,28 @@ esac
         self.assertFalse(config["agents"]["providers"]["claude"]["enabled"])
         self.assertTrue(config["agents"]["providers"]["mistral-vibe"]["enabled"])
 
+    def test_unscoped_paseo_keeps_existing_opencode_tools(self):
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        config = json.loads((self.home / ".config/opencode/opencode.json").read_text())
+        self.assertEqual(set(config["mcp"]), {"chrome-devtools"})
+        self.assertEqual(config["provider"]["litellm"]["options"]["apiKey"], "{env:LITELLM_API_KEY}")
+
+    def test_existing_opencode_symlink_migrates_to_template(self):
+        target = self.home / ".config/opencode/opencode.json"
+        target.parent.mkdir(parents=True)
+        target.symlink_to(self.repo / "conf.d/paseo/opencode.json")
+        self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+        self.assertFalse(target.is_symlink())
+        self.assertEqual(set(json.loads(target.read_text())["mcp"]), {"chrome-devtools"})
+
+    def test_scoped_general_paseo_gets_matching_opencode_tools(self):
+        self.mise("bootstrap", "dotfiles", "apply", "--yes",
+                  env={**self.env, "PASEO_DATA_SCOPE": "general"})
+        config = json.loads((self.home / ".config/opencode/opencode.json").read_text())
+        self.assertEqual(set(config["mcp"]), {"chrome-devtools", "toolhive-general", "memini-general"})
+        self.assertEqual(config["mcp"]["toolhive-general"]["headers"]["x-api-key"], "{env:MCP_API_KEY}")
+        self.assertEqual(config["mcp"]["memini-general"]["headers"]["Authorization"], "Bearer {env:MEMINI_API_KEY}")
+
     def test_paseo_merge_fails_closed_without_scope_fragments(self):
         shutil.rmtree(self.scope_dir)
         result = self.mise("bootstrap", "dotfiles", "apply", "--yes", ok=False)
