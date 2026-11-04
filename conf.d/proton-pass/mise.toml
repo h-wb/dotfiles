@@ -1,3 +1,8 @@
+[dotfiles."~/.config/fnox/proton-pass-items.lua"]
+source = "provider.lua"
+mode = "copy"
+permissions = "0600"
+
 [task_templates.proton-login]
 usage = '''
 arg "[session]" help="Session name; defaults to the task's PROTON_PASS_LOGIN_SESSION"

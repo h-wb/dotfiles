@@ -29,6 +29,10 @@ jobs:
           version: ${{ matrix.mise != 'latest' && matrix.mise || '' }}
           install: false
       - run: python3 tests/test_setup.py -v
+      - name: Named Proton items through native fnox (dummy credentials)
+        if: matrix.mise == 'latest'
+        working-directory: ${{ runner.temp }}
+        run: mise exec github:jdx/fnox@1.43.0 -- python3 "$GITHUB_WORKSPACE/tests/test_proton_items.py" -v
 
   machine:
     strategy:

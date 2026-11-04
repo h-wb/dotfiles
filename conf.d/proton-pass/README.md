@@ -106,3 +106,34 @@ precedence. Unscoped hosts retain the default named-vault references. Other
 repositories declare this selection in their own mise config, so unrelated
 projects do not inherit a profile they have not defined. Credentials are still
 resolved only for each task's secret grants.
+
+## Readable names with item-only grants
+
+Dotfiles installs `~/.config/fnox/proton-pass-items.lua`, a read-only fnox Lua
+provider for readable `Item Title/field` references:
+
+```toml
+[providers.protonpass]
+type = "lua"
+plugin = "~/.config/fnox/proton-pass-items.lua"
+options = { vault = "Personal", agent_reason = "obsidian-workspace fnox" }
+
+[secrets]
+OBSIDIAN_EMAIL = { provider = "protonpass", value = "Obsidian/email" }
+```
+
+On an account with vault access, it searches only the configured vault. If that
+vault is invisible to an item-scoped token, it resolves the title only among
+explicit Item shares granted to that token. The fallback cannot verify the
+containing vault's name, so the token's item grants define its access. Duplicate
+titles fail rather than choosing an arbitrary item. Folder shares and other
+vaults are never searched as a fallback.
+
+Share/item IDs are discovered from metadata for each batch and remain in memory;
+there is no hardcoded ID map or credential cache. Only requested fields are
+read. Every CLI operation checks the session first; authentication remains the
+global `proton-login` task's responsibility. Missing fields follow fnox's
+`if_missing` setting (use `error`). The provider does not write items, change
+grants, log credentials or copy raw CLI diagnostics into errors.
+
+Existing repositories using the native `proton-pass` provider are unaffected.
