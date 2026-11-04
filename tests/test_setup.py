@@ -128,6 +128,18 @@ esac
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("dependency sidecar", result.stderr)
 
+    def test_named_proton_provider_is_installed_for_every_machine(self):
+        # Keep unrelated machine post-dotfiles hooks outside this focused check.
+        self.fake("mise", "exit 0")
+        for machine in LAYERS:
+            with self.subTest(machine=machine):
+                self.select(machine)
+                target = self.home / ".config/fnox/proton-pass-items.lua"
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", str(target))
+                source = self.repo / "conf.d/proton-pass/provider.lua"
+                self.assertEqual(target.read_text(), source.read_text())
+                self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+
     def doctor(self):
         result = self.mise("doctor", "project", "--json", ok=False)
         report = json.loads(result.stdout)
