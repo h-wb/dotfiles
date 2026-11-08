@@ -18,10 +18,11 @@ starship = "latest"
 "github:jdx/fnox" = "latest"
 
 # Back on the base branch at every start (clean checkouts only): agents work in
-# Paseo worktrees, and fresh-worktrees fast-forwards the checked-out base.
+# Paseo worktrees, and fresh-worktrees fast-forwards the checked-out base. A ref
+# makes the init container fetch, so only public repos can have one.
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git", ref = "main" }
-"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git", ref = "main" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" } # private: no ref, init has no GitHub credential
 "~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git", ref = "master" }
 "~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git", ref = "main" }
 "~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git", ref = "main" }
