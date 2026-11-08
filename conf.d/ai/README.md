@@ -5,10 +5,10 @@ The MCP servers every agent harness connects to, defined once for every machine.
 env; a class file adds an agent's config where its path or key source differs.
 
 ```text
-mise.toml              all machines: shared [vars], Codex and Vibe (merged)
-mise.workstation.toml  personal, neko, cachyos: Claude Code ~/.claude.json, agent wrappers
+mise.toml              all machines: shared [vars], Claude Code, Codex and Vibe (merged)
+mise.workstation.toml  personal, neko, cachyos: public URLs, agent wrappers
 mise.personal.toml     MacBook: Claude Desktop's config, the mcp-remote wrapper
-mise.paseo.toml        paseo pods: Claude Code ~/.claude/.claude.json, OpenCode
+mise.paseo.toml        paseo pods: in-cluster URLs, OpenCode
 fnox.toml              the only secrets the agents may read (MCP_API_KEY)
 config/                the agents' config templates, rendered by the files above
 ```

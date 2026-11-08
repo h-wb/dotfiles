@@ -10,7 +10,13 @@ vibe_scope = "private"
 # The pods' Chromium sidecar; empty leaves the server out.
 chrome_cdp_url = ""
 
+[env]
+# One place for Claude Code's state on every machine (the pods' image sets the
+# same), so a single entry below covers them all.
+CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
+
 [dotfiles]
 # Merged: the agents write these files too, so we set only our servers.
+"~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 "~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
 "~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }
