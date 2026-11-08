@@ -1,26 +1,25 @@
 {%- set scope = vars.claude_scope -%}
 {%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
 {%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
-{%- set_global sep = "" -%}
+{#- The gateway and memini come from the same place (the domain, or the
+    in-cluster services), so they are there or not together. -#}
 {
   "mcpServers": {
-{%- if mcp %}{{ sep }}
-    "toolhive-{{ scope }}": {
+{%- if mcp %}
+    "toolhive": {
       "type": "http",
       "url": "{{ mcp }}"
 {%- if vars.mcp_auth == "api-key" %},
       "headers": { "x-api-key": "${MCP_API_KEY}" }
 {%- endif %}
-    }
-{%- set_global sep = "," %}{% endif %}
-{%- if memini %}{{ sep }}
-    "memini-{{ scope }}": {
+    },
+    "memini": {
       "type": "http",
       "url": "{{ memini }}/mcp",
       "headers": { "Authorization": "Bearer ${MEMINI_API_KEY}" }
     }
-{%- set_global sep = "," %}{% endif %}
-{%- if vars.chrome_cdp_url %}{{ sep }}
+{%- endif %}
+{%- if vars.chrome_cdp_url %}{% if mcp %},{% endif %}
     "chrome-devtools": {
       "type": "stdio",
       "command": "chrome-devtools-mcp",
