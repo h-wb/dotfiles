@@ -50,6 +50,9 @@
 # paseo: GH_TOKEN from the pod's secret, through gh.
 [credential "https://github.com"]
 	helper = !gh auth git-credential
+# ~/.dotfiles is an emptyDir, and its mount point belongs to root.
+[safe]
+	directory = {{ env.HOME }}/.dotfiles
 {% elif os() == "linux" %}
 [credential]
 	helper = store
