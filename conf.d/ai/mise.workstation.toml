@@ -1,0 +1,47 @@
+# Workstations: the agents read the gateway key from MCP_API_KEY, like on the
+# pods. It stays in Proton Pass: mise [wrappers] run every agent under `fnox
+# exec` with this folder's fnox.toml, which holds only the agents' secrets, and
+# the fnox profile named after the agent's scope (`*_scope` in mise.toml), so
+# changing a scope moves the agent's servers and keys together. No file holds
+# a key and the repo's fnox.toml never reaches the agent.
+#
+# A wrapper is a PATH-level intercept: the tool's shim and the wrapper dir that
+# `mise activate` prepends both go through it, so shells, scripts, IDEs and
+# launchd get the key alike (a [shell_alias] reaches only interactive shells).
+# The inner name resolves to the real binary, so nothing recurses. `args` are
+# templated and go before the caller's own arguments, hence the trailing name.
+#
+# `--if-missing warn`, not this repo's usual `error`: a dead Proton Pass session
+# must not stop the agent from starting, only its gateway server from
+# connecting (nothing is rendered here, so there is nothing to blank).
+# `--non-interactive`: most of these launches have no terminal to prompt on.
+
+[vars]
+# The cluster's domain (home-ops' SECRET_DOMAIN), never committed: fnox resolves
+# it from Proton Pass when `mise run apply` renders the configs (repo fnox.toml).
+# Anywhere else it is empty and the gateway and memini servers are left out;
+# every agent config is merged, so an empty render keeps the entries already
+# there.
+secret_domain = "{{ get_env(name='SECRET_DOMAIN', default='') }}"
+mcp_general_url = "{% if vars.secret_domain %}https://mcp-general.{{ vars.secret_domain }}/mcp{% endif %}"
+mcp_private_url = "{% if vars.secret_domain %}https://mcp-private.{{ vars.secret_domain }}/mcp{% endif %}"
+memini_general_url = "{% if vars.secret_domain %}https://memini-general.{{ vars.secret_domain }}{% endif %}"
+memini_private_url = "{% if vars.secret_domain %}https://memini-private.{{ vars.secret_domain }}{% endif %}"
+# Through Envoy, which checks MCP_API_KEY as x-api-key against that gateway's list.
+mcp_auth = "api-key"
+
+[wrappers.claude]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "claude"]
+
+[wrappers.codex]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.codex_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "codex"]
+
+[wrappers.vibe]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.vibe_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "vibe"]
+
+[dotfiles]
+# Merged: we own mcpServers.<ours>, Claude keeps the rest of the file.
+"~/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
