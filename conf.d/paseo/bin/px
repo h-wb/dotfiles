@@ -1,3 +1,0 @@
-#!/bin/sh
-# Start a Codex session through Paseo (daemon-managed).
-exec paseo run --provider codex "$@"

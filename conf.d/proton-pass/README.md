@@ -45,25 +45,6 @@ still need the migration cleanup documented in home-ops.
 account-login preflight for dotfiles provisioning. It does not use these
 managed agent sessions.
 
-## Paseo rollout order
-
-Before updating an existing Paseo host to this dotfiles revision, install the
-read-only `/etc/paseo/scope` inputs in its tools, app and sshd containers and
-verify the rolled pod is healthy. The staging change is
-[home-ops PR 4758](https://github.com/h-wb/home-ops/pull/4758); it preserves the
-existing host's MCP endpoint and credentials. Updating dotfiles first would
-fail bootstrap because these required inputs are missing on older pods.
-
-Then update dotfiles and dependent repository tooling. The separate
-general/private host rollout replaces the transitional inputs with its own
-scope fragments after its credential and provisioning prerequisites are met.
-
-OpenCode's config is rendered through mise's native template mode. Existing
-hosts without `PASEO_DATA_SCOPE=general` retain their previous tools; scoped
-general gets the corresponding MCP endpoints and runtime environment references.
-No credential values are rendered into this file. Bootstrap replaces the old
-managed symlink when applying the template.
-
 ## Credential naming and ownership
 
 Vault names describe purpose, not the consuming repository:
