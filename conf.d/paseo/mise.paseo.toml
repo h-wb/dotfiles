@@ -1,6 +1,8 @@
 # The paseo agent host: a headless pod in home-ops (kubernetes/apps/main/agents/paseo),
 # image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
+# Bootstrap runs in the pod's `tools` init container (ghcr.io/jdx/mise), so hooks and
+# tasks here get that image's userland, not getpaseo's.
 #
 # Layers: pod, not workstation. This class installs the CLIs, repos and shell; the
 # agents' MCP servers come from conf.d/ai (mise.paseo.toml there). Paseo providers
@@ -35,9 +37,7 @@ starship = "latest"
 "github:protonpass/pass-cli" = "latest" # the `paseo` token's session (paseo:pass-login)
 "github:jdx/fnox" = "latest" # repos' fnox.toml ref their vaults
 
-# Checkouts this host is provisioned from: cloned / fast-forwarded into
-# ~/Repositories by the pod's `mise bootstrap --from` (the `tools` init container
-# in home-ops' agents/paseo) at every pod start.
+# Cloned or fast-forwarded into ~/Repositories at every pod start (private skips them).
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
