@@ -26,6 +26,20 @@ like any dotfile (`mise dot status` shows drift; a real directory in the way
 needs `--force-dotfiles`). The entry's source must be the absolute
 `~/.dotfiles` — relative would resolve through the link to itself.
 
+mise ≥ 2026.10.21 can do clone, link and first bootstrap in one call:
+`mise bootstrap --from <url> --from-dir ~/.dotfiles --config-dir .` — with `.` =
+the checkout itself, this flat layout needs no restructuring (verified: reuses
+an existing checkout, accepts a link it already made, refuses a non-empty
+`~/.config/mise` and leaves it alone). Not adopted for the entry points: the
+flag requires `--from` on every call — plain `mise bootstrap` and
+`apply`/`diff`/`upgrade` cannot carry it, so the `[dotfiles]` self-link stays
+the maintainer — and mise clones only *during* bootstrap, while `install.sh`
+needs the checkout before that (the min_version gate, `miserc.local.toml`,
+and deciding whether to wrap in fnox). `bootstrap --update` (≥ 2026.11.0)
+fast-forwards a linked checkout but **aborts** on local changes, where
+`pull_dotfiles` warns and continues — pods need that. Checks: the addendum in
+the mise audit.
+
 The **machine class and its layers are picked in `miserc.toml`**: miserc
 templates see only the OS (no `read_file`/`exec`), but `is exists` path tests
 work — `/etc/neko` (neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS),
@@ -510,6 +524,9 @@ of the neko constraints: apps are `pacman:` packages.
   without a dotfiles repo: no rendering step (would push rendered secrets into
   git history), no `target` variants, and it needs its git remote before
   anything is provisioned. `symlink` + this repo's git already give both halves.
+  The 2026.10.21 changelog recommends `mise dot track ~/.config/mise` (the
+  whole config directory) — same verdict at directory scale: it would keep a
+  second history of files the git checkout already is.
 - **An extra env as a per-moment toggle** (e.g. `env = ["personal", "edge"]`
   for DNS): works, but puts a toggle into config _discovery_ and `MISE_ENV`
   order is literal last-wins — `["edge", "personal"]` silently picks main.

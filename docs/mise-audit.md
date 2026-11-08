@@ -45,6 +45,7 @@ take priority over adding scripts that duplicate mise.
 | [Bootstrap secrets](https://mise.jdx.dev/bootstrap/secrets.html) | Keep required resolver inputs fail-closed. Keep the fresh/protect/secret modes for neko; making every shared template require secrets would prevent provisioning a fresh PVC. |
 | [fnox integration](https://mise.jdx.dev/environments/secrets/fnox.html) | Keep explicit `fnox --if-missing error exec` for provisioning. Per-task secret grants are unavailable to global tasks and bootstrap-started tasks; shell-wide secret injection is unnecessary. |
 | [Bootstrap planning](https://mise.jdx.dev/cli/bootstrap/plan.html) | Useful for machine-readable resource plans, but excludes dotfiles, tools, hooks, repos, defaults and several other steps. Preserve the full-bootstrap dry-run wrapper. |
+| [Bootstrap from a repository](https://mise.jdx.dev/bootstrap/from-repository.html) | 2026.10.21's `--from --config-dir` and 2026.11.0's `--update` match this layout and work (verified 2026-11-08). Keep the `[dotfiles]` self-link entry, the `MISE_CONFIG_DIR` exports and `pull_dotfiles` — see the addendum. |
 | [Editor integration](https://mise.jdx.dev/ide-integration.html) | `mise lsp` and the current editor integration are useful for config completion and diagnostics. No need to manage an editor's complete personal settings just to enable this. |
 | Remote bootstrap, modules, Compose, OCI, daemons and monorepo tasks | Available for different workloads. The existing host provisioning, Kubernetes-managed pods, supervisor and systemd ownership do not need another deployment or process-management layer. |
 
@@ -85,3 +86,38 @@ of PyPI graphs needs an installed interpreter, so that matrix installs locked
 Python and uv before doctor. Linux CI and actual pod/system provisioning were
 not executed locally; package installation, PAM, launchd, systemd and desktop
 session behavior still require their respective hosts.
+
+## Addendum: bootstrap from a checkout (2026-11-08)
+
+[#15025](https://github.com/jdx/mise/pull/15025) shipped as
+[`bootstrap --from --config-dir`](https://mise.jdx.dev/bootstrap/from-repository.html)
+in [2026.10.21](https://github.com/jdx/mise/releases/tag/v2026.10.21), and
+`bootstrap --update` fast-forwarding a linked checkout in
+[2026.11.0](https://github.com/jdx/mise/releases/tag/v2026.11.0): mise's native
+version of what `install.sh`, `neko-bootstrap` and `paseo-bootstrap` hand-roll.
+Checked against a sandbox clone of this repo (mise 2026.11.4):
+
+- `mise bootstrap --from <url> --from-dir ~/.dotfiles --config-dir . --only
+  dotfiles` clones to `~/.dotfiles`, links `~/.config/mise` to the checkout,
+  and reads `config.toml`, `config.<env>.toml`, `conf.d/` and `miserc.toml` as
+  global config in that same run — `.` is the checkout itself, so this flat
+  layout needs no restructuring. Re-runs reuse the existing checkout and
+  accept the link they already made; a reused dirty checkout does not block
+  (without `--update`); a non-empty `~/.config/mise` is refused and left alone.
+- Not adopted. `--config-dir` requires `--from`, so flag-free runs cannot
+  maintain the link and the first `[dotfiles]` entry stays the maintainer.
+  `install.sh` needs the checkout *before* bootstrap can run — the min_version
+  gate, `miserc.local.toml`, pass-preflight and the workstation detection that
+  wraps bootstrap in fnox — so mise cannot own the clone there. And
+  `bootstrap --update` aborts the whole run when the fast-forward hits local
+  changes (`could not fast-forward the global config`), where `pull_dotfiles`
+  warns and continues and re-executes a changed script; the pods need that
+  tolerance. A two-phase bootstrap (wire with `--config-dir`, then wrap) costs
+  more than the one-line `MISE_CONFIG_DIR` export.
+- The changelog's `mise dot track ~/.config/mise` recommendation is
+  `mode = "track"` again, at directory scale — a second history over the git
+  checkout that already is the config. Stays rejected.
+
+If the config ever moves under `.config/mise/` inside the checkout, this
+flips: `install.sh` would adopt the flags, drop its manual clone and the
+`MISE_CONFIG_DIR` export, and `.local.toml` files stay per-machine unchanged.
