@@ -1,3 +1,0 @@
-#!/bin/sh
-# Send a follow-up to a Paseo session.
-exec paseo send "$@"

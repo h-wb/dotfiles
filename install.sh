@@ -8,9 +8,9 @@ export PATH="${HOME}/.local/bin:${PATH}"
 
 case "${DOTFILES_ENV:-}" in
 personal) DOTFILES_LAYERS='"workstation", "personal"' ;;
-neko) DOTFILES_LAYERS='"workstation", "pod", "neko"' ;;
+neko) DOTFILES_LAYERS='"workstation", "neko"' ;;
 cachyos) DOTFILES_LAYERS='"workstation", "cachyos"' ;;
-paseo) DOTFILES_LAYERS='"pod", "paseo"' ;;
+paseo) DOTFILES_LAYERS='"paseo"' ;;
 "") DOTFILES_LAYERS= ;;
 *) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;
 esac
