@@ -35,7 +35,7 @@ ignored:
 
 | env                   | machines                | holds                                                                                                               |
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `workstation` (layer) | personal, neko, cachyos | credentialed CLIs (aws, bws, pass-cli, fnox, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
+| `workstation` (layer) | personal, neko, cachyos | credentialed CLIs (aws, bws, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
 | the class             | one machine             | everything else                                                                                                     |
 
 So `config.toml` is only what _every_ machine wants, the paseo agent host
