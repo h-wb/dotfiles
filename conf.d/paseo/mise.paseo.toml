@@ -41,6 +41,7 @@ starship = "latest"
 "~/.local/bin/patt" = { mode = "absent" }
 "~/.local/bin/psend" = { mode = "absent" }
 "~/.local/bin/pstop" = { mode = "absent" }
+"~/.local/bin/mise" = { mode = "absent" } # the old copy; mise is /opt/mise now
 
 [tasks.bootstrap]
 run = [
