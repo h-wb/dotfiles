@@ -8,9 +8,8 @@ pod (`paseo`). What several classes share lives in **layers** (`workstation`,
 `pod`), not in each class. Read the section for a
 machine before touching anything it loads.
 
-**On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`, never in
-`~/.dotfiles`.** `~/.dotfiles` is the pod's live config, forced to
-`origin/master` at every start: edits and local commits there are lost.
+**On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
+is the pod's live config: read-only, and cloned fresh at every start.
 
 ## The layout: this repo IS mise's config dir
 
@@ -446,19 +445,18 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   read the existing `Homelab/Obsidian` login. Machine-only external credentials
   live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
   and revocation of the old broad token; a new config cannot erase old access.
-- **Provisioning** is home-ops' `tools` init container (jdx/mise image):
+- **Provisioning** is home-ops' `tools` init container, on the app's image:
   `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir .
-  --update --yes --force-dotfiles --skip-dirty --locked`, plus `--skip=repos`
-  on private. mise re-reads miserc after the first clone. The image tag is the
-  mise version, so keep it ≥ `min_version`. Before that, an existing checkout
-  is forced to `origin/master` (`checkout -f -B master`, `clean -fd`), because
-  `--update` only fast-forwards and has no force option.
-- **Shims symlink to the mise that made them**, so the init container runs a
-  copy at `~/.local/bin/mise` (first on `PATH`). From the image's
-  `/usr/local/bin/mise` every tool is "not found" in the app container.
-- **`MISE_CONFIG_DIR` goes through the `~/.config/mise` link**, never the real
-  `~/.dotfiles`. Through the real directory, lock sidecar paths get rewritten
-  and `--update` stops fast-forwarding.
+  --yes --force-dotfiles --skip-dirty --locked`, plus `--skip=repos` on
+  private, with no script. mise re-reads miserc after the first clone. The image tag is the
+  mise version, so keep it ≥ `min_version`. `~/.dotfiles` is an `emptyDir`
+  (fresh clone each start, read-only in the app container) because `--update`
+  only fast-forwards: an agent's commit there once blocked the pod.
+- **Shims symlink to the mise that made them**, so mise is the jdx/mise image
+  mounted at `/opt/mise` in every container (first on `PATH`). A mise at a
+  path only one container has leaves every tool "not found" in the others.
+- **Never set `MISE_CONFIG_DIR=~/.dotfiles` there**: through the real directory,
+  mise rewrites lock sidecar paths. The default `~/.config/mise` link is fine.
 - `paseo-overlay` merges `/etc/paseo/config/paseo.json` into
   `~/.paseo/config.json`. It is its own layer because a missing merge source
   is an error. That path is the only contract with home-ops.
