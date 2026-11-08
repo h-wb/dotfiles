@@ -1,5 +1,4 @@
-# The paseo pods: every agent takes the pod's scope and in-cluster services.
-# home-ops owns the Paseo providers and OpenCode's models (/etc/paseo/config).
+# Paseo pods: in-cluster URLs, which the pod env can override; no gateway key.
 
 [vars]
 pod_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
@@ -7,10 +6,6 @@ claude_scope = "{{ vars.pod_scope }}"
 codex_scope = "{{ vars.pod_scope }}"
 vibe_scope = "{{ vars.pod_scope }}"
 opencode_scope = "{{ vars.pod_scope }}"
-# home-ops' in-cluster services, which the pod env overrides (TOOLHIVE_URL,
-# MEMINI_BASE_URL, CHROME_CDP_URL). A pod has one scope, so one variable serves
-# whichever scope's URL it uses. No key: the gateway's NetworkPolicy admits
-# only this scope's pod.
 mcp_general_url = "{{ get_env(name='TOOLHIVE_URL', default='http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp') }}"
 mcp_private_url = "{{ get_env(name='TOOLHIVE_URL', default='http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp') }}"
 mcp_auth = "network"
@@ -19,5 +14,4 @@ memini_private_url = "{{ get_env(name='MEMINI_BASE_URL', default='http://memini-
 chrome_cdp_url = "{{ get_env(name='CHROME_CDP_URL', default='http://127.0.0.1:9222') }}"
 
 [dotfiles]
-# Only MCP servers: OpenCode merges it under home-ops' OPENCODE_CONFIG.
 "~/.config/opencode/opencode.json" = { source = "config/opencode.json", mode = "template" }

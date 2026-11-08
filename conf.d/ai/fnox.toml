@@ -1,19 +1,13 @@
-# The only secrets the agents get: the wrappers run them under
-# `fnox -c <this file> -P <scope> exec`, so the repo's fnox.toml never loads.
-# One profile per scope with the same variable names, so a key the parent shell
-# exports is always replaced. The values are the workstations' keys
-# (GENERAL_WORKSTATION / PRIVATE_WORKSTATION in home-ops' Bitwarden items).
+# The only secrets the agents get, one profile per scope.
 
 [providers.automation]
 type = "proton-pass"
 vault = "Automation"
 
-# Claude Code, Claude Desktop, Codex.
 [profiles.general.secrets]
 MCP_API_KEY = { provider = "automation", value = "pass://Automation/toolhive/general" }
 MEMINI_API_KEY = { provider = "automation", value = "pass://Automation/memini/general" }
 
-# Vibe.
 [profiles.private.secrets]
 MCP_API_KEY = { provider = "automation", value = "pass://Automation/toolhive/private" }
 MEMINI_API_KEY = { provider = "automation", value = "pass://Automation/memini/private" }
