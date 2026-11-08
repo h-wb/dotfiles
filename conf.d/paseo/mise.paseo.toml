@@ -1,5 +1,4 @@
-# Paseo agent pods (home-ops agents/paseo). Bootstrap runs in the jdx/mise init
-# container, so hooks and tasks get that image's userland, not getpaseo's.
+# Paseo agent pods (home-ops agents/paseo).
 
 [settings]
 # Untrusted repo configs fail every shim run there.
