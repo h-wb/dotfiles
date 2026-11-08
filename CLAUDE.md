@@ -442,26 +442,21 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   read the existing `Homelab/Obsidian` login. Machine-only external credentials
   live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
   and revocation of the old broad token; a new config cannot erase old access.
-- **Provisioning has no script**: the pod's `tools` init container (jdx/mise
-  image) runs `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles
-  --config-dir . --update --yes --force-dotfiles --skip-dirty --locked`
-  (private adds `--skip=repos`: no general GitHub credential). It clones or
-  fast-forwards, links `~/.config/mise`, then re-reads miserc, so a fresh PVC
-  gets the class on its first run (verified 2026-11-08). The mise version is
-  that image tag, and it must stay ≥ `min_version`.
-- **Shims are symlinks to the mise that wrote them.** The init container copies
-  its mise to `~/.local/bin/mise` and runs it with that dir first on `PATH`.
-  Otherwise shims point at the image's `/usr/local/bin/mise`, which the app
-  container lacks, so every tool there is "not found".
-- **Never `MISE_CONFIG_DIR=~/.dotfiles` there**: through the real directory
-  mise rewrites lock sidecar paths, the checkout goes dirty, and `--update`
-  stops fast-forwarding. Through the `~/.config/mise` link it stays clean.
-- The `paseo-overlay` layer (miserc tests `/etc/paseo/config/paseo.json`)
-  merges home-ops' `paseo.json` into `~/.paseo/config.json`. It is a separate
-  layer because a merge with a missing source is an error, and CI has no
-  mount. That path is the whole contract with home-ops.
-- Chromium is a pod sidecar. There is no sshd: terminals come from Paseo's web
-  UI, admin shells from `kubectl exec`. The private home is a separate PVC.
+- **Provisioning** is home-ops' `tools` init container (jdx/mise image):
+  `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir .
+  --update --yes --force-dotfiles --skip-dirty --locked`, plus `--skip=repos`
+  on private. mise re-reads miserc after the first clone. The image tag is the
+  mise version, so keep it ≥ `min_version`.
+- **Shims symlink to the mise that made them**, so the init container runs a
+  copy at `~/.local/bin/mise` (first on `PATH`). From the image's
+  `/usr/local/bin/mise` every tool is "not found" in the app container.
+- **`MISE_CONFIG_DIR` goes through the `~/.config/mise` link**, never the real
+  `~/.dotfiles`. Through the real directory, lock sidecar paths get rewritten
+  and `--update` stops fast-forwarding.
+- `paseo-overlay` merges `/etc/paseo/config/paseo.json` into
+  `~/.paseo/config.json`. It is its own layer because a missing merge source
+  is an error. That path is the only contract with home-ops.
+- No sshd: terminals come from Paseo's web UI, admin shells from `kubectl exec`.
 - Scope separation is enforced by home-ops (per-scope pods and credentials).
   See home-ops `agents/README.md`.
 

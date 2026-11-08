@@ -1,7 +1,3 @@
-# Layer `paseo-overlay`: only where home-ops mounts the scope's agent config
-# (agents/paseo/<scope>/config at /etc/paseo/config). Its own layer because a merge
-# with a missing source is an error, and CI and tests have no such mount.
-
+# Only where home-ops mounts it: a merge with a missing source is an error.
 [dotfiles]
-# Paseo keeps its own state in this file: ours win, the rest is kept.
 "~/.paseo/config.json/overlay" = { source = "/etc/paseo/config/paseo.json", merge = true }
