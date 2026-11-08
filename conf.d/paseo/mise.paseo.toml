@@ -5,20 +5,15 @@
 trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
 
 [env]
+LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 
 [tools]
 "aqua:anomalyco/opencode" = "latest"
-flux2 = "latest"
-helm = "latest"
-kustomize = "latest"
-jq = "latest"
-yq = "latest"
-starship = "latest"
-"github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
+starship = "latest"
 "github:protonpass/pass-cli" = "latest"
 "github:jdx/fnox" = "latest"
 
@@ -29,15 +24,9 @@ starship = "latest"
 "~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git" }
 "~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git" }
 
-# A pull invalidates trust markers; untrusted, daemon-spawned shims fail.
-[bootstrap.hooks.post-repos]
-run = "mise bootstrap repos exec -- mise trust"
-
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }
-"~/.profile" = { source = "profile", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
-"~/.local/bin" = { source = "bin", mode = "symlink-each" }
 "~/.paseo/config.json/defaults" = { source = "defaults.json", merge = "missing" }
 
 # Copies, not symlinks: Paseo propagates them into new worktrees.
@@ -45,34 +34,13 @@ run = "mise bootstrap repos exec -- mise trust"
 "~/Repositories/sento/mise.local.toml" = { source = "projects/sento/mise.toml", mode = "copy", permissions = "600" }
 "~/Repositories/sento/fnox.toml" = { source = "projects/sento/fnox.toml", mode = "copy", permissions = "600" }
 
-[shell_alias]
-pc = "paseo run --provider claude"
-pls = "paseo ls"
-patt = "paseo attach"
-psend = "paseo send"
-pstop = "paseo stop"
-
-[tasks."paseo:latest"]
-description = "Attach to the most recent Paseo session"
-run = '''
-id="$(paseo ls -q 2>/dev/null | head -1)"
-if [ -n "$id" ]; then
-    paseo attach "$id"
-else
-    echo "no sessions"
-fi
-'''
-
-[tasks."paseo:latest-claude"]
-description = "Attach to the most recent Claude session"
-run = '''
-id="$(paseo ls -q --provider claude 2>/dev/null | head -1)"
-if [ -n "$id" ]; then
-    paseo attach "$id"
-else
-    echo "no claude sessions"
-fi
-'''
+# Removed 2026-11-08; drop these once both pods have applied them.
+"~/.profile" = { mode = "absent" }
+"~/.local/bin/pc" = { mode = "absent" }
+"~/.local/bin/pls" = { mode = "absent" }
+"~/.local/bin/patt" = { mode = "absent" }
+"~/.local/bin/psend" = { mode = "absent" }
+"~/.local/bin/pstop" = { mode = "absent" }
 
 [tasks.bootstrap]
 run = [
