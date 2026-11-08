@@ -37,6 +37,7 @@ fi
 "brew-cask:spotify" = "latest"
 "brew-cask:utm" = "latest"
 "brew-cask:visual-studio-code" = "latest"
+"brew-cask:deepl" = "latest"
 
 [dotfiles]
 # Renders empty without vars.wg0_home_conf (fnox).
