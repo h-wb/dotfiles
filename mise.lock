@@ -163,98 +163,98 @@ url_api = "https://api.github.com/repos/cli/cli/releases/assets/542974322"
 provenance = "github-attestations"
 
 [[tools."github:jdx/fnox"]]
-version = "1.42.1"
+version = "1.47.0"
 backend = "github:jdx/fnox"
-specifiers = ["1.42.1"]
+specifiers = ["latest"]
 
 [tools."github:jdx/fnox"."platforms.linux-arm64"]
-checksum = "sha256:6eea3acbb0cdc06ad5b5f90906c99e6a8f5426a002c7057784b21c6c6f0e6700"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-aarch64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777591"
+checksum = "sha256:11a347e775fe0531f0b767c38fa9f6a2848f10b04f2d6824680821c56fe11da1"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550704"
 provenance = "github-attestations"
 
 [tools."github:jdx/fnox"."platforms.linux-arm64-musl"]
-checksum = "sha256:ccf0b37c87ce3ae90df2b759ca88b7210e2dbecef4976c8c05cfed648f45089f"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-aarch64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777583"
+checksum = "sha256:310ef903464817770823f9c4d3189c0f9457ec1c57463451059eefd31046de97"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550709"
 provenance = "github-attestations"
 
 [tools."github:jdx/fnox"."platforms.linux-x64"]
-checksum = "sha256:1c6f91f5e4ee6d53edc42acd56fa211dfc6ffd7cdef4ae7dd224490f5fadd8a0"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777678"
+checksum = "sha256:6d48c4b088a713fa976e5fdbe869c7e0620f77a1e9e6ad1d71c6f4523d7aafb4"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550848"
 provenance = "github-attestations"
 
 [tools."github:jdx/fnox"."platforms.linux-x64-musl"]
-checksum = "sha256:6ec01a0c8dc57da6d0b88d71ea6b4f65c7f8ee3c74c740532d08b89b094cba7f"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777677"
+checksum = "sha256:d371fcc893f4abc660ff8f10b5c6fe36745d81ba6ae094c22c8fe4dbdaf17e4f"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550854"
 provenance = "github-attestations"
 
 [tools."github:jdx/fnox"."platforms.macos-arm64"]
-checksum = "sha256:06cd00e066958d49d96ae137f2162b92cfb0a66e4eb5a9e6efad32a306bf8b95"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777581"
+checksum = "sha256:e1afc59116fe9bfee645f3e0d0353b0f7ff68ce4a76bc6c516da7aedd9a47179"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550717"
 provenance = "github-attestations"
 
 [tools."github:jdx/fnox"."platforms.macos-x64"]
-checksum = "sha256:29df4de085277c5b70637c3f065824060f314e7a56c8d34ea8074d5af1f8623b"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777586"
+checksum = "sha256:0412589afdf46dfe6fa1b7587b7b850e45fbf472417168bab09dc300fac0d701"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550708"
 provenance = "github-attestations"
 
 [tools."github:jdx/fnox"."platforms.windows-x64"]
-checksum = "sha256:64ff3ace04c22fa66457016881d0030b1b44cd2f46983dd2948682ee3c86d6f7"
-url = "https://github.com/jdx/fnox/releases/download/v1.42.1/fnox-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/668777659"
+checksum = "sha256:695065d180cbb2e431cd7a6e762f00b37ec5648dff78c47dfbba08c343a0decc"
+url = "https://github.com/jdx/fnox/releases/download/v1.47.0/fnox-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/706550819"
 provenance = "github-attestations"
 
 [[tools."github:protonpass/pass-cli"]]
-version = "2.5.1"
+version = "2.7.0"
 backend = "github:protonpass/pass-cli"
-specifiers = ["2.5.1"]
+specifiers = ["latest"]
 
 [tools."github:protonpass/pass-cli"."platforms.linux-arm64"]
-checksum = "sha256:03042c8ad70b21fa1da834f2e4e74484710ab3f05754af10c5035acdf68f3c87"
+checksum = "sha256:93918d5621593cac88956854d0f52cbc43851dcd9c01840ffe48a88b3be84c6b"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-linux-aarch64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210622"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-linux-aarch64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312257"
 
 [tools."github:protonpass/pass-cli"."platforms.linux-arm64-musl"]
-checksum = "sha256:03042c8ad70b21fa1da834f2e4e74484710ab3f05754af10c5035acdf68f3c87"
+checksum = "sha256:93918d5621593cac88956854d0f52cbc43851dcd9c01840ffe48a88b3be84c6b"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-linux-aarch64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210622"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-linux-aarch64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312257"
 
 [tools."github:protonpass/pass-cli"."platforms.linux-x64"]
-checksum = "sha256:40e27645e0485f5f0db928b81469d1c5a7c8968a162956e940069476244c02b1"
+checksum = "sha256:fd933e76179a5a33b295853e9c6696e49e584fe2141b1aafc63a3d78c0791cdb"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-linux-x86_64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210630"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-linux-x86_64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312254"
 
 [tools."github:protonpass/pass-cli"."platforms.linux-x64-musl"]
-checksum = "sha256:40e27645e0485f5f0db928b81469d1c5a7c8968a162956e940069476244c02b1"
+checksum = "sha256:fd933e76179a5a33b295853e9c6696e49e584fe2141b1aafc63a3d78c0791cdb"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-linux-x86_64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210630"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-linux-x86_64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312254"
 
 [tools."github:protonpass/pass-cli"."platforms.macos-arm64"]
-checksum = "sha256:2c5834dd21bef341db70c39eaa0a353d4b9e49a8a0d4e5579c02f62ed70db3d9"
+checksum = "sha256:f17222619b4c4c4112eccc3796edea4bc0e4a341dc8960f7bb4023782adcc4a1"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-macos-aarch64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210692"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-macos-aarch64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312289"
 
 [tools."github:protonpass/pass-cli"."platforms.macos-x64"]
-checksum = "sha256:fed0d6a919b8b05921c508cdd4cfe8c05a0b0cf4ccc55ed036e3b51ace6f7373"
+checksum = "sha256:1829f7ecef108df5e14f92081cf4a4412c0fdc5be2034f9ee85d1e6745a62322"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-macos-x86_64"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210635"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-macos-x86_64"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312256"
 
 [tools."github:protonpass/pass-cli"."platforms.windows-x64"]
-checksum = "sha256:d1000e98de533b3e074e9bebf0f7dd562ee228030dc2dbba2bd454d5c0067511"
+checksum = "sha256:c752af109dbda98ad154dfcdb40e8e43f1a38bc37de224b6182647b625290bb7"
 checksum_source = "mise-versions"
-url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-windows-x86_64.zip"
-url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210783"
+url = "https://github.com/protonpass/pass-cli/releases/download/2.7.0/pass-cli-windows-x86_64.zip"
+url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/705312323"
 
 [[tools."github:shoenot/diskard"]]
 version = "0.1.1"

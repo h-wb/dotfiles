@@ -14,8 +14,6 @@ PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 "aqua:anomalyco/opencode" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
 starship = "latest"
-"github:protonpass/pass-cli" = "latest"
-"github:jdx/fnox" = "latest"
 
 # Back on the base branch at every start (clean checkouts only): agents work in
 # Paseo worktrees, and fresh-worktrees fast-forwards the checked-out base.

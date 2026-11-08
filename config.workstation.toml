@@ -9,8 +9,6 @@ kubeconfig_edge = "{{ get_env(name='KUBECONFIG_EDGE', default='') }}"
 [tools]
 aws-cli = "latest"
 bitwarden-secrets-manager = "latest"
-"github:protonpass/pass-cli" = "latest"
-"github:jdx/fnox" = "latest"
 "npm:@metabase/cli" = "latest"
 
 [env]
