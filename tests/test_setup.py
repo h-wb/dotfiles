@@ -12,9 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MISE = Path(os.environ.get("MISE_TEST_BIN") or shutil.which("mise")).resolve()
 LAYERS = {
     "personal": ["workstation", "personal"],
-    "neko": ["workstation", "pod", "neko"],
+    "neko": ["workstation", "neko"],
     "cachyos": ["workstation", "cachyos"],
-    "paseo": ["pod", "paseo"],
+    "paseo": ["paseo"],
 }
 
 
@@ -95,7 +95,7 @@ esac
                 configs = self.mise("config").stdout
                 for other in LAYERS:
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
-                for layer in ("workstation", "pod"):
+                for layer in ("workstation",):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers)
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
@@ -145,7 +145,7 @@ esac
         checks = self.doctor()
         for check in ("wiring", "config-keys", "file-modes", "tasks"):
             self.assertEqual(checks[check], "pass", checks)
-        bad = self.repo / "conf.d/pod/mise.inactive.toml"
+        bad = self.repo / "conf.d/paseo/mise.inactive.toml"
         for content in ('[broken', '[settings]\nnot_a_mise_setting = true\n'):
             bad.write_text(content)
             self.assertEqual(self.doctor()["config-keys"], "fail")
@@ -600,7 +600,7 @@ esac
         self.select("paseo")
         self.assertNotIn("paseo-overlay", self.mise("config").stdout)
         (self.repo / "miserc.local.toml").write_text(
-            'env = ["pod", "paseo", "paseo-overlay"]\n')
+            'env = ["paseo", "paseo-overlay"]\n')
         self.assertIn("conf.d/paseo/mise.paseo-overlay.toml", self.mise("config").stdout)
 
     def test_installer_layers_and_secret_routing(self):

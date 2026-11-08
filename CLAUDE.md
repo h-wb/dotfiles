@@ -4,8 +4,8 @@ Dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi is
 long gone). Secrets come from **fnox** backed by **Proton Pass**. Four machine
 classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s pod
 (`neko`), a CachyOS KDE gaming desktop (`cachyos`) and a headless coding-agent
-pod (`paseo`). What several classes share lives in **layers** (`workstation`,
-`pod`), not in each class. Read the section for a
+pod (`paseo`). What several classes share lives in a **layer** (`workstation`), not in
+each class. Read the section for a
 machine before touching anything it loads.
 
 **On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
@@ -34,13 +34,12 @@ ignored:
 | env                   | machines                | holds                                                                                                               |
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `workstation` (layer) | personal, neko, cachyos | credentialed CLIs (aws, bws, pass-cli, fnox, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
-| `pod` (layer)         | neko, paseo             | `$HOME`-only pods: tmux, `LANG`, the home-ops checkout                                                              |
 | the class             | one machine             | everything else                                                                                                     |
 
 So `config.toml` is only what _every_ machine wants, the paseo agent host
 included; a layer never has to be taken back out by a class. An unrecognised
 machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
-`miserc.local.toml` overrides with the whole list (`env = ["workstation", "pod",
+`miserc.local.toml` overrides with the whole list (`env = ["workstation",
 "neko"]`), which is also how CI pins each matrix job.
 
 | file                               | loads when                                                                   |
@@ -252,7 +251,7 @@ picked, a missing main IP is fine).
 
 mise writes one lockfile per config _file_, and with the repo as config dir
 they all land in the repo: `mise.lock` (config.toml **and** env-less folder
-fragments), `mise.macos.lock`, `mise.workstation.lock`, `mise.pod.lock`,
+fragments), `mise.macos.lock`, `mise.workstation.lock`,
 `mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`
 (env-scoped files, folder ones included). Lockfile format
 is v3 (`mise lock --upgrade`).
@@ -260,7 +259,7 @@ is v3 (`mise lock --upgrade`).
 - **Scope each env lockfile to the platforms that class runs on.** Locking
   Ludo (an AppImage-only release) for macos-arm64/linux-arm64 made mise pick the
   Decky plugin zip — a different artifact. `mise.macos.lock`/`personal` are
-  macos-arm64, `cachyos` linux-x64, `neko` and `pod` linux-x64 + arm64, `paseo`
+  macos-arm64, `cachyos` linux-x64, `neko` linux-x64 + arm64, `paseo`
   linux-x64, `workstation` macos-arm64 + linux-x64 + arm64; `mise.lock` keeps
   them all. A later plain `mise lock --global` preserves each file's set.
   `--platform` is the trap: it applies to EVERY loaded lockfile, so locking a

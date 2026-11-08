@@ -53,8 +53,8 @@ Each `conf.d/` folder holds its own config and the files it uses; inside it,
 
 `miserc.toml` detects the class; an untracked `miserc.local.toml`
 overrides the complete layer list (for example,
-`env = ["workstation", "pod", "neko"]`). `personal`, `neko` and `cachyos` use
-`workstation`; `neko` and `paseo` use `pod`. Platform files (`*.macos.toml`, `*.linux.toml`)
+`env = ["workstation", "neko"]`). `personal`, `neko` and `cachyos` use
+`workstation`. Platform files (`*.macos.toml`, `*.linux.toml`)
 load on their own. `~/.config/mise` → `~/.dotfiles` is itself a `[dotfiles]`
 entry in `config.toml`, so mise creates and maintains the link.
 

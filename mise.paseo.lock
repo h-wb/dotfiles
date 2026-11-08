@@ -11,28 +11,6 @@ specifiers = ["latest"]
 checksum = "sha256:2edaf8cf96e81dec5ee996a3196b03345cf59e5a1673d83a4599bb4afc5c5f6d"
 url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-x64.tar.gz"
 
-[[tools.flux2]]
-version = "2.10.0"
-backend = "aqua:fluxcd/flux2"
-specifiers = ["latest"]
-
-[tools.flux2."platforms.linux-x64"]
-checksum = "sha256:208dd7012c04fedeed5b2d0b6e63df3b15b1c34a381527811685c098bc9f8659"
-checksum_source = "mise-versions"
-url = "https://github.com/fluxcd/flux2/releases/download/v2.10.0/flux_2.10.0_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/fluxcd/flux2/releases/assets/678609567"
-
-[[tools."github:home-operations/flate"]]
-version = "0.6.5"
-backend = "github:home-operations/flate"
-specifiers = ["latest"]
-
-[tools."github:home-operations/flate"."platforms.linux-x64"]
-checksum = "sha256:37eb0cd91a6752340754375743aa616c263cd8367ce594abd42ee955e1ec0099"
-checksum_source = "mise-versions"
-url = "https://github.com/home-operations/flate/releases/download/v0.6.5/flate_0.6.5_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/541337294"
-
 [[tools."github:jdx/fnox"]]
 version = "1.43.0"
 backend = "github:jdx/fnox"
@@ -55,37 +33,6 @@ checksum_source = "mise-versions"
 url = "https://github.com/protonpass/pass-cli/releases/download/2.5.1/pass-cli-linux-x86_64"
 url_api = "https://api.github.com/repos/protonpass/pass-cli/releases/assets/662210630"
 
-[[tools.helm]]
-version = "4.3.1"
-backend = "aqua:helm/helm"
-specifiers = ["latest"]
-
-[tools.helm."platforms.linux-x64"]
-checksum = "sha256:0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b"
-url = "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz"
-
-[[tools.jq]]
-version = "1.8.2"
-backend = "aqua:jqlang/jq"
-specifiers = ["latest"]
-
-[tools.jq."platforms.linux-x64"]
-checksum = "sha256:b1c22172dd303f3be49e935aa56aa48a8b7a46e0bc838b4997d3bb451495870f"
-url = "https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-linux-amd64"
-url_api = "https://api.github.com/repos/jqlang/jq/releases/assets/453012752"
-provenance = "github-attestations"
-
-[[tools.kustomize]]
-version = "5.8.3"
-backend = "aqua:kubernetes-sigs/kustomize"
-specifiers = ["latest"]
-
-[tools.kustomize."platforms.linux-x64"]
-checksum = "sha256:cb9e31198d3f63b44848bd0afc4c8efc56e6cfef9c93a4a39a211940e6decd61"
-checksum_source = "mise-versions"
-url = "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.8.3/kustomize_v5.8.3_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/assets/621661332"
-
 [[tools."npm:chrome-devtools-mcp"]]
 version = "1.12.0"
 aube = { path = ".mise/locks/mise.paseo/npm-chrome-devtools-mcp/1.12.0", digest = "sha256:0a625298cb87475a660765dfaa086356bd2d1b6dd887feb0a195d77805ee6844" }
@@ -103,13 +50,3 @@ checksum_source = "mise-versions"
 url = "https://github.com/starship/starship/releases/download/v1.26.0/starship-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/starship/starship/releases/assets/460374620"
 
-[[tools.yq]]
-version = "4.54.1"
-backend = "aqua:mikefarah/yq"
-specifiers = ["latest"]
-
-[tools.yq."platforms.linux-x64"]
-checksum = "sha256:8e34fc298390875de416e6a4afcb8cabeceb25d9aa8506c1a2f9353cf702ea5f"
-url = "https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64"
-url_api = "https://api.github.com/repos/mikefarah/yq/releases/assets/597222595"
-provenance = "cosign"
