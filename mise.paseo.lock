@@ -44,17 +44,6 @@ url = "https://github.com/jdx/fnox/releases/download/v1.43.0/fnox-x86_64-unknown
 url_api = "https://api.github.com/repos/jdx/fnox/releases/assets/677824798"
 provenance = "github-attestations"
 
-[[tools."github:jpillora/sshd-lite"]]
-version = "1.55.4"
-backend = "github:jpillora/sshd-lite"
-specifiers = ["latest"]
-
-[tools."github:jpillora/sshd-lite"."platforms.linux-x64"]
-checksum = "sha256:fc2e08a1648f9d66759d39697d7197df01085cc268fb5d35d2e400a87740d847"
-checksum_source = "mise-versions"
-url = "https://github.com/jpillora/sshd-lite/releases/download/v1.55.4/sshd-lite_1.55.4_linux_amd64.gz"
-url_api = "https://api.github.com/repos/jpillora/sshd-lite/releases/assets/587012397"
-
 [[tools."github:protonpass/pass-cli"]]
 version = "2.5.1"
 backend = "github:protonpass/pass-cli"

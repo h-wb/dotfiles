@@ -33,7 +33,6 @@ yq = "latest"
 starship = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
-"github:jpillora/sshd-lite" = "latest" # the pod's sshd sidecar (home-ops agents/paseo)
 "github:protonpass/pass-cli" = "latest" # the `paseo` token's session (paseo:pass-login)
 "github:jdx/fnox" = "latest" # repos' fnox.toml ref their vaults
 

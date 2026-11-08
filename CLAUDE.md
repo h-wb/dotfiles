@@ -452,7 +452,7 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 - **Shims are symlinks to the mise that wrote them.** The init container copies
   its mise to `~/.local/bin/mise` and runs it with that dir first on `PATH`.
   Otherwise shims point at the image's `/usr/local/bin/mise`, which the app
-  and sshd containers lack, and sshd crash-loops.
+  container lacks, so every tool there is "not found".
 - **Never `MISE_CONFIG_DIR=~/.dotfiles` there**: through the real directory
   mise rewrites lock sidecar paths, the checkout goes dirty, and `--update`
   stops fast-forwarding. Through the `~/.config/mise` link it stays clean.
@@ -460,7 +460,8 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   merges home-ops' `paseo.json` into `~/.paseo/config.json`. It is a separate
   layer because a merge with a missing source is an error, and CI has no
   mount. That path is the whole contract with home-ops.
-- Chromium and sshd remain pod sidecars. The private home is a separate PVC.
+- Chromium is a pod sidecar. There is no sshd: terminals come from Paseo's web
+  UI, admin shells from `kubectl exec`. The private home is a separate PVC.
 - Scope separation is enforced by home-ops (per-scope pods and credentials).
   See home-ops `agents/README.md`.
 
