@@ -17,30 +17,23 @@ starship = "latest"
 "github:protonpass/pass-cli" = "latest"
 "github:jdx/fnox" = "latest"
 
+# Back on the base branch at every start (clean checkouts only): agents work in
+# Paseo worktrees, and fresh-worktrees fast-forwards the checked-out base.
 [bootstrap.repos]
-"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
-"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
-"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
-"~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git" }
-"~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git" }
+"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git", ref = "main" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git", ref = "main" }
+"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git", ref = "master" }
+"~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git", ref = "main" }
+"~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git", ref = "main" }
 
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
-"~/.paseo/config.json/defaults" = { source = "defaults.json", merge = "missing" }
 
 # Copies, not symlinks: Paseo propagates them into new worktrees.
 "~/Repositories/pipelines/mise.local.toml" = { source = "projects/pipelines/mise.toml.tera", mode = "template", permissions = "600" }
 "~/Repositories/sento/mise.local.toml" = { source = "projects/sento/mise.toml", mode = "copy", permissions = "600" }
 "~/Repositories/sento/fnox.toml" = { source = "projects/sento/fnox.toml", mode = "copy", permissions = "600" }
-
-# Removed 2026-11-08; drop these once both pods have applied them.
-"~/.profile" = { mode = "absent" }
-"~/.local/bin/pc" = { mode = "absent" }
-"~/.local/bin/pls" = { mode = "absent" }
-"~/.local/bin/patt" = { mode = "absent" }
-"~/.local/bin/psend" = { mode = "absent" }
-"~/.local/bin/pstop" = { mode = "absent" }
 
 [tasks.bootstrap]
 run = [

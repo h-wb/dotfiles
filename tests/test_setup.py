@@ -173,28 +173,15 @@ esac
         self.assertFalse((self.home / "mise.calls").exists())
         self.assertIn("bootstrap --dry-run --upgrade", (self.home / "fnox.calls").read_text())
 
-    def test_paseo_merge_preserves_app_state_and_version(self):
-        # Defaults only fill missing keys; agent config is merged by home-ops.
+    def test_paseo_leaves_paseo_config_alone(self):
+        # Only home-ops' overlay (paseo-overlay layer) merges into it.
         target = self.home / ".paseo/config.json"
         target.parent.mkdir()
-        before = {"version": 2, "theme": "dark", "agents": {"providers": {
-            "claude": {"enabled": True, "custom": "keep"}}}}
-        target.write_text(json.dumps(before))
-        self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        after = json.loads(target.read_text())
-        self.assertIn("fresh-worktrees", after.pop("plugins"))
-        self.assertTrue(after.pop("pluginsEnabled"))
-        self.assertEqual(after, before)
-        stamp = target.stat().st_mtime_ns
-        self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        self.assertEqual(target.stat().st_mtime_ns, stamp)
+        for content in ('{"version": 2, "theme": "dark"}', '{"unfinished":'):
+            target.write_text(content)
+            self.mise("bootstrap", "dotfiles", "apply", "--yes")
+            self.assertEqual(target.read_text(), content)
         self.assertFalse((self.home / ".kube/main.yaml").exists())
-
-    def test_paseo_merge_creates_defaults(self):
-        self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        config = json.loads((self.home / ".paseo/config.json").read_text())
-        self.assertEqual(config["version"], 1)
-        self.assertNotIn("agents", config)
 
     def apply_ai(self, **env):
         self.mise("bootstrap", "dotfiles", "apply", "--yes", env={**self.env, **env})
@@ -391,14 +378,6 @@ esac
         repo = tomllib.loads((self.repo / "fnox.toml").read_text())
         self.assertNotIn("MCP_API_KEY", repo["secrets"])
         self.assertNotIn("profiles", repo)
-
-    def test_paseo_merge_refuses_invalid_json(self):
-        target = self.home / ".paseo/config.json"
-        target.parent.mkdir()
-        target.write_text('{"unfinished":')
-        result = self.mise("bootstrap", "dotfiles", "apply", "--yes", ok=False)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(target.read_text(), '{"unfinished":')
 
     def mock_proton(self):
         self.fake("uname", 'echo "${TEST_OS:-Linux}"')
