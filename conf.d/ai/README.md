@@ -69,7 +69,10 @@ key.
 - **Pods**: no gateway key. They call the gateways' in-cluster services
   (`mcp_<scope>_url` in `mise.paseo.toml`, `mcp_auth = "network"`), and
   home-ops' NetworkPolicy admits only that scope's pod. `MEMINI_API_KEY` comes
-  from home-ops' ExternalSecrets in the pod env.
+  from home-ops' ExternalSecrets in the pod env. The addresses default to
+  today's services; home-ops can set them in the pod env instead
+  (`TOOLHIVE_URL`, `MEMINI_BASE_URL`, `CHROME_CDP_URL`), so renaming a service
+  never needs a dotfiles change.
 
 Not covered: a client that runs its own bundled copy of an agent instead of the
 one on PATH.

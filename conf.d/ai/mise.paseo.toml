@@ -7,14 +7,16 @@ claude_scope = "{{ vars.pod_scope }}"
 codex_scope = "{{ vars.pod_scope }}"
 vibe_scope = "{{ vars.pod_scope }}"
 opencode_scope = "{{ vars.pod_scope }}"
-# The services behind mcp-general and mcp-private. No key: their NetworkPolicy
-# admits only this scope's pod.
-mcp_general_url = "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"
-mcp_private_url = "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"
+# home-ops' in-cluster services, which the pod env overrides (TOOLHIVE_URL,
+# MEMINI_BASE_URL, CHROME_CDP_URL). A pod has one scope, so one variable serves
+# whichever scope's URL it uses. No key: the gateway's NetworkPolicy admits
+# only this scope's pod.
+mcp_general_url = "{{ get_env(name='TOOLHIVE_URL', default='http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp') }}"
+mcp_private_url = "{{ get_env(name='TOOLHIVE_URL', default='http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp') }}"
 mcp_auth = "network"
-memini_general_url = "http://memini-general.llm.svc.cluster.local:8080"
-memini_private_url = "http://memini-private.llm.svc.cluster.local:8080"
-chrome_cdp_url = "http://127.0.0.1:9222"
+memini_general_url = "{{ get_env(name='MEMINI_BASE_URL', default='http://memini-general.llm.svc.cluster.local:8080') }}"
+memini_private_url = "{{ get_env(name='MEMINI_BASE_URL', default='http://memini-private.llm.svc.cluster.local:8080') }}"
+chrome_cdp_url = "{{ get_env(name='CHROME_CDP_URL', default='http://127.0.0.1:9222') }}"
 
 [dotfiles]
 # The image sets CLAUDE_CONFIG_DIR=~/.claude.
