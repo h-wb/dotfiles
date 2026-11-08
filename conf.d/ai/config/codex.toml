@@ -1,0 +1,24 @@
+{%- set scope = vars.codex_scope -%}
+{%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
+{%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
+# Merged into ~/.codex/config.toml: Codex keeps its own keys. Header values are
+# env var NAMES, read by Codex at runtime.
+{%- if mcp %}
+[mcp_servers.toolhive-{{ scope }}]
+url = "{{ mcp }}"
+{%- if vars.mcp_auth == "api-key" %}
+env_http_headers = { "x-api-key" = "MCP_API_KEY" }
+{%- endif %}
+{%- endif %}
+{%- if memini %}
+
+[mcp_servers.memini-{{ scope }}]
+url = "{{ memini }}/mcp"
+bearer_token_env_var = "MEMINI_API_KEY"
+{%- endif %}
+{%- if vars.chrome_cdp_url %}
+
+[mcp_servers.chrome-devtools]
+command = "chrome-devtools-mcp"
+args = ["--browserUrl", "{{ vars.chrome_cdp_url }}"]
+{%- endif %}

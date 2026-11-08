@@ -1,0 +1,29 @@
+# The secrets the agents may read, and nothing else: mise [wrappers]
+# (mise.workstation.toml, mise.personal.toml) run them under
+# `fnox -c <this file> -P <scope> exec`, so the repo's own fnox.toml never
+# reaches them. One profile per data scope (mise.toml), with the same variable
+# names, so an agent's config never says which scope's key it holds.
+# Every profile defines every variable, so a key the parent shell exports is
+# always replaced, never inherited across scopes (a variable a scope should not
+# have would be `env = false`, which strips it). References only, no values. A
+# missing item only warns (--if-missing warn): the agent starts and that server
+# fails to authenticate.
+#
+# One Proton Pass item per server, one field per scope, holding this
+# workstation's client keys: the GENERAL_WORKSTATION / PRIVATE_WORKSTATION
+# fields of home-ops' Bitwarden `toolhive` and `memini` items (one key per
+# holder, named <SCOPE>_<HOLDER>; every workstation is the holder `workstation`).
+
+[providers.automation]
+type = "proton-pass"
+vault = "Automation"
+
+# Claude Code, Claude Desktop, Codex.
+[profiles.general.secrets]
+MCP_API_KEY = { provider = "automation", value = "pass://Automation/toolhive/general" }
+MEMINI_API_KEY = { provider = "automation", value = "pass://Automation/memini/general" }
+
+# Vibe.
+[profiles.private.secrets]
+MCP_API_KEY = { provider = "automation", value = "pass://Automation/toolhive/private" }
+MEMINI_API_KEY = { provider = "automation", value = "pass://Automation/memini/private" }

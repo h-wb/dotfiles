@@ -1,0 +1,30 @@
+# Agent harness config, defined once for every machine: the MCP servers Claude
+# Code, Claude Desktop, Codex, Vibe and the pods' OpenCode connect to. An
+# env-less folder fragment, so it loads everywhere; class files add an agent's
+# config where its path or key source differs. Templates are in config/. Every
+# agent reads its gateway key from MCP_API_KEY and memini's from MEMINI_API_KEY:
+# fnox puts the right scope's keys there on workstations (fnox.toml beside
+# this), home-ops' ExternalSecrets on the pods. No rendered file holds a key.
+
+[vars]
+# Each agent's data scope follows where its model runs. general: Anthropic and
+# OpenAI (Claude, Codex) get mcp-general, a curated tool subset without the
+# private data, and memini-general. private: Mistral (Vibe) gets mcp-private,
+# the whole catalogue, and memini-private. home-ops enforces it: Envoy only lets
+# a scope's keys through its gateway's hostname, NetworkPolicy only lets that
+# scope's pods reach it in-cluster, and each memini has its own keys.
+claude_scope = "general"
+codex_scope = "general"
+vibe_scope = "private"
+# Where each scope's gateway and memini are, and how a caller gets in, is the
+# class's: mise.workstation.toml (through Envoy, with a key) or mise.paseo.toml
+# (in-cluster, admitted by NetworkPolicy). Templates pick mcp_<scope>_url and
+# memini_<scope>_url, and leave a server out while its URL is empty.
+# The pods' Chromium sidecar; empty elsewhere omits the server.
+chrome_cdp_url = ""
+
+[dotfiles]
+# Merged: Codex and Vibe rewrite their files, so we set only our servers.
+# Codex keys them by name (tables); Vibe's are an array, which we own whole.
+"~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
+"~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }

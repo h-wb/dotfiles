@@ -2,9 +2,9 @@
 # image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
 # systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
 #
-# Layers: pod, not workstation. This class installs the CLIs, repos and shell. Agent
-# config (Paseo providers, Claude/OpenCode MCP and models) is owned by home-ops
-# (agents/paseo/<scope>/config) and applied by its provision.sh after this bootstrap.
+# Layers: pod, not workstation. This class installs the CLIs, repos and shell; the
+# agents' MCP servers come from conf.d/ai (mise.paseo.toml there). Paseo providers
+# and OpenCode models are home-ops' (agents/paseo/<scope>/config, /etc/paseo/config).
 # PASEO_DATA_SCOPE names the per-scope Proton Pass session.
 
 [settings]

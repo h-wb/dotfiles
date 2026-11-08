@@ -1,0 +1,32 @@
+{%- set scope = vars.vibe_scope -%}
+{%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
+{%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
+# Merged into ~/.vibe/config.toml: Vibe keeps its own keys. mcp_servers is an
+# array, which a merge replaces whole, so this is ALL of Vibe's servers: add one
+# here, not with `vibe mcp add` (the next apply would drop it). Keys are env
+# var NAMES, read by Vibe at runtime.
+{%- if mcp %}
+[[mcp_servers]]
+name = "toolhive-{{ scope }}"
+transport = "streamable-http"
+url = "{{ mcp }}"
+{%- if vars.mcp_auth == "api-key" %}
+auth = { type = "static", api_key_env = "MCP_API_KEY", api_key_header = "x-api-key", api_key_format = "{token}" }
+{%- endif %}
+{%- endif %}
+{%- if memini %}
+
+[[mcp_servers]]
+name = "memini-{{ scope }}"
+transport = "streamable-http"
+url = "{{ memini }}/mcp"
+auth = { type = "static", api_key_env = "MEMINI_API_KEY" }
+{%- endif %}
+{%- if vars.chrome_cdp_url %}
+
+[[mcp_servers]]
+name = "chrome-devtools"
+transport = "stdio"
+command = "chrome-devtools-mcp"
+args = ["--browserUrl", "{{ vars.chrome_cdp_url }}"]
+{%- endif %}
