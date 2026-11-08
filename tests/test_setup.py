@@ -590,21 +590,18 @@ esac
                           env=env)
                 self.assertEqual((self.home / "resolved-profile").read_text(), expected)
 
-    def test_private_bootstrap_skips_general_repositories(self):
-        self.fake_mise()
-        self.fake("git", "exit 0")
-        script = self.repo / "conf.d/paseo/bin/paseo-bootstrap"
-        for scope in ["", "general", "private"]:
-            with self.subTest(scope=scope):
-                log = self.home / "mise.calls"
-                log.unlink(missing_ok=True)
-                self.run_cmd("sh", str(script), env={**self.env,
-                    "DOTFILES_PULLED": "1", "PASEO_DATA_SCOPE": scope})
-                command = next(line for line in log.read_text().splitlines()
-                               if line.startswith("bootstrap "))
-                self.assertEqual("--skip repos" in command, scope == "private")
-                self.assertIn("--locked", command)
-                self.assertIn("--force-dotfiles", command)
+    def test_paseo_overlay_layer_loads_only_with_the_mount(self):
+        # The scope overlay (/etc/paseo/config/paseo.json, mounted by home-ops
+        # pods) is merged into ~/.paseo/config.json by the `paseo-overlay` env
+        # layer (miserc.toml tests the mount path). Without that env — tests,
+        # workstations — the entry must not load, so bootstrap never looks for
+        # /etc/paseo. The private pod's `--skip repos` arg is asserted in
+        # home-ops' tests/test_paseo.py (it lives in the pod spec now).
+        self.select("paseo")
+        self.assertNotIn("paseo-overlay", self.mise("config").stdout)
+        (self.repo / "miserc.local.toml").write_text(
+            'env = ["pod", "paseo", "paseo-overlay"]\n')
+        self.assertIn("conf.d/paseo/mise.paseo-overlay.toml", self.mise("config").stdout)
 
     def test_installer_layers_and_secret_routing(self):
         self.fake_mise()

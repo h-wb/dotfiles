@@ -18,4 +18,7 @@ env = [
   "{% if '/etc/paseo' is not exists %}workstation{% endif %}",
   "{% if '/etc/neko' is exists or '/etc/paseo' is exists %}pod{% endif %}",
   "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif os() == 'macos' %}personal{% endif %}",
+  # Only where a home-ops paseo pod mounts its scope overlay: loads
+  # conf.d/paseo/mise.paseo-overlay.toml (the /etc/paseo/config merge entry).
+  "{% if '/etc/paseo/config/paseo.json' is exists %}paseo-overlay{% endif %}",
 ]
