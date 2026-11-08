@@ -8,6 +8,10 @@ pod (`paseo`). What several classes share lives in **layers** (`workstation`,
 `pod`), not in each class. Read the section for a
 machine before touching anything it loads.
 
+**On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`, never in
+`~/.dotfiles`.** `~/.dotfiles` is the pod's live config, forced to
+`origin/master` at every start: edits and local commits there are lost.
+
 ## The layout: this repo IS mise's config dir
 
 `~/.config/mise` is a **symlink to `~/.dotfiles`**, so mise reads everything
@@ -446,7 +450,9 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir .
   --update --yes --force-dotfiles --skip-dirty --locked`, plus `--skip=repos`
   on private. mise re-reads miserc after the first clone. The image tag is the
-  mise version, so keep it ≥ `min_version`.
+  mise version, so keep it ≥ `min_version`. Before that, an existing checkout
+  is forced to `origin/master` (`checkout -f -B master`, `clean -fd`), because
+  `--update` only fast-forwards and has no force option.
 - **Shims symlink to the mise that made them**, so the init container runs a
   copy at `~/.local/bin/mise` (first on `PATH`). From the image's
   `/usr/local/bin/mise` every tool is "not found" in the app container.
