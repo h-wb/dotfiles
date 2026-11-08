@@ -1,6 +1,4 @@
-# Layer `pod`: the Linux pods in home-ops (neko, paseo). Only $HOME is on a PVC; each
-# reprovisions at every start through its conf.d/<class>/bin/*-bootstrap and
-# scripts/provision.sh. --skip-dirty there: a dirty checkout must not stop it.
+# Layer `pod`: neko and paseo, home-ops pods with only $HOME on a PVC.
 
 [tools]
 tmux = "latest"   # mise, not apt: /usr is wiped every pod roll

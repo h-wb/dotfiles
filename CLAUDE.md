@@ -68,7 +68,8 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
 - **`min_version = { hard = "2026.10.19" }`** in `config.toml` — for
   `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
   `depends`. The minimum stays at .19; .20 is tested too and fixes sidecar
-  placement for symlinked config directories. `scripts/provision.sh` (installer and both pods' bootstrap) self-updates below it, because
+  placement for symlinked config directories. `scripts/provision.sh` (installer and neko's bootstrap; paseo pins
+  mise by image tag) self-updates below it, because
   `self_update.auto` skips unattended runs; it reads the version from this very
   line with `sed`, so keep the inline-table shape. Don't
   raise it to a release under 24h old: self-update and mise-action both wait a
@@ -441,8 +442,21 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   read the existing `Homelab/Obsidian` login. Machine-only external credentials
   live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
   and revocation of the old broad token; a new config cannot erase old access.
-- Provisioning is still `bin/paseo-bootstrap` and shared `scripts/provision.sh`.
-  Chromium and sshd remain pod sidecars. The private home is a separate PVC.
+- **Provisioning** is home-ops' `tools` init container (jdx/mise image):
+  `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir .
+  --update --yes --force-dotfiles --skip-dirty --locked`, plus `--skip=repos`
+  on private. mise re-reads miserc after the first clone. The image tag is the
+  mise version, so keep it ≥ `min_version`.
+- **Shims symlink to the mise that made them**, so the init container runs a
+  copy at `~/.local/bin/mise` (first on `PATH`). From the image's
+  `/usr/local/bin/mise` every tool is "not found" in the app container.
+- **`MISE_CONFIG_DIR` goes through the `~/.config/mise` link**, never the real
+  `~/.dotfiles`. Through the real directory, lock sidecar paths get rewritten
+  and `--update` stops fast-forwarding.
+- `paseo-overlay` merges `/etc/paseo/config/paseo.json` into
+  `~/.paseo/config.json`. It is its own layer because a missing merge source
+  is an error. That path is the only contract with home-ops.
+- No sshd: terminals come from Paseo's web UI, admin shells from `kubectl exec`.
 - Scope separation is enforced by home-ops (per-scope pods and credentials).
   See home-ops `agents/README.md`.
 

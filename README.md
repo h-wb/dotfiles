@@ -83,8 +83,8 @@ Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by
 `mise activate` in zsh and fish alike.
 
 `apply`, `diff` and `upgrade` belong to the workstation layer. Paseo reprovisions
-with `paseo-bootstrap`. `diff` previews bootstrap steps; it does not show rendered
-template differences. `mise bootstrap plan` covers only the resource planner's
+at every pod start (`mise bootstrap --from` in home-ops). `diff` previews bootstrap
+steps; it does not show rendered template differences. `mise bootstrap plan` covers only the resource planner's
 subset of bootstrap, so it is not a replacement for that preview.
 
 ## Validate changes

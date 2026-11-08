@@ -116,7 +116,7 @@ jobs:
             test -L "$HOME/.config/systemd/user/gamescope-session.service.d/projector.conf"
             grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" "$HOME/.local/share/applications/ludo.desktop" ;;
           paseo)
-            test -x "$HOME/.local/bin/paseo-bootstrap"
+            test -x "$HOME/.local/bin/pc"
             test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: cluster access goes through ToolHive
             test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')"
             # agent config is home-ops' (agents/paseo/<scope>/config), not rendered here

@@ -1,25 +1,14 @@
-# The paseo agent host: a headless pod in home-ops (kubernetes/apps/main/agents/paseo),
-# image ghcr.io/getpaseo/paseo (Debian bookworm), user `paseo` (1000), no sudo, no
-# systemd. Only /home/paseo is on a PVC. Detected by /etc/paseo, which the pod mounts.
-#
-# Layers: pod, not workstation. This class installs the CLIs, repos and shell; the
-# agents' MCP servers come from conf.d/ai (mise.paseo.toml there). Paseo providers
-# and OpenCode models are home-ops' (agents/paseo/<scope>/config, /etc/paseo/config).
-# PASEO_DATA_SCOPE names the per-scope Proton Pass session.
+# Paseo agent pods (home-ops agents/paseo). Bootstrap runs in the jdx/mise init
+# container, so hooks and tasks get that image's userland, not getpaseo's.
 
 [settings]
-# Agents work in clones and Paseo worktrees that carry their own mise configs
-# (home-ops' .mise.toml); an untrusted one fails every shim run in that directory.
+# Untrusted repo configs fail every shim run there.
 trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
 
 [env]
-# Scoped Proton Pass session for this pod's fnox use; a repo's own config
-# (home-ops' .mise.toml) overrides it with its separate session dir there.
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
-# seccomp blocks the kernel keyring pass-cli uses by default; `fs` keeps the key
-# on the PVC (same as neko).
-PROTON_PASS_KEY_PROVIDER = "fs"
+PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 
 [tools]
 "aqua:anomalyco/opencode" = "latest"
@@ -31,12 +20,9 @@ yq = "latest"
 starship = "latest"
 "github:home-operations/flate" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
-"github:jpillora/sshd-lite" = "latest" # the pod's sshd sidecar (home-ops agents/paseo)
-"github:protonpass/pass-cli" = "latest" # the `paseo` token's session (paseo:pass-login)
-"github:jdx/fnox" = "latest" # repos' fnox.toml ref their vaults
+"github:protonpass/pass-cli" = "latest"
+"github:jdx/fnox" = "latest"
 
-# Checkouts this host is provisioned from: cloned / fast-forwarded into
-# ~/Repositories by `mise bootstrap` (paseo-bootstrap) at every pod start.
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
@@ -44,11 +30,7 @@ starship = "latest"
 "~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git" }
 "~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git" }
 
-# A pull can change a repo's mise config, which invalidates its content-hashed
-# trust marker; without a fresh `mise trust`, every daemon-spawned helper there
-# (git credential helper → gh shim, claude shim for workspace auto-naming) dies
-# with "Config files ... are not trusted" and chats fail to start. Hooks run
-# before the config-dependent parts, so trust the repos as soon as they exist.
+# A pull invalidates trust markers; untrusted, daemon-spawned shims fail.
 [bootstrap.hooks.post-repos]
 run = "mise bootstrap repos exec -- mise trust"
 
@@ -59,23 +41,18 @@ run = "mise bootstrap repos exec -- mise trust"
 "~/.local/bin" = { source = "bin", mode = "symlink-each" }
 "~/.paseo/config.json/defaults" = { source = "defaults.json", merge = "missing" }
 
-# Host-owned Sento defaults and vault references. Copy, rather than symlink,
-# so Paseo can propagate these ignored files into fresh worktrees.
+# Copies, not symlinks: Paseo propagates them into new worktrees.
 "~/Repositories/pipelines/mise.local.toml" = { source = "projects/pipelines/mise.toml.tera", mode = "template", permissions = "600" }
 "~/Repositories/sento/mise.local.toml" = { source = "projects/sento/mise.toml", mode = "copy", permissions = "600" }
 "~/Repositories/sento/fnox.toml" = { source = "projects/sento/fnox.toml", mode = "copy", permissions = "600" }
 
 [shell_alias]
-# Paseo session shortcuts — daemon-managed, so visible on mobile/web/CLI.
-# Use these instead of running claude/opencode directly for anything you
-# want to see on another device.
 pc = "paseo run --provider claude"
 pls = "paseo ls"
 patt = "paseo attach"
 psend = "paseo send"
 pstop = "paseo stop"
 
-# ── Tasks ───────────────────────────────────────────────────────────────────
 [tasks."paseo:latest"]
 description = "Attach to the most recent Paseo session"
 run = '''
@@ -103,8 +80,6 @@ run = [
   { task = "paseo:pass-login" },
 ]
 
-# Each pod receives its own scoped token. General must not include the private
-# Obsidian vault. Re-authenticate on bootstrap so token changes take effect.
 [tasks."paseo:pass-login"]
 extends = "proton-login"
 description = "Authenticate this pod's scoped Proton Pass session"

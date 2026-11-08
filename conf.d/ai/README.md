@@ -79,8 +79,8 @@ one on PATH.
 
 ## Home-ops
 
-The paseo pods run this repo's bootstrap at every start (home-ops'
-`provision.sh` → `paseo-bootstrap`), so home-ops consumes these definitions
+The paseo pods run this repo's bootstrap at every start (`mise bootstrap
+--from` in home-ops' `tools` init container), so home-ops consumes these definitions
 without copying them. It supplies only the inputs: `PASEO_DATA_SCOPE` and the
 key env vars. It keeps what is pod-specific in `agents/paseo/<scope>/config/`:
 Paseo's providers (`paseo.json`) and OpenCode's models and providers
