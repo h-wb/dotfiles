@@ -243,6 +243,15 @@ esac
     def vibe_servers(self):
         return {v["name"]: v for v in self.vibe()["mcp_servers"]}
 
+    def test_ai_paseo_urls_come_from_the_pod_env_when_set(self):
+        # home-ops owns its service names; dotfiles only has the defaults.
+        self.apply_ai(PASEO_DATA_SCOPE="private", TOOLHIVE_URL="http://gw.test/mcp",
+                      MEMINI_BASE_URL="http://mem.test", CHROME_CDP_URL="http://127.0.0.1:1")
+        servers = json.loads((self.home / ".claude/.claude.json").read_text())["mcpServers"]
+        self.assertEqual("http://gw.test/mcp", servers["toolhive"]["url"])
+        self.assertEqual("http://mem.test/mcp", servers["memini"]["url"])
+        self.assertEqual(["--browserUrl", "http://127.0.0.1:1"], servers["chrome-devtools"]["args"])
+
     def test_ai_paseo_codex_and_vibe_follow_the_scope(self):
         self.apply_ai(PASEO_DATA_SCOPE="private")
         codex = tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"]
