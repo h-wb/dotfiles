@@ -1,20 +1,13 @@
-# Workstations reach the cluster through Envoy, with each scope's key from Proton
-# Pass (fnox.toml).
+# Workstations: public URLs through Envoy, keys from Proton Pass via fnox.
 
 [vars]
-# Never committed: apply's fnox supplies it from Proton Pass. Empty anywhere else,
-# which leaves the cluster's servers out; the merge keeps the last good ones.
 secret_domain = "{{ get_env(name='SECRET_DOMAIN', default='') }}"
 mcp_general_url = "{% if vars.secret_domain %}https://mcp-general.{{ vars.secret_domain }}/mcp{% endif %}"
 mcp_private_url = "{% if vars.secret_domain %}https://mcp-private.{{ vars.secret_domain }}/mcp{% endif %}"
 memini_general_url = "{% if vars.secret_domain %}https://memini-general.{{ vars.secret_domain }}{% endif %}"
 memini_private_url = "{% if vars.secret_domain %}https://memini-private.{{ vars.secret_domain }}{% endif %}"
-# Envoy checks MCP_API_KEY as x-api-key.
 mcp_auth = "api-key"
 
-# Each agent runs under fnox with its scope's profile and nothing else. A wrapper
-# catches every launch (shim, mise activate, IDE, launchd); args go before the
-# caller's. --if-missing warn: a dead session fails a server, not the agent.
 [wrappers.claude]
 command = "fnox"
 args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "claude"]

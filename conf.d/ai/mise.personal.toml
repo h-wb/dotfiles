@@ -1,6 +1,4 @@
-# Claude Desktop, in Claude's scope. It only launches local commands, so
-# mcp-remote bridges (by its mise shim: launchd's PATH has no mise) and expands
-# ${MCP_API_KEY} itself, so the key is in neither the file nor `ps`.
+# Claude Desktop, bridged by mcp-remote.
 
 [tools]
 "npm:mcp-remote" = "0.15.2"
