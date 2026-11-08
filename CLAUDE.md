@@ -9,7 +9,9 @@ each class. Read the section for a
 machine before touching anything it loads.
 
 **On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
-is the pod's live config: read-only, and cloned fresh at every start.
+is the pod's live config: read-only, and cloned fresh at every start. Work in
+Paseo worktrees, not in the `~/Repositories` checkouts themselves: a clean
+checkout goes back to its base branch at every start.
 
 ## The layout: this repo IS mise's config dir
 
@@ -439,7 +441,7 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   both MCP lists (verified with 2.2.6). Home-ops keeps the rest in
   `agents/paseo/<scope>/config/` (Paseo providers, OpenCode models and
   providers), mounted at `/etc/paseo/config`. This class also installs CLIs,
-  repos, shell config and the Paseo defaults (`defaults.json`, missing keys only).
+  repos and shell config.
 - Proton Pass uses the global login template with a per-scope session and token fingerprint. Grant tokens access only to approved items: general must not
   read the existing `Homelab/Obsidian` login. Machine-only external credentials
   live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
