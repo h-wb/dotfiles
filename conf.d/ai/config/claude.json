@@ -1,8 +1,7 @@
 {%- set scope = vars.claude_scope -%}
 {%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
 {%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
-{#- The gateway and memini come from the same place (the domain, or the
-    in-cluster services), so they are there or not together. -#}
+{#- The gateway and memini share a source, so they come and go together. -#}
 {
   "mcpServers": {
 {%- if mcp %}

@@ -1,9 +1,6 @@
-# Claude Desktop → Claude's scope (claude_scope), like Claude Code. Desktop only
-# launches local commands, so mcp-remote bridges, under Claude's fnox profile. Its wrapper (same shape as the
-# agents' in mise.workstation.toml) runs it under `fnox exec` with this folder's
-# fnox.toml; mcp-remote expands ${MCP_API_KEY} in the header itself, so neither
-# Desktop's file nor `ps` shows the key. Desktop calls the mise shim: launchd's
-# PATH has no mise, and the shim works without it.
+# Claude Desktop, in Claude's scope. It only launches local commands, so
+# mcp-remote bridges (by its mise shim: launchd's PATH has no mise) and expands
+# ${MCP_API_KEY} itself, so the key is in neither the file nor `ps`.
 
 [tools]
 "npm:mcp-remote" = "0.15.2"
@@ -13,5 +10,4 @@ command = "fnox"
 args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "mcp-remote"]
 
 [dotfiles]
-# Desktop writes its own `preferences` into the file, so it is merged, not rendered.
 "~/Library/Application Support/Claude/claude_desktop_config.json/mcp" = { source = "config/claude-desktop.json", merge = true, template = "tera" }

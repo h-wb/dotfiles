@@ -1,9 +1,5 @@
-# The paseo pods: one scope per pod, so every agent there takes the pod's
-# (PASEO_DATA_SCOPE), and in-cluster services. The gateways take no key here:
-# home-ops' NetworkPolicy admits only this scope's pod to its gateway. memini
-# keys come from the pod env (home-ops' ExternalSecrets). paseo-bootstrap's `mise
-# bootstrap` renders these at every pod start; home-ops keeps the Paseo
-# providers and OpenCode's models (/etc/paseo/config, see README.md).
+# The paseo pods: every agent takes the pod's scope and in-cluster services.
+# home-ops owns the Paseo providers and OpenCode's models (/etc/paseo/config).
 
 [vars]
 pod_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
@@ -11,19 +7,17 @@ claude_scope = "{{ vars.pod_scope }}"
 codex_scope = "{{ vars.pod_scope }}"
 vibe_scope = "{{ vars.pod_scope }}"
 opencode_scope = "{{ vars.pod_scope }}"
-# The ToolHive services behind mcp-general (mcp-ops) and mcp-private (mcp-gateway).
+# The services behind mcp-general and mcp-private. No key: their NetworkPolicy
+# admits only this scope's pod.
 mcp_general_url = "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"
 mcp_private_url = "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"
-# No key: NetworkPolicy admits this scope's pod to its gateway.
 mcp_auth = "network"
 memini_general_url = "http://memini-general.llm.svc.cluster.local:8080"
 memini_private_url = "http://memini-private.llm.svc.cluster.local:8080"
 chrome_cdp_url = "http://127.0.0.1:9222"
 
 [dotfiles]
-# The image's entrypoint sets CLAUDE_CONFIG_DIR=~/.claude, so Claude keeps its
-# .claude.json there. Merged: we own mcpServers.<ours>, Claude keeps the rest.
+# The image sets CLAUDE_CONFIG_DIR=~/.claude.
 "~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
-# OpenCode layers this global file under OPENCODE_CONFIG (home-ops' models and
-# providers); MCP servers from both are merged.
+# Only MCP servers: OpenCode merges it under home-ops' OPENCODE_CONFIG.
 "~/.config/opencode/opencode.json" = { source = "config/opencode.json", mode = "template" }

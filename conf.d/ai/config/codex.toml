@@ -1,8 +1,7 @@
 {%- set scope = vars.codex_scope -%}
 {%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
 {%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
-# Merged into ~/.codex/config.toml: Codex keeps its own keys. Header values are
-# env var NAMES, read by Codex at runtime.
+{#- Header values are env var names, read by Codex at runtime. -#}
 {%- if mcp %}
 [mcp_servers.toolhive]
 url = "{{ mcp }}"

@@ -1,10 +1,8 @@
 {%- set scope = vars.vibe_scope -%}
 {%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
 {%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
-# Merged into ~/.vibe/config.toml: Vibe keeps its own keys. mcp_servers is an
-# array, which a merge replaces whole, so this is ALL of Vibe's servers: add one
-# here, not with `vibe mcp add` (the next apply would drop it). Keys are env
-# var NAMES, read by Vibe at runtime.
+{#- mcp_servers is an array, which the merge replaces whole: this is all of Vibe's
+    servers (one added with `vibe mcp add` goes on the next apply). -#}
 {%- if mcp %}
 [[mcp_servers]]
 name = "toolhive"
