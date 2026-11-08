@@ -41,9 +41,9 @@ jobs:
         include:
           # layers: what miserc.toml would pick on that machine (it can't see a runner's)
           - { env: personal, layers: '"workstation", "personal"', os: macos-latest }
-          - { env: neko, layers: '"workstation", "pod", "neko"', os: ubuntu-latest }
+          - { env: neko, layers: '"workstation", "neko"', os: ubuntu-latest }
           - { env: cachyos, layers: '"workstation", "cachyos"', os: ubuntu-latest }
-          - { env: paseo, layers: '"pod", "paseo"', os: ubuntu-latest }
+          - { env: paseo, layers: '"paseo"', os: ubuntu-latest }
     name: ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -76,14 +76,10 @@ jobs:
           cachyos) grep -q conf.d/cachyos/mise.cachyos.toml /tmp/cfg ;;
           paseo)   grep -q conf.d/paseo/mise.paseo.toml /tmp/cfg ;;
           esac
-          # the layers: workstation everywhere but paseo, pod on the two pods
+          # the workstation layer everywhere but paseo
           case "${{ matrix.env }}" in
           paseo) ! grep -q config.workstation.toml /tmp/cfg || { echo "::error::workstation leaked into paseo"; exit 1; } ;;
           *)     grep -q config.workstation.toml /tmp/cfg || { echo "::error::workstation layer not loaded"; exit 1; } ;;
-          esac
-          case "${{ matrix.env }}" in
-          neko | paseo) grep -q conf.d/pod/mise.pod.toml /tmp/cfg || { echo "::error::pod layer not loaded"; exit 1; } ;;
-          *)            ! grep -q conf.d/pod/mise.pod.toml /tmp/cfg || { echo "::error::pod layer leaked"; exit 1; } ;;
           esac
           # nothing from another machine class or platform leaks in
           for other in personal neko cachyos paseo; do
@@ -116,7 +112,7 @@ jobs:
             test -L "$HOME/.config/systemd/user/gamescope-session.service.d/projector.conf"
             grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" "$HOME/.local/share/applications/ludo.desktop" ;;
           paseo)
-            test -x "$HOME/.local/bin/pc"
+            test -L "$HOME/.bashrc" && test ! -e "$HOME/.profile"
             test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: cluster access goes through ToolHive
             test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')"
             # agent config is home-ops' (agents/paseo/<scope>/config), not rendered here

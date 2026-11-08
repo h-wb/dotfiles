@@ -1,7 +1,6 @@
-# Prompt for the paseo pod's bash shell — same layout as neko's fish/starship.
-# Glyphs need a Nerd Font in the client terminal (SSH from a Mac with one is fine).
+# Same layout as neko's fish prompt.
 
-format = """$directory$git_branch$git_status$kubernetes$cmd_duration
+format = """$directory$git_branch$git_status$cmd_duration
 $character"""
 
 [directory]
@@ -15,11 +14,6 @@ style = "bold magenta"
 
 [git_status]
 style = "bold red"
-
-[kubernetes]
-symbol = "⎈ "
-style = "bold blue"
-disabled = false
 
 [cmd_duration]
 min_time = 2000
