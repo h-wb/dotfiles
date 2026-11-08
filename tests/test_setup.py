@@ -243,6 +243,13 @@ esac
     def vibe_servers(self):
         return {v["name"]: v for v in self.vibe()["mcp_servers"]}
 
+    def test_ai_claude_config_dir_is_the_same_everywhere(self):
+        for machine in ("personal", "paseo"):
+            with self.subTest(machine=machine):
+                self.select(machine)
+                out = json.loads(self.mise("env", "--json").stdout)
+                self.assertEqual(f"{self.home}/.claude", out["CLAUDE_CONFIG_DIR"])
+
     def test_ai_paseo_urls_come_from_the_pod_env_when_set(self):
         # home-ops owns its service names; dotfiles only has the defaults.
         self.apply_ai(PASEO_DATA_SCOPE="private", TOOLHIVE_URL="http://gw.test/mcp",
@@ -269,7 +276,8 @@ esac
     def test_ai_workstation_configs_reference_the_key_by_name(self):
         # `workstation` without a class, then personal for Claude Desktop.
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
-        target = self.home / ".claude.json"
+        target = self.home / ".claude/.claude.json"
+        target.parent.mkdir()
         before = {"oauthAccount": {"email": "x@y.z"},
                   "mcpServers": {"custom": {"type": "http", "url": "https://custom/mcp"}}}
         target.write_text(json.dumps(before))
@@ -309,7 +317,7 @@ esac
         self.assertEqual(servers["toolhive"]["auth"], {
             "type": "static", "api_key_env": "MCP_API_KEY",
             "api_key_header": "x-api-key", "api_key_format": "{token}"})
-        self.assertFalse((self.home / ".claude/.claude.json").exists())
+        self.assertFalse((self.home / ".claude.json").exists())
         self.assertFalse((self.home / ".config/opencode/opencode.json").exists())
         # Claude Desktop: its mcp-remote shim, Desktop's own keys survive.
         self.select("personal")
@@ -336,15 +344,15 @@ esac
         self.assertIn("SECRET_DOMAIN", tomllib.loads((self.repo / "fnox.toml").read_text())["secrets"])
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
         self.apply_ai()
-        self.assertEqual({}, json.loads((self.home / ".claude.json").read_text()).get("mcpServers", {}))
+        self.assertEqual({}, json.loads((self.home / ".claude/.claude.json").read_text()).get("mcpServers", {}))
         for path in (".codex/config.toml", ".vibe/config.toml"):
             target = self.home / path
             self.assertNotIn("mcp_servers", tomllib.loads(target.read_text()) if target.exists() else {})
         self.apply_ai(SECRET_DOMAIN="example.test")
         servers = {"toolhive", "memini"}
-        self.assertEqual(servers, set(json.loads((self.home / ".claude.json").read_text())["mcpServers"]))
+        self.assertEqual(servers, set(json.loads((self.home / ".claude/.claude.json").read_text())["mcpServers"]))
         self.apply_ai()
-        self.assertEqual(servers, set(json.loads((self.home / ".claude.json").read_text())["mcpServers"]))
+        self.assertEqual(servers, set(json.loads((self.home / ".claude/.claude.json").read_text())["mcpServers"]))
         self.assertEqual({"toolhive", "memini"}, set(self.vibe_servers()))
 
     def test_ai_wrappers_run_agents_under_the_ai_fnox_config(self):

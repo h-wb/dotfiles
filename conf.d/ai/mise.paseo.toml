@@ -19,7 +19,5 @@ memini_private_url = "{{ get_env(name='MEMINI_BASE_URL', default='http://memini-
 chrome_cdp_url = "{{ get_env(name='CHROME_CDP_URL', default='http://127.0.0.1:9222') }}"
 
 [dotfiles]
-# The image sets CLAUDE_CONFIG_DIR=~/.claude.
-"~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 # Only MCP servers: OpenCode merges it under home-ops' OPENCODE_CONFIG.
 "~/.config/opencode/opencode.json" = { source = "config/opencode.json", mode = "template" }

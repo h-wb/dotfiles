@@ -26,6 +26,3 @@ args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.codex_
 [wrappers.vibe]
 command = "fnox"
 args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.vibe_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "vibe"]
-
-[dotfiles]
-"~/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
