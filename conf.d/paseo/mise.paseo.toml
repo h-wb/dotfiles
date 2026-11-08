@@ -35,14 +35,6 @@ starship = "latest"
 "~/Repositories/sento/mise.local.toml" = { source = "projects/sento/mise.toml", mode = "copy", permissions = "600" }
 "~/Repositories/sento/fnox.toml" = { source = "projects/sento/fnox.toml", mode = "copy", permissions = "600" }
 
-# Removed 2026-11-08; drop these once both pods have applied them.
-"~/.profile" = { mode = "absent" }
-"~/.local/bin/pc" = { mode = "absent" }
-"~/.local/bin/pls" = { mode = "absent" }
-"~/.local/bin/patt" = { mode = "absent" }
-"~/.local/bin/psend" = { mode = "absent" }
-"~/.local/bin/pstop" = { mode = "absent" }
-
 [tasks.bootstrap]
 run = [
   { task = "paseo:pass-login" },
