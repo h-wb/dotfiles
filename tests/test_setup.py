@@ -206,10 +206,10 @@ esac
         self.assertNotIn("secret-value", target.read_text())
         servers = json.loads(target.read_text())["mcpServers"]
         # In-cluster and keyless: the gateway's NetworkPolicy admits this pod.
-        self.assertEqual(servers["toolhive-general"], {"type": "http", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
-        self.assertEqual(servers["memini-general"]["url"],
+        self.assertEqual(servers["toolhive"], {"type": "http", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(servers["memini"]["url"],
                          "http://memini-general.llm.svc.cluster.local:8080/mcp")
-        self.assertEqual(servers["memini-general"]["headers"],
+        self.assertEqual(servers["memini"]["headers"],
                          {"Authorization": "Bearer ${MEMINI_API_KEY}"})
         self.assertEqual(servers["chrome-devtools"]["args"],
                          ["--browserUrl", "http://127.0.0.1:9222"])
@@ -219,21 +219,21 @@ esac
         opencode = json.loads(target.read_text())
         self.assertEqual(set(opencode), {"$schema", "mcp", "plugins"})
         oc = opencode["mcp"]["servers"]
-        self.assertEqual(oc["toolhive-general"], {"type": "remote", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
-        self.assertEqual(set(oc), {"toolhive-general", "memini-general", "chrome-devtools"})
+        self.assertEqual(oc["toolhive"], {"type": "remote", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(set(oc), {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(opencode["plugins"][0]["options"]["base_url"],
                          "http://memini-general.llm.svc.cluster.local:8080")
 
     def test_ai_paseo_private_uses_the_private_gateway_and_memini(self):
         self.apply_ai(PASEO_DATA_SCOPE="private")
         servers = json.loads((self.home / ".claude/.claude.json").read_text())["mcpServers"]
-        self.assertEqual(set(servers), {"toolhive-private", "memini-private", "chrome-devtools"})
-        self.assertEqual(servers["toolhive-private"], {"type": "http", "url": "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"})
-        self.assertEqual(servers["memini-private"]["url"],
+        self.assertEqual(set(servers), {"toolhive", "memini", "chrome-devtools"})
+        self.assertEqual(servers["toolhive"], {"type": "http", "url": "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(servers["memini"]["url"],
                          "http://memini-private.llm.svc.cluster.local:8080/mcp")
         opencode = json.loads((self.home / ".config/opencode/opencode.json").read_text())
         self.assertEqual(set(opencode["mcp"]["servers"]),
-                         {"toolhive-private", "memini-private", "chrome-devtools"})
+                         {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(opencode["plugins"][0]["options"]["base_url"],
                          "http://memini-private.llm.svc.cluster.local:8080")
 
@@ -246,15 +246,15 @@ esac
     def test_ai_paseo_codex_and_vibe_follow_the_scope(self):
         self.apply_ai(PASEO_DATA_SCOPE="private")
         codex = tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"]
-        self.assertEqual(set(codex), {"toolhive-private", "memini-private", "chrome-devtools"})
-        self.assertEqual(codex["toolhive-private"], {"url": "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"})
-        self.assertEqual(set(self.vibe_servers()), {"toolhive-private", "memini-private", "chrome-devtools"})
+        self.assertEqual(set(codex), {"toolhive", "memini", "chrome-devtools"})
+        self.assertEqual(codex["toolhive"], {"url": "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(set(self.vibe_servers()), {"toolhive", "memini", "chrome-devtools"})
         self.apply_ai()
         general = self.vibe_servers()
-        self.assertEqual(set(general), {"toolhive-general", "memini-general", "chrome-devtools"})
-        self.assertEqual(general["toolhive-general"], {
-            "name": "toolhive-general", "transport": "streamable-http", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
-        self.assertEqual(general["memini-general"]["url"],
+        self.assertEqual(set(general), {"toolhive", "memini", "chrome-devtools"})
+        self.assertEqual(general["toolhive"], {
+            "name": "toolhive", "transport": "streamable-http", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(general["memini"]["url"],
                          "http://memini-general.llm.svc.cluster.local:8080/mcp")
 
     def test_ai_workstation_configs_reference_the_key_by_name(self):
@@ -278,26 +278,26 @@ esac
         after = json.loads(target.read_text())
         self.assertEqual(after["oauthAccount"], before["oauthAccount"])
         # Claude and Codex are general: mcp-general, plus memini-general directly.
-        self.assertEqual(set(after["mcpServers"]), {"custom", "toolhive-general", "memini-general"})
-        self.assertEqual(after["mcpServers"]["toolhive-general"], {
+        self.assertEqual(set(after["mcpServers"]), {"custom", "toolhive", "memini"})
+        self.assertEqual(after["mcpServers"]["toolhive"], {
             "type": "http", "url": "https://mcp-general.example.test/mcp",
             "headers": {"x-api-key": "${MCP_API_KEY}"}})
-        self.assertEqual(after["mcpServers"]["memini-general"], {
+        self.assertEqual(after["mcpServers"]["memini"], {
             "type": "http", "url": "https://memini-general.example.test/mcp",
             "headers": {"Authorization": "Bearer ${MEMINI_API_KEY}"}})
         codex = tomllib.loads(codex.read_text())
         self.assertEqual(codex["model"], "gpt-6")
-        self.assertEqual(set(codex["mcp_servers"]), {"mine", "toolhive-general", "memini-general"})
-        self.assertEqual(codex["mcp_servers"]["memini-general"]["bearer_token_env_var"], "MEMINI_API_KEY")
+        self.assertEqual(set(codex["mcp_servers"]), {"mine", "toolhive", "memini"})
+        self.assertEqual(codex["mcp_servers"]["memini"]["bearer_token_env_var"], "MEMINI_API_KEY")
         # Vibe is private: mcp-private and memini-private. Its own keys survive;
         # its server array is ours, whole.
         self.assertEqual(self.vibe()["active_model"], "devstral")
         servers = self.vibe_servers()
-        self.assertEqual(set(servers), {"toolhive-private", "memini-private"})
-        self.assertEqual(servers["memini-private"]["url"], "https://memini-private.example.test/mcp")
-        self.assertEqual(servers["memini-private"]["auth"], {"type": "static", "api_key_env": "MEMINI_API_KEY"})
-        self.assertEqual(servers["toolhive-private"]["url"], "https://mcp-private.example.test/mcp")
-        self.assertEqual(servers["toolhive-private"]["auth"], {
+        self.assertEqual(set(servers), {"toolhive", "memini"})
+        self.assertEqual(servers["memini"]["url"], "https://memini-private.example.test/mcp")
+        self.assertEqual(servers["memini"]["auth"], {"type": "static", "api_key_env": "MEMINI_API_KEY"})
+        self.assertEqual(servers["toolhive"]["url"], "https://mcp-private.example.test/mcp")
+        self.assertEqual(servers["toolhive"]["auth"], {
             "type": "static", "api_key_env": "MCP_API_KEY",
             "api_key_header": "x-api-key", "api_key_format": "{token}"})
         self.assertFalse((self.home / ".claude/.claude.json").exists())
@@ -315,9 +315,9 @@ esac
         self.assertEqual(config["preferences"], {"theme": "dark"})
         bridge = f"{self.home}/.local/share/mise/shims/mcp-remote"
         self.assertEqual(config["mcpServers"], {
-            "toolhive-general": {"command": bridge, "args": [
+            "toolhive": {"command": bridge, "args": [
                 "https://mcp-general.example.test/mcp", "--header", "x-api-key:${MCP_API_KEY}"]},
-            "memini-general": {"command": bridge, "args": [
+            "memini": {"command": bridge, "args": [
                 "https://memini-general.example.test/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]}})
 
     def test_ai_workstation_without_a_domain_leaves_servers_out(self):
@@ -332,11 +332,11 @@ esac
             target = self.home / path
             self.assertNotIn("mcp_servers", tomllib.loads(target.read_text()) if target.exists() else {})
         self.apply_ai(SECRET_DOMAIN="example.test")
-        servers = {"toolhive-general", "memini-general"}
+        servers = {"toolhive", "memini"}
         self.assertEqual(servers, set(json.loads((self.home / ".claude.json").read_text())["mcpServers"]))
         self.apply_ai()
         self.assertEqual(servers, set(json.loads((self.home / ".claude.json").read_text())["mcpServers"]))
-        self.assertEqual({"toolhive-private", "memini-private"}, set(self.vibe_servers()))
+        self.assertEqual({"toolhive", "memini"}, set(self.vibe_servers()))
 
     def test_ai_wrappers_run_agents_under_the_ai_fnox_config(self):
         # Each wrapper's fnox profile is its agent's scope var; Desktop's mcp-remote is Claude's.

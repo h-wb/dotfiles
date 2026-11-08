@@ -7,17 +7,15 @@
 # var NAMES, read by Vibe at runtime.
 {%- if mcp %}
 [[mcp_servers]]
-name = "toolhive-{{ scope }}"
+name = "toolhive"
 transport = "streamable-http"
 url = "{{ mcp }}"
 {%- if vars.mcp_auth == "api-key" %}
 auth = { type = "static", api_key_env = "MCP_API_KEY", api_key_header = "x-api-key", api_key_format = "{token}" }
 {%- endif %}
-{%- endif %}
-{%- if memini %}
 
 [[mcp_servers]]
-name = "memini-{{ scope }}"
+name = "memini"
 transport = "streamable-http"
 url = "{{ memini }}/mcp"
 auth = { type = "static", api_key_env = "MEMINI_API_KEY" }

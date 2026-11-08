@@ -57,9 +57,12 @@ key.
   same variable names. mise `[wrappers]` for `claude`, `codex`, `vibe` and
   (MacBook) `mcp-remote` run them under `fnox -c conf.d/ai/fnox.toml -P
   {{ vars.<agent>_scope }} exec`, so changing a scope moves servers and keys
-  together, and the repo's own `fnox.toml` never reaches an agent. A variable
-  one scope holds is `env = false` in the others, which strips it even when
-  the parent shell exports it. A wrapper intercepts at PATH level (the shim and
+  together. An explicit `-c` turns off fnox's directory search, so neither the
+  repo's `fnox.toml` nor a project's reaches an agent; a global
+  `~/.config/fnox/config.toml` would still load, so none is kept. Both
+  profiles define both variables, so one the parent shell exports is always
+  replaced (a variable a scope must not have would be `env = false`, which
+  strips it). A wrapper intercepts at PATH level (the shim and
   `mise activate`'s wrapper dir), so a launch from a shell, a script, an IDE or
   launchd is covered alike. A missing or dead Proton Pass item only fails that
   server (`--if-missing warn`).

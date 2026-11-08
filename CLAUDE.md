@@ -345,61 +345,23 @@ hand-written file cannot win a context-name collision.
 
 ### Agent MCP servers (`conf.d/ai/`)
 
-The MCP servers every agent harness connects to (Claude Code, Claude Desktop,
-Codex, Vibe, the pods' OpenCode) are defined once here, for every machine: an
-env-less folder fragment (no extra env needed) whose `mise.toml` holds the
-shared `[vars]`, Codex and Vibe; class files add the agents whose path or key
-source differs. Templates are in `config/`, the agents' only secret in the
-folder's own `fnox.toml`. See `conf.d/ai/README.md`.
+One definition of the MCP servers every agent connects to (Claude Code,
+Desktop, Codex, Vibe, the pods' OpenCode), for every machine. How it works is
+in `conf.d/ai/README.md`; what is easy to break:
 
-- **Scope per agent, from where its model runs**: `general` (Claude Code,
-  Desktop, Codex: Anthropic and OpenAI) gets `mcp-general`, a curated ToolHive
-  subset without private data (`mcp-ops` is the same gateway), plus
-  memini-general; `private` (Vibe: Mistral) gets `mcp-private`, the whole
-  catalogue, and memini-private. ToolHive takes callers anonymously: each
-  hostname's Envoy route checks `x-api-key` against that gateway's key list,
-  so the key decides the gateway. memini is connected directly in both scopes
-  (`memini_<scope>_url`), because the gateways' optimizer hides tools behind
-  `find_tool`/`call_tool`. `vars.<agent>_scope` sets it;
-  the paseo class sets every agent to the pod's `PASEO_DATA_SCOPE`.
-- **The domain is never committed.** Workstations build the public URLs from
-  `vars.secret_domain` = `SECRET_DOMAIN`, which `apply`'s fnox resolves from
-  Proton Pass (`Infrastructure/kubernetes-gateway`, field `domain`). Any render
-  without it leaves the gateway and memini servers out, and since every agent
-  file is merged, an empty render keeps what the last `apply` wrote. The pods
-  need no domain: they use the in-cluster service names.
-- **Merged, not rendered** (`merge = true`): Claude Code, Codex and Desktop
-  rewrite their own files, so we set only our servers. Claude Code is
-  `~/.claude.json` on workstations, `~/.claude/.claude.json` on paseo (the
-  image sets `CLAUDE_CONFIG_DIR`); dotfile keys are literal, hence one entry per
-  class file. Vibe's `~/.vibe/config.toml` is merged too, but its servers are
-  an array (`[[mcp_servers]]`) and a merge replaces an array whole, so
-  `config/vibe.toml` owns all of Vibe's servers. Elsewhere a merge never
-  removes: an old hand-added server stays until you delete it.
-- **The same variables everywhere, `MCP_API_KEY` and `MEMINI_API_KEY`, and no
-  key in any file.** Pods: no gateway key at all (`mcp_auth = "network"`: the
-  in-cluster services, admitted per scope by home-ops' NetworkPolicy);
-  `MEMINI_API_KEY` from home-ops' ExternalSecrets. Workstations:
-  `conf.d/ai/fnox.toml`, one profile per scope; mise `[wrappers]` run
-  `claude`/`codex`/`vibe` (and on the MacBook the `mcp-remote` that Claude
-  Desktop launches) under `fnox -c conf.d/ai/fnox.toml -P {{ vars.<agent>_scope
-  }} --if-missing warn --non-interactive exec` (wrapper args see `vars`). An
-  explicit `-c` turns off fnox's directory search, which keeps the repo's
-  `fnox.toml` (and a project's) out of the agents; a global
-  `~/.config/fnox/config.toml` would still load, so none is kept. A variable
-  one profile holds is `env = false` in the others: that strips it when the
-  parent shell exports it. `warn` deliberately: nothing is rendered, so a dead
-  session only fails a server instead of stopping the agent. Rejected:
-  `[shell_alias]` (interactive shells only, not IDEs or launchd), Claude's
-  `headersHelper` (Claude only), `fnox proxy` (starts the program itself, so
-  not Desktop; intercepts all agent traffic; refuses the gateway's private IP
-  without `allow_private`), `fnox activate` (the keys in every shell's env).
-- Keys: Proton Pass `Automation/toolhive` and `Automation/memini`, one field
-  per scope (`general`, `private`), holding the workstations' client keys:
-  the `GENERAL_WORKSTATION`/`PRIVATE_WORKSTATION` fields of home-ops'
-  Bitwarden items of the same names. Keys are per holder (`workstation`,
-  `paseo`, `hermes`), not per agent; a pod reads its own from Bitwarden, never
-  from here.
+- **A scope per agent sets both its servers and its fnox profile**
+  (`vars.<agent>_scope`, `-P {{ vars.<agent>_scope }}` in its wrapper). On the
+  pods every agent takes `PASEO_DATA_SCOPE`: a pod's network only opens its
+  own scope.
+- **Pods get no gateway key**, workstations go through Envoy with one. Server
+  names carry no scope (`toolhive`, `memini`): the URL says which.
+- **An empty domain leaves the cluster servers out, never writes over them.**
+  `SECRET_DOMAIN` only exists under `apply`'s fnox; every agent file is a
+  merge, so an empty render keeps the last good entries. Don't add a default
+  domain or a `[bootstrap.secrets]` entry (neko's `fresh` mode renders without
+  secrets on purpose).
+- **Vibe's servers are an array**, which a merge replaces whole:
+  `config/vibe.toml` owns all of them.
 - claude.ai (web, phone) is out of reach: its connectors call from Anthropic's
   cloud and want OAuth, and the gateway is internal with a static key.
 
@@ -537,6 +499,12 @@ of the neko constraints: apps are `pacman:` packages.
   Layers are the opposite case: fixed per machine, and they never set the same
   key as each other, so their order cannot change the result.
 - **`[bootstrap.secrets]` everywhere** — see Secrets above.
+- **Agent keys by `[shell_alias]`** (interactive shells only, not IDEs or
+  launchd), **Claude's `headersHelper`** (Claude only), **`fnox proxy`**
+  (starts the program itself, so not Desktop; intercepts all agent traffic;
+  refuses the gateway's private IP without `allow_private`), **`fnox
+  activate`** (the keys in every shell's env): `conf.d/ai` uses mise
+  `[wrappers]` under `fnox exec` instead.
 
 ## Don'ts
 

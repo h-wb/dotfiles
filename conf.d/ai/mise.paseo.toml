@@ -6,10 +6,11 @@
 # providers and OpenCode's models (/etc/paseo/config, see README.md).
 
 [vars]
-claude_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
-codex_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
-vibe_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
-opencode_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
+pod_scope = "{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
+claude_scope = "{{ vars.pod_scope }}"
+codex_scope = "{{ vars.pod_scope }}"
+vibe_scope = "{{ vars.pod_scope }}"
+opencode_scope = "{{ vars.pod_scope }}"
 # The ToolHive services behind mcp-general (mcp-ops) and mcp-private (mcp-gateway).
 mcp_general_url = "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"
 mcp_private_url = "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"

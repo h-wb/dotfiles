@@ -2,17 +2,14 @@
 {%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
 {%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
 {%- set bridge = env.HOME ~ "/.local/share/mise/shims/mcp-remote" -%}
-{%- set_global sep = "" -%}
 {
   "mcpServers": {
-{%- if mcp %}{{ sep }}
-    "toolhive-{{ scope }}": {
+{%- if mcp %}
+    "toolhive": {
       "command": "{{ bridge }}",
       "args": ["{{ mcp }}", "--header", "x-api-key:${MCP_API_KEY}"]
-    }
-{%- set_global sep = "," %}{% endif %}
-{%- if memini %}{{ sep }}
-    "memini-{{ scope }}": {
+    },
+    "memini": {
       "command": "{{ bridge }}",
       "args": ["{{ memini }}/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]
     }

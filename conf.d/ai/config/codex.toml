@@ -4,15 +4,13 @@
 # Merged into ~/.codex/config.toml: Codex keeps its own keys. Header values are
 # env var NAMES, read by Codex at runtime.
 {%- if mcp %}
-[mcp_servers.toolhive-{{ scope }}]
+[mcp_servers.toolhive]
 url = "{{ mcp }}"
 {%- if vars.mcp_auth == "api-key" %}
 env_http_headers = { "x-api-key" = "MCP_API_KEY" }
 {%- endif %}
-{%- endif %}
-{%- if memini %}
 
-[mcp_servers.memini-{{ scope }}]
+[mcp_servers.memini]
 url = "{{ memini }}/mcp"
 bearer_token_env_var = "MEMINI_API_KEY"
 {%- endif %}
