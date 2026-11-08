@@ -45,77 +45,28 @@ still need the migration cleanup documented in home-ops.
 account-login preflight for dotfiles provisioning. It does not use these
 managed agent sessions.
 
-## Credential naming and ownership
+## Vaults: named by who reads them
 
-Vault names describe purpose, not the consuming repository:
+| Vault | Read by | Holds |
+| --- | --- | --- |
+| `Personal` | you | personal logins |
+| `Homelab` | you | homelab service web logins |
+| `Machines` | your machines' dotfiles and CLIs (Mac, neko, cachyos) | kubeconfigs, SSH, WireGuard, GitHub workstation token, agent gateway keys, Anki |
+| `Agents General` | the general Paseo pod, plus the workstation tokens of the repos it works on | everything agents read: home-ops bootstrap and Talos, pipelines, Sento, dawarich-regression |
+| `Aliases` | Proton/SimpleLogin | email aliases |
 
-| Vault | Contents |
-| --- | --- |
-| `Automation` | Source API credentials, GitHub tool tokens, WireGuard profiles and integration keys |
-| `Infrastructure` | Infrastructure connections, SSH keys, kubeconfigs, bootstrap and recovery material |
-| Existing personal/Homelab vaults | Human account logins, reused where appropriate |
+If an agent may read an item, it lives in `Agents General`. If a machine needs
+it, `Machines`. Everything else is yours. An item two readers need goes in the
+narrower reader's vault, and the broader token gets a grant on it too. Add
+`Agents Private` the day the private pod first needs a secret. No folders.
 
-Machine item names use lowercase kebab-case: `github-workstation`,
-`github-pipelines`, `github-sento`, `truenas-ssh`, `kubernetes-gateway`,
-`kubeconfig`, `anki-connect`, `anki-mcp`, `toolhive` and `memini` (one field
-per data scope, `general`/`private`: see `conf.d/ai/fnox.toml`). Existing
-custom field names are preserved. Repositories reference the same canonical
-item when they use the same credential. Distinct SSH versus website credentials,
-or WireGuard full/split routing profiles, remain distinct items.
+Each token gets a **vault** grant, so every repo keeps one readable map
+(`pass://Agents General/talos-cluster/token`): no item grants, no share/item
+IDs, no per-scope fnox profiles. Machine item names use lowercase kebab-case
+(`github-workstation`, `kubernetes-gateway`); `toolhive` and `memini` keep one
+field per data scope (`general`/`private`, see `conf.d/ai/fnox.toml`).
 
-The 2026-11-03 migration consolidated the three legacy `env-*` vaults into
-`Automation`, `Infrastructure` and the existing human account vaults. The old
-vaults have no active items. Runtime BWS/Kubernetes ownership is unchanged;
-moving an existing Proton operator copy does not remove its duplication with
-the runtime source. Vault access grants must follow the items' new locations.
-
-Routine agent tokens need viewer access only. AI-agent tokens remain read-only
-even if their reported vault role is Editor; administrative item organization
-requires a regular short-lived PAT with write grants. Never install that
-temporary administrative token as a workload's runtime token.
-
-Older checkouts on this host have reference-only `fnox.local.toml` compatibility
-overrides. Remove those once their tracked maps include this migration. These
-files contain references, not credential values; current code uses the native
-fnox/mise paths without a second secret loader.
-
-## Item-scoped general reader
-
-The host-owned Sento configuration selects fnox's `paseo-general` profile when
-`PASEO_DATA_SCOPE=general`. The profile contains direct item-share/item-ID
-references for the approved general reader; an explicit `FNOX_PROFILE` takes
-precedence. Unscoped hosts retain the default named-vault references. Other
-repositories declare this selection in their own mise config, so unrelated
-projects do not inherit a profile they have not defined. Credentials are still
-resolved only for each task's secret grants.
-
-## Readable names with item-only grants
-
-Dotfiles installs `~/.config/fnox/proton-pass-items.lua`, a read-only fnox Lua
-provider for readable `Item Title/field` references:
-
-```toml
-[providers.protonpass]
-type = "lua"
-plugin = "~/.config/fnox/proton-pass-items.lua"
-options = { vault = "Personal", agent_reason = "obsidian-workspace fnox" }
-
-[secrets]
-OBSIDIAN_EMAIL = { provider = "protonpass", value = "Obsidian/email" }
-```
-
-On an account with vault access, it searches only the configured vault. If that
-vault is invisible to an item-scoped token, it resolves the title only among
-explicit Item shares granted to that token. The fallback cannot verify the
-containing vault's name, so the token's item grants define its access. Duplicate
-titles fail rather than choosing an arbitrary item. Folder shares and other
-vaults are never searched as a fallback.
-
-Share/item IDs are discovered from metadata for each batch and remain in memory;
-there is no hardcoded ID map or credential cache. Only requested fields are
-read. Every CLI operation checks the session first; authentication remains the
-global `proton-login` task's responsibility. Missing fields follow fnox's
-`if_missing` setting (use `error`). The provider does not write items, change
-grants, log credentials or copy raw CLI diagnostics into errors.
-
-Existing repositories using the native `proton-pass` provider are unaffected.
+Routine agent tokens need viewer access only. Administrative item organization
+requires a short-lived token with write grants. Never install that temporary
+administrative token as a workload's runtime token. An agent session can't
+manage grants: give them from your own session.
