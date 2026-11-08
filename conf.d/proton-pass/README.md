@@ -57,7 +57,8 @@ Vault names describe purpose, not the consuming repository:
 
 Machine item names use lowercase kebab-case: `github-workstation`,
 `github-pipelines`, `github-sento`, `truenas-ssh`, `kubernetes-gateway`,
-`kubeconfig`, `anki-connect`, `anki-mcp`, and `mcp-general-desktop`. Existing
+`kubeconfig`, `anki-connect`, `anki-mcp`, `toolhive` and `memini` (one field
+per data scope, `general`/`private`: see `conf.d/ai/fnox.toml`). Existing
 custom field names are preserved. Repositories reference the same canonical
 item when they use the same credential. Distinct SSH versus website credentials,
 or WireGuard full/split routing profiles, remain distinct items.

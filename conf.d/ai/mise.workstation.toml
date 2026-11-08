@@ -1,0 +1,21 @@
+# Workstations: public URLs through Envoy, keys from Proton Pass via fnox.
+
+[vars]
+secret_domain = "{{ get_env(name='SECRET_DOMAIN', default='') }}"
+mcp_general_url = "{% if vars.secret_domain %}https://mcp-general.{{ vars.secret_domain }}/mcp{% endif %}"
+mcp_private_url = "{% if vars.secret_domain %}https://mcp-private.{{ vars.secret_domain }}/mcp{% endif %}"
+memini_general_url = "{% if vars.secret_domain %}https://memini-general.{{ vars.secret_domain }}{% endif %}"
+memini_private_url = "{% if vars.secret_domain %}https://memini-private.{{ vars.secret_domain }}{% endif %}"
+mcp_auth = "api-key"
+
+[wrappers.claude]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "claude"]
+
+[wrappers.codex]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.codex_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "codex"]
+
+[wrappers.vibe]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.vibe_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "vibe"]

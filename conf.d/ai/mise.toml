@@ -1,0 +1,15 @@
+# The MCP servers every agent connects to, on every machine (README.md).
+
+[vars]
+claude_scope = "general"
+codex_scope = "general"
+vibe_scope = "private"
+chrome_cdp_url = ""
+
+[env]
+CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
+
+[dotfiles]
+"~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
+"~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
+"~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }

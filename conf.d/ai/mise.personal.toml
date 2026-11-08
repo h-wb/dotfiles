@@ -1,0 +1,11 @@
+# Claude Desktop, bridged by mcp-remote.
+
+[tools]
+"npm:mcp-remote" = "0.15.2"
+
+[wrappers.mcp-remote]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "mcp-remote"]
+
+[dotfiles]
+"~/Library/Application Support/Claude/claude_desktop_config.json/mcp" = { source = "config/claude-desktop.json", merge = true, template = "tera" }
