@@ -13,7 +13,7 @@ url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-x64.tar.gz"
 
 [[tools."npm:chrome-devtools-mcp"]]
 version = "1.12.0"
-aube = { path = ".mise/locks/mise.paseo/npm-chrome-devtools-mcp/1.12.0", digest = "sha256:0a625298cb87475a660765dfaa086356bd2d1b6dd887feb0a195d77805ee6844" }
+aube = { path = "locks/mise.paseo/npm-chrome-devtools-mcp/1.12.0", digest = "sha256:0a625298cb87475a660765dfaa086356bd2d1b6dd887feb0a195d77805ee6844" }
 backend = "npm:chrome-devtools-mcp"
 specifiers = ["latest"]
 

@@ -3,7 +3,6 @@
 *.local.toml
 !*.local.toml.example
 __pycache__/
-# mise (>= 2026.10.20) writes lock sidecars to .mise/locks/; those are
-# committed, the rest of .mise/ is not. Older sidecars still live in locks/.
-.mise/*
-!.mise/locks/
+# mise writes lock sidecars to locks/ again (2026.10.23; the .mise/locks layout
+# only existed in 2026.10.20–.22). Ignore stray mise state under .mise/, if any.
+.mise/

@@ -11,3 +11,13 @@ env = [
   "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif os() == 'macos' %}personal{% endif %}",
   "{% if '/etc/paseo/config/paseo.json' is exists %}paseo-overlay{% endif %}",
 ]
+
+# One name per class (needs mise >= 2026.11.1, like min_version): miserc.local.toml
+# pins a class, install.sh and CI write it, and `mise -E neko` selects the whole
+# stack. paseo-overlay stays /etc-detected and belongs to no set; a machine that
+# is none of these lists its layers literally.
+[env_sets]
+personal = ["workstation", "personal"]
+neko = ["workstation", "neko"]
+cachyos = ["workstation", "cachyos"]
+paseo = ["paseo"]

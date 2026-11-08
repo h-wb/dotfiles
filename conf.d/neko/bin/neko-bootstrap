@@ -63,8 +63,7 @@ fi
 
 # --skip-dirty: one repo with uncommitted work would fail the whole run.
 # --force-dotfiles: fish writes its own config.fish on first start.
-# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/;
-#   MISE_CONFIG_DIR makes mise write them under .mise/locks/ instead (gitignored).
+# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/.
 case "$MODE" in
 secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
 fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
@@ -77,11 +76,6 @@ if ! timeout 900 "$@"; then
 		notify-send -u critical "neko-bootstrap failed" "see $LOG" || true
 	exit 1
 fi
-
-# MISE_CONFIG_DIR makes mise normalise lock sidecar paths from locks/… to
-# .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
-# so the checkout stays clean for the next pull --ff-only.
-git -C "${HOME}/.dotfiles" checkout -- mise.lock mise.*.lock 2>/dev/null || true
 
 case "$MODE" in
 secrets) echo "[ok] bootstrap applied with secrets" ;;

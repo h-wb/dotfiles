@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        mise: ["2026.10.19", "latest"]
+        mise: ["2026.11.1", "latest"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -35,11 +35,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # layers: what miserc.toml would pick on that machine (it can't see a runner's)
-          - { env: personal, layers: '"workstation", "personal"', os: macos-latest }
-          - { env: neko, layers: '"workstation", "neko"', os: ubuntu-latest }
-          - { env: cachyos, layers: '"workstation", "cachyos"', os: ubuntu-latest }
-          - { env: paseo, layers: '"paseo"', os: ubuntu-latest }
+          # the machine class: miserc.toml's [env_sets] expands it (a runner
+          # has none of the /etc markers, so auto-detection cannot)
+          - { env: personal, os: macos-latest }
+          - { env: neko, os: ubuntu-latest }
+          - { env: cachyos, os: ubuntu-latest }
+          - { env: paseo, os: ubuntu-latest }
     name: ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -52,7 +53,7 @@ jobs:
         run: |
           home="$(mktemp -d)"
           ln -s "$GITHUB_WORKSPACE" "$home/.dotfiles"
-          printf 'env = [%s]\n' '${{ matrix.layers }}' > miserc.local.toml
+          printf 'env = ["%s"]\n' '${{ matrix.env }}' > miserc.local.toml
           echo "HOME=$home" >> "$GITHUB_ENV"
           echo "MISE_CONFIG_DIR=$home/.dotfiles" >> "$GITHUB_ENV"
 

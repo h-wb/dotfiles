@@ -55,8 +55,9 @@ ignored:
 So `config.toml` is only what _every_ machine wants, the paseo agent host
 included; a layer never has to be taken back out by a class. An unrecognised
 machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
-`miserc.local.toml` overrides with the whole list (`env = ["workstation",
-"neko"]`), which is also how CI pins each matrix job.
+`miserc.local.toml` pins it by class name (`env = ["neko"]`), which
+`[env_sets]` in `miserc.toml` expands — that is also how CI pins each matrix
+job and how `mise -E neko` selects a machine.
 
 | file                               | loads when                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------- |
@@ -67,7 +68,7 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
 | `conf.d/<feature>/mise.<env>.toml` | that env or platform — **folder fragments**                                  |
 | `config.local.toml`                | always, last (untracked per-machine `[vars]`)                                |
 | `miserc.toml`                      | early init, committed: `env_conf_d`, `auto_env`                              |
-| `miserc.local.toml`                | early init, untracked, optional: overrides the detected class and layers     |
+| `miserc.local.toml`                | early init, untracked, optional: pins the class (`[env_sets]` expands it)    |
 
 - **Folder fragments** (mise 2026.9.14): a folder in `conf.d/` reads only
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
@@ -83,10 +84,9 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
   `variants = [{ os = ... }]` in `[dotfiles]`. `[tools]`/`[bootstrap.packages]`
   still accept `os =` for the odd cross-cutting entry (the neko GUI apps keep it
   so a stray `-E neko` on a Mac fails clean).
-- **`min_version = { hard = "2026.10.19" }`** in `config.toml` — for
-  `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
-  `depends`. The minimum stays at .19; .20 is tested too and fixes sidecar
-  placement for symlinked config directories. `scripts/provision.sh` (installer and neko's bootstrap; paseo pins
+- **`min_version = { hard = "2026.11.1" }`** in `config.toml` — for `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
+  `depends`, and `miserc.toml`'s `[env_sets]`: an older mise loads a pinned
+  class on its own and silently drops its layers. `scripts/provision.sh` (installer and neko's bootstrap; paseo pins
   mise by image tag) self-updates below it, because
   `self_update.auto` skips unattended runs; it reads the version from this very
   line with `sed`, so keep the inline-table shape. Don't
@@ -285,10 +285,12 @@ is v3 (`mise lock --upgrade`).
   active platform. Missing or corrupt dependency sidecars fail it. A locked
   PyPI graph requires its Python interpreter installed even for a dry run;
   CI installs Python and uv before running doctor.
-- Commit the paths printed by `mise lock --global --sidecars`. From .20 the
-  physical `~/.dotfiles` directory determines the layout: `.mise/locks/`,
-  including when accessed through `~/.config/mise`. Older `locks/` references
-  still work and migrate when mise saves that lockfile.
+- Commit the paths printed by `mise lock --global --sidecars`. mise ≥ 2026.10.23
+  writes sidecars to `locks/` again (the `.mise/locks/` layout was the
+  2026.10.20–.22 window only), whether it reads the config through the
+  `~/.config/mise` link or through `MISE_CONFIG_DIR`; a stale pointer is
+  rewritten to `locks/` on the next `mise lock`. What the repo commits matches
+  what every current mise computes, so nothing normalises the lockfiles dirty.
 - `http:` tools are pinned by hand: bump the version and every URL, then lock.
 
 ## The MacBook (`personal`) and every Mac (`macos`)
@@ -469,7 +471,9 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   mounted at `/opt/mise` in every container (first on `PATH`). A mise at a
   path only one container has leaves every tool "not found" in the others.
 - **Never set `MISE_CONFIG_DIR=~/.dotfiles` there**: through the real directory,
-  mise rewrites lock sidecar paths. The default `~/.config/mise` link is fine.
+  mise rewrites lock sidecar paths (2026.10.22 and older rewrote committed
+  `locks/` pointers to `.mise/locks/`; 2026.10.23+ resolves both to `locks/`).
+  Keep it unset on the pods — the checkout is read-only, the link is enough.
 - `paseo-overlay` merges `/etc/paseo/config/paseo.json` into
   `~/.paseo/config.json`. It is its own layer because a missing merge source
   is an error. That path is the only contract with home-ops.

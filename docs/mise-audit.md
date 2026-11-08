@@ -121,3 +121,43 @@ Checked against a sandbox clone of this repo (mise 2026.11.4):
 If the config ever moves under `.config/mise/` inside the checkout, this
 flips: `install.sh` would adopt the flags, drop its manual clone and the
 `MISE_CONFIG_DIR` export, and `.local.toml` files stay per-machine unchanged.
+
+## Addendum: release review, 2026.10.21 → 2026.11.4 (2026-11-08)
+
+Re-read every release since the first addendum (checked against sandbox clones
+of this repo on mise 2026.11.4) and adopted what pays for itself:
+
+- **`[env_sets]` in `miserc.toml` (2026.11.1).** Each machine class is one
+  name, and `miserc.local.toml` (`install.sh`, CI) records the class — the
+  layer list is defined once in the shared miserc instead of being copied into
+  the installer, the workflow matrix and the tests, and `mise -E neko` selects
+  a whole machine. Requires `min_version` 2026.11.1: an older mise loads a
+  pinned class on its own and silently drops its layers. Verified that a set
+  named like the class (`neko = ["workstation", "neko"]`) expands, one-level
+  expansion handles `paseo = ["paseo"]`, and auto-detected machines are
+  unaffected. `paseo-overlay` stays `/etc`-detected and in no set.
+- **Sidecars are back at `locks/` (2026.10.23).** The `.mise/locks/` layout was
+  the 2026.10.20–.22 window: misinformed by .20, the repo had committed
+  sidecars twice (one paseo graph under `.mise/locks/`) and defended itself with
+  `git checkout -- mise*.lock` after every bootstrap, because mise normalised
+  committed `locks/` pointers to `.mise/locks/`. 2026.10.23+ resolves both the
+  link and `MISE_CONFIG_DIR` forms to `locks/`, so the paseo graph moved there,
+  the pointer in `mise.paseo.lock` now matches what every current mise
+  computes, and the restore steps are gone from `install.sh` and
+  `neko-bootstrap`. Nothing normalises the lockfiles dirty any more (verified:
+  re-locking the same request against a `locks/`-shaped file rewrites no
+  content; only the pointer's stale shape used to).
+- **Worth knowing, not adopted now:** task `lock` (2026.11.0) would serialise
+  same-named Proton sessions on a multi-agent pod; merge entries can set
+  `permissions` on creation (2026.10.22); `--output summary` and
+  `mise tasks history` (2026.11.3) exist for pod provisioning logs. 2026.11.1
+  verifies npm provenance by default (packages that publish none install as
+  before) and warns that lockfiles are format version 3 — converting is
+  `mise lock --upgrade`, i.e. the next `mise run upgrade`, and every machine
+  must be ≥ 2026.11.1 to read v4, which `min_version` now guarantees.
+- **Fixed by the upgrade itself:** the cachyos `home-lan` firewall rule
+  (source CIDR, no port) never converged — 2026.11.4 fixes ufw CIDR matching;
+  backends load config again when the config dir is its own git checkout
+  (2026.11.0); tool completion through shims works (2026.11.4).
+- **Coming with the next `mise run upgrade`:** `node = "lts"` moves from 24 to
+  26 (2026.10.22); the lockfile rewrite will also move to format version 4.

@@ -51,10 +51,9 @@ Each `conf.d/` folder holds its own config and the files it uses; inside it,
 | `cachyos` | CachyOS KDE gaming desktop | auto (`/etc/pacman.d/cachyos-mirrorlist`) |
 | `paseo` | headless coding-agent pod | auto (`/etc/paseo`) |
 
-`miserc.toml` detects the class; an untracked `miserc.local.toml`
-overrides the complete layer list (for example,
-`env = ["workstation", "neko"]`). `personal`, `neko` and `cachyos` use
-`workstation`. Platform files (`*.macos.toml`, `*.linux.toml`)
+`miserc.toml` detects the class; an untracked `miserc.local.toml` pins it by
+name (`env = ["neko"]`), which `[env_sets]` there expands. `personal`, `neko`
+and `cachyos` use `workstation`. Platform files (`*.macos.toml`, `*.linux.toml`)
 load on their own. `~/.config/mise` → `~/.dotfiles` is itself a `[dotfiles]`
 entry in `config.toml`, so mise creates and maintains the link.
 
@@ -67,7 +66,8 @@ sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/m
 On a Mac, sign in to iCloud and the App Store first. The installer installs mise,
 clones to `~/.dotfiles` and runs `mise bootstrap` under fnox for workstation
 machines, or directly for Paseo. Override the detected class with
-`DOTFILES_ENV=personal|neko|cachyos|paseo`; the installer persists its layers too.
+`DOTFILES_ENV=personal|neko|cachyos|paseo`; the installer persists the class in
+`miserc.local.toml` (mise re-expands it every run).
 
 ## Everyday use
 
@@ -98,9 +98,8 @@ mise install --locked --dry-run
 The locked-install preview uses mise's own validation. PyPI dependency graphs
 need their Python interpreter installed even for a preview; CI installs the
 locked Python and uv first. Commit dependency sidecars along with `mise*.lock`;
-`mise lock --global --sidecars` lists them. mise 2026.10.20 uses `.mise/locks/`
-for this checkout's physical location; older `locks/` references remain readable
-and migrate when mise rewrites the owning lockfile.
+`mise lock --global --sidecars` lists them. Sidecars live in `locks/` (mise
+2026.10.23 restored that location; `.mise/locks/` was 2026.10.20–.22 only).
 
 See [the mise audit](docs/mise-audit.md) for the feature review and remaining
 tradeoffs.

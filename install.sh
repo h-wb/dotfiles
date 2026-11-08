@@ -1,17 +1,16 @@
 #!/bin/sh
-# Provision ~/.dotfiles; DOTFILES_ENV overrides the detected class and layers.
+# Provision ~/.dotfiles; DOTFILES_ENV overrides the detected class (its layers
+# come from miserc.toml's [env_sets]).
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
 DOTFILES_DIR="${HOME}/.dotfiles" # fixed: config.toml links ~/.config/mise here
 export PATH="${HOME}/.local/bin:${PATH}"
 
+# Provision ~/.dotfiles; DOTFILES_ENV overrides the detected class (its layers
+# come from miserc.toml's [env_sets]).
 case "${DOTFILES_ENV:-}" in
-personal) DOTFILES_LAYERS='"workstation", "personal"' ;;
-neko) DOTFILES_LAYERS='"workstation", "neko"' ;;
-cachyos) DOTFILES_LAYERS='"workstation", "cachyos"' ;;
-paseo) DOTFILES_LAYERS='"paseo"' ;;
-"") DOTFILES_LAYERS= ;;
+"" | personal | neko | cachyos | paseo) ;;
 *) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;
 esac
 
@@ -31,7 +30,7 @@ cd "${DOTFILES_DIR}"
 
 # The ~/.config/mise link doesn't exist until this run's dotfiles step.
 export MISE_CONFIG_DIR="${DOTFILES_DIR}"
-[ -z "$DOTFILES_LAYERS" ] || printf 'env = [%s]\n' "$DOTFILES_LAYERS" >miserc.local.toml
+[ -z "${DOTFILES_ENV:-}" ] || printf 'env = ["%s"]\n' "$DOTFILES_ENV" >miserc.local.toml
 . ./scripts/provision.sh
 ensure_mise || exit 1
 
@@ -45,8 +44,3 @@ case "$configs" in
 	' sh "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
 *) "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
 esac
-
-# MISE_CONFIG_DIR makes mise normalise lock sidecar paths from locks/… to
-# .mise/locks/… in mise.lock (the sidecars themselves are gitignored). Revert
-# so the checkout stays clean for the next pull --ff-only.
-git checkout -- mise.lock mise.*.lock 2>/dev/null || true

@@ -47,8 +47,9 @@ class SetupTests(unittest.TestCase):
         self.select("paseo")
 
     def select(self, machine):
+        # One class name; miserc.toml's [env_sets] expands it.
         (self.repo / "miserc.local.toml").write_text(
-            "env = " + json.dumps(LAYERS[machine]) + "\n")
+            "env = " + json.dumps([machine]) + "\n")
 
     def run_cmd(self, *args, ok=True, env=None):
         result = subprocess.run(args, cwd=self.home, env=env or self.env,
@@ -71,14 +72,13 @@ class SetupTests(unittest.TestCase):
         self.fake("mise", '''
 printf '%s\n' "$*" >> "$HOME/mise.calls"
 case "$1" in
---version) echo "${TEST_VERSION:-2026.10.19}" ;;
+--version) echo "${TEST_VERSION:-2026.11.1}" ;;
 self-update) exit "${TEST_UPDATE_EXIT:-0}" ;;
 config)
-  if grep -q workstation "$HOME/.dotfiles/miserc.local.toml"; then
-    echo "$HOME/.dotfiles/config.workstation.toml"
-  else
-    echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml"
-  fi ;;
+  case "$(cat "$HOME/.dotfiles/miserc.local.toml" 2>/dev/null)" in
+  *'"paseo"'*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
+  *) echo "$HOME/.dotfiles/config.workstation.toml" ;;
+  esac ;;
 which) exit 1 ;;
 exec)
   export PROTON_PASS_KEY_PROVIDER=fs
@@ -109,7 +109,7 @@ esac
             if key.startswith("platforms."):
                 self.assertIn("/bws-v", value["url"])
                 self.assertTrue(value["url"].endswith(".zip"))
-        graph = next(self.repo.glob(".mise/locks/mise.paseo/**/aube-lock.yaml"))
+        graph = next(self.repo.glob("locks/mise.paseo/**/aube-lock.yaml"))
         original = graph.read_text()
         graph.write_text(original + "\n# corrupted\n")
         result = self.mise("install", "--locked", "--dry-run", "npm:chrome-devtools-mcp", ok=False)
@@ -619,8 +619,9 @@ exec "$@"
                 self.run_cmd("sh", str(self.repo / "install.sh"),
                              env={**self.env, "DOTFILES_ENV": machine})
                 actual = tomllib.loads((self.repo / "miserc.local.toml").read_text())
-                self.assertEqual(actual["env"], layers)
-                self.assertEqual((self.home / "fnox.calls").exists(), "workstation" in layers)
+                self.assertEqual(actual, {"env": [machine]})
+                self.assertEqual((self.home / "fnox.calls").exists(),
+                                 "workstation" in LAYERS[machine])
                 calls = (self.home / "mise.calls").read_text()
                 self.assertIn("bootstrap --yes --force-dotfiles", calls)
                 self.assertNotIn("@latest", calls)
