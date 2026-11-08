@@ -1,0 +1,3 @@
+# Only where home-ops mounts it: a merge with a missing source is an error.
+[dotfiles]
+"~/.paseo/config.json/overlay" = { source = "/etc/paseo/config/paseo.json", merge = true }
