@@ -1,0 +1,13 @@
+# The only secrets the agents get, one profile per scope.
+
+[providers.automation]
+type = "proton-pass"
+vault = "Automation"
+
+[profiles.general.secrets]
+MCP_API_KEY = { provider = "automation", value = "pass://Automation/toolhive/general" }
+MEMINI_API_KEY = { provider = "automation", value = "pass://Automation/memini/general" }
+
+[profiles.private.secrets]
+MCP_API_KEY = { provider = "automation", value = "pass://Automation/toolhive/private" }
+MEMINI_API_KEY = { provider = "automation", value = "pass://Automation/memini/private" }

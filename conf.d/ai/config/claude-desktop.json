@@ -1,0 +1,18 @@
+{%- set scope = vars.claude_scope -%}
+{%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
+{%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
+{%- set bridge = env.HOME ~ "/.local/share/mise/shims/mcp-remote" -%}
+{
+  "mcpServers": {
+{%- if mcp %}
+    "toolhive": {
+      "command": "{{ bridge }}",
+      "args": ["{{ mcp }}", "--header", "x-api-key:${MCP_API_KEY}"]
+    },
+    "memini": {
+      "command": "{{ bridge }}",
+      "args": ["{{ memini }}/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]
+    }
+{%- endif %}
+  }
+}

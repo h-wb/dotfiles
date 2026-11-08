@@ -1,0 +1,28 @@
+{%- set scope = vars.vibe_scope -%}
+{%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
+{%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
+{#- mcp_servers is an array, which the merge replaces whole: this is all of Vibe's
+    servers (one added with `vibe mcp add` goes on the next apply). -#}
+{%- if mcp %}
+[[mcp_servers]]
+name = "toolhive"
+transport = "streamable-http"
+url = "{{ mcp }}"
+{%- if vars.mcp_auth == "api-key" %}
+auth = { type = "static", api_key_env = "MCP_API_KEY", api_key_header = "x-api-key", api_key_format = "{token}" }
+{%- endif %}
+
+[[mcp_servers]]
+name = "memini"
+transport = "streamable-http"
+url = "{{ memini }}/mcp"
+auth = { type = "static", api_key_env = "MEMINI_API_KEY" }
+{%- endif %}
+{%- if vars.chrome_cdp_url %}
+
+[[mcp_servers]]
+name = "chrome-devtools"
+transport = "stdio"
+command = "chrome-devtools-mcp"
+args = ["--browserUrl", "{{ vars.chrome_cdp_url }}"]
+{%- endif %}

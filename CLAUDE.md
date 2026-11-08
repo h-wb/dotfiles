@@ -55,7 +55,7 @@ machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
   nothing else, not recursively. Relative sources resolve **inside the folder**,
   and its tasks **run in the folder** (2026.9.15). Each machine class and each
-  self-contained feature is one folder: `zsh/`, `macos-defaults/`, `k8s-dns/`,
+  self-contained feature is one folder: `ai/`, `zsh/`, `macos-defaults/`, `k8s-dns/`,
   `zen-history/`, `neko/`, `anki/`, `obsidian/`, `cachyos/`, `paseo/`.
 - **`home/`** holds sources for the root `config*.toml` files only (git, ssh,
   kube, wireguard, BTT). A folder fragment never reaches into `home/`.
@@ -194,6 +194,9 @@ picked, a missing main IP is fine).
 - **`mode = "absent"` removes a file or symlink** — use it when a refactor
   orphans a previously managed target (neko's old `~/.git-credentials`). Drop
   the entry once every machine that had the file has applied it.
+- **A var that reads another var is resolved in the file that defines it**: a
+  higher-precedence file overriding `x` does not move a `y = "{{ vars.x }}"`
+  defined below it. Build the derived string where it is used.
 - **`[vars]` cannot hold nested tables** (`[vars.apps.x]` errors). The one
   table a var may be is its own definition: `[vars.x] default = ...` (plus
   `prompt`/`required`).
@@ -207,8 +210,18 @@ picked, a missing main IP is fine).
 - **`mise env` in a `#!/bin/sh` script needs `--shell bash`**: it honours an
   inherited `MISE_SHELL`, and from fish it emits `set -gx`, on which dash
   _exits_ (POSIX special builtin), past any `|| true`.
-- **`[shell_alias]` is set by `mise activate`** (zsh, bash, fish), templated,
-  merged across configs like everything else — and not available in tasks or
+- **A `merge = true` edit replaces arrays whole**: it deep-merges tables
+  (keys it doesn't set survive) but an array in the source, such as a TOML
+  `[[x]]` list, overwrites the target's array, entries and all.
+- **`[wrappers.<bin>]` intercept a binary at PATH level** (mise 2026.8.16+):
+  the tool's shim and the wrapper dir `mise activate` prepends both run
+  `command` with `args` (templated, inserted *before* the caller's arguments,
+  so they end with `--`, `<bin>`); the inner name resolves to the real binary.
+  Works from a bare launchd environment through the shim. This is how a
+  command gets fnox secrets everywhere, where `[shell_alias]` only reaches
+  interactive shells.
+- **`[shell_alias]` is set by `mise activate`** (zsh, bash, fish), templated
+  without `vars` (use `{{ mise_config_dir }}`), merged across configs like everything else — and not available in tasks or
   `mise exec`.
 - **`--adopt`** (clone straight into `~/.config/mise`) is the other native
   route and would need no link at all. Not used because it runs bootstrap
@@ -330,25 +343,27 @@ per cluster); `[env] KUBECONFIG` lists both so kubectl merges them.
 `~/.kube/config` is deliberately unmanaged and **not** in the list, so a stale
 hand-written file cannot win a context-name collision.
 
-### Claude Desktop (`conf.d/claude-desktop/`)
+### Agent MCP servers (`conf.d/ai/`)
 
-Desktop gets home-ops' `mcp-general` ToolHive gateway (Anki, kubectl, flux, GitHub,
-n8n), the same one Claude Code uses, with the same `claude-code` key (Proton
-Pass `Automation/mcp-general-desktop`; the in-cluster generator is `CreatedOnce`, so a new key
-name would regenerate every client's key).
+One definition of the MCP servers every agent connects to (Claude Code,
+Desktop, Codex, Vibe, the pods' OpenCode), for every machine. How it works is
+in `conf.d/ai/README.md`; what is easy to break:
 
-- **Merged, not rendered**: Desktop writes its own `preferences` into
-  `claude_desktop_config.json`. A `post-dotfiles` hook runs
-  `claude-desktop:mcp`, which sets only `mcpServers.toolhive-general` with jq.
-  Without the key it leaves the entry alone. A running Desktop reads it on its
-  next start.
-- Desktop's config only launches local commands, so `npm:mcp-remote` (pinned,
-  lock under `locks/`) bridges. `command` is its mise shim: launchd's PATH
-  has `/usr/bin` (the npm wrapper needs `dirname`) but no mise.
-- The key is in `env`, and mcp-remote expands `${MCP_GENERAL_API_KEY}` in the
-  header arg itself, so it never shows in `ps`.
+- **A scope per agent sets both its servers and its fnox profile**
+  (`vars.<agent>_scope`, `-P {{ vars.<agent>_scope }}` in its wrapper). On the
+  pods every agent takes `PASEO_DATA_SCOPE`: a pod's network only opens its
+  own scope.
+- **Pods get no gateway key**, workstations go through Envoy with one. Server
+  names carry no scope (`toolhive`, `memini`): the URL says which.
+- **An empty domain leaves the cluster servers out, never writes over them.**
+  `SECRET_DOMAIN` only exists under `apply`'s fnox; every agent file is a
+  merge, so an empty render keeps the last good entries. Don't add a default
+  domain or a `[bootstrap.secrets]` entry (neko's `fresh` mode renders without
+  secrets on purpose).
+- **Vibe's servers are an array**, which a merge replaces whole:
+  `config/vibe.toml` owns all of them.
 - claude.ai (web, phone) is out of reach: its connectors call from Anthropic's
-  cloud and want OAuth, and `mcp-ops` is internal with a static key.
+  cloud and want OAuth, and the gateway is internal with a static key.
 
 ## The neko container (`conf.d/neko/`)
 
@@ -414,11 +429,14 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 - General runs Claude Code and OpenCode; private runs OpenCode and Hermes. Both
   have separate homes and credentials, and neither mounts a service-account token:
   general reaches Kubernetes through ToolHive, private only gets Hermes' exec token.
-- Agent config is not here. Home-ops owns it in `agents/paseo/<scope>/config/`
-  (Paseo providers, Claude MCP servers, OpenCode models and MCP), mounted at
-  `/etc/paseo/config` and applied by home-ops' `provision.sh` after this repo's
-  bootstrap. This class only installs CLIs, repos, shell config and the Paseo
-  defaults (`defaults.json`, missing keys only).
+- MCP servers come from `conf.d/ai/` like everywhere else (`mise.paseo.toml`:
+  the scope's gateway, in-cluster memini on general, the Chromium sidecar's
+  CDP), rendered by this bootstrap at every pod start. OpenCode layers the
+  global `~/.config/opencode/opencode.json` under `OPENCODE_CONFIG` and merges
+  both MCP lists (verified with 2.2.6). Home-ops keeps the rest in
+  `agents/paseo/<scope>/config/` (Paseo providers, OpenCode models and
+  providers), mounted at `/etc/paseo/config`. This class also installs CLIs,
+  repos, shell config and the Paseo defaults (`defaults.json`, missing keys only).
 - Proton Pass uses the global login template with a per-scope session and token fingerprint. Grant tokens access only to approved items: general must not
   read the existing `Homelab/Obsidian` login. Machine-only external credentials
   live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
@@ -481,6 +499,12 @@ of the neko constraints: apps are `pacman:` packages.
   Layers are the opposite case: fixed per machine, and they never set the same
   key as each other, so their order cannot change the result.
 - **`[bootstrap.secrets]` everywhere** — see Secrets above.
+- **Agent keys by `[shell_alias]`** (interactive shells only, not IDEs or
+  launchd), **Claude's `headersHelper`** (Claude only), **`fnox proxy`**
+  (starts the program itself, so not Desktop; intercepts all agent traffic;
+  refuses the gateway's private IP without `allow_private`), **`fnox
+  activate`** (the keys in every shell's env): `conf.d/ai` uses mise
+  `[wrappers]` under `fnox exec` instead.
 
 ## Don'ts
 

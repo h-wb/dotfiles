@@ -1,0 +1,38 @@
+{%- set scope = vars.opencode_scope -%}
+{%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
+{%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+{%- if mcp %}
+      "toolhive": {
+        "type": "remote",
+        "url": "{{ mcp }}"
+{%- if vars.mcp_auth == "api-key" %},
+        "headers": { "x-api-key": "{env:MCP_API_KEY}" }
+{%- endif %}
+      },
+      "memini": {
+        "type": "remote",
+        "url": "{{ memini }}/mcp",
+        "headers": { "Authorization": "Bearer {env:MEMINI_API_KEY}" }
+      }
+{%- endif %}
+{%- if vars.chrome_cdp_url %}{% if mcp %},{% endif %}
+      "chrome-devtools": {
+        "type": "local",
+        "command": ["chrome-devtools-mcp", "--browserUrl", "{{ vars.chrome_cdp_url }}"]
+      }
+{%- endif %}
+    }
+  }
+{%- if mcp %},
+  "plugins": [
+    {
+      "package": "@eleboucher/opencode-memini-v2@0.7.39",
+      "options": { "base_url": "{{ memini }}", "auto_update": false }
+    }
+  ]
+{%- endif %}
+}

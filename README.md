@@ -23,19 +23,19 @@ config.workstation.toml  personal/neko/cachyos: credentialed CLIs, kubeconfigs, 
 config.personal.toml     the MacBook's own packages
 miserc.toml              shared early-init settings (env_conf_d, auto_env)
 conf.d/
+  ai/                    agent MCP servers, once: Claude Code/Desktop, Codex, Vibe, the pods' OpenCode
   zsh/                   zsh + z4h + p10k (Macs)
   macos-defaults/        `defaults write`, declaratively (Macs)
   k8s-dns/               pick which cluster resolves the internal zone (MacBook)
   local-llm/             LM Studio GPU memory limit and RAM triage (MacBook)
   zen-history/           Zen history snapshots → Nextcloud (MacBook)
-  claude-desktop/        Claude Desktop → the mcp-ops ToolHive gateway (MacBook)
   neko/                  the neko/xfce container, whole
   anki/                  Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive) (neko)
   cachyos/               the CachyOS gaming desktop, whole
   paseo/                 the headless coding-agent pod
   pod/                   shared pod tools, locale and repositories
 home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
-fnox.toml                Proton Pass secret references (no values)
+fnox.toml                Proton Pass secret references (no values); the agents' own in conf.d/ai/
 scripts/                 first-install helpers and Proton Pass preflight
 ```
 

@@ -1,0 +1,28 @@
+{%- set scope = vars.claude_scope -%}
+{%- set mcp = vars["mcp_" ~ scope ~ "_url"] -%}
+{%- set memini = vars["memini_" ~ scope ~ "_url"] -%}
+{
+  "mcpServers": {
+{%- if mcp %}
+    "toolhive": {
+      "type": "http",
+      "url": "{{ mcp }}"
+{%- if vars.mcp_auth == "api-key" %},
+      "headers": { "x-api-key": "${MCP_API_KEY}" }
+{%- endif %}
+    },
+    "memini": {
+      "type": "http",
+      "url": "{{ memini }}/mcp",
+      "headers": { "Authorization": "Bearer ${MEMINI_API_KEY}" }
+    }
+{%- endif %}
+{%- if vars.chrome_cdp_url %}{% if mcp %},{% endif %}
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "chrome-devtools-mcp",
+      "args": ["--browserUrl", "{{ vars.chrome_cdp_url }}"]
+    }
+{%- endif %}
+  }
+}
