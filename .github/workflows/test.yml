@@ -92,12 +92,6 @@ jobs:
           done
           if [ "$RUNNER_OS" = Linux ]; then ! grep -q 'macos.toml' /tmp/cfg; fi
 
-      - name: Retarget the home-ops scope mount into the throwaway HOME
-        run: |
-          sed -i.bak 's#/etc/paseo/scope#'"$HOME"'/etc-paseo/scope#' conf.d/paseo/mise.paseo.toml
-          mkdir -p "$HOME/etc-paseo/scope"
-          cp tests/fixtures/paseo-scope/* "$HOME/etc-paseo/scope/"
-
       - name: Dotfiles render
         run: |
           mise bootstrap dotfiles apply --yes
@@ -123,13 +117,10 @@ jobs:
             grep -q "^Exec=$HOME/.local/share/mise/shims/ludo" "$HOME/.local/share/applications/ludo.desktop" ;;
           paseo)
             test -x "$HOME/.local/bin/paseo-bootstrap"
-            test -f "$HOME/.config/opencode/opencode.json"
-            test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: kubectl uses the pod's service account
+            test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: cluster access goes through ToolHive
             test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')"
-            # the home-ops scope fragments merged into the agent configs
-            grep -q 'toolhive-fixture' "$HOME/.paseo/config.json"
-            grep -q 'toolhive-fixture' "$HOME/.claude.json"
-            grep -q 'toolhive-fixture' "$HOME/.codex/config.toml" ;;
+            # agent config is home-ops' (agents/paseo/<scope>/config), not rendered here
+            test ! -e "$HOME/.config/opencode/opencode.json" ;;
           esac
           if [ "$RUNNER_OS" = Linux ]; then
             for f in .zshrc .config/zsh .config/wireguard Library; do

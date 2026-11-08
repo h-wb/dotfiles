@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "toolhive-fixture": {
-      "type": "http",
-      "url": "https://mcp-fixture.example/mcp",
-      "headers": { "x-api-key": "${MCP_API_KEY}" }
-    }
-  }
-}

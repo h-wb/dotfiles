@@ -411,32 +411,22 @@ Home-ops defines `paseo-general` and `paseo-private` using one shared pod base.
 Both detect the same mise class through `/etc/paseo`; `PASEO_DATA_SCOPE` is the
 scope selector. The existing general release/PVC keeps its `paseo` identity.
 
-- General runs Claude, Codex, Mistral Vibe and OpenCode. Private enables only
-  Mistral Vibe. Both have separate homes and credentials. General retains its
-  Kubernetes service-account permissions; private mounts no service-account token.
-- The canonical backend/provider eligibility policy lives in home-ops
-  (`kubernetes/components/agent-data-policy/`), and each Paseo app overlay selects
-  static fragments from that component's `scopes/<scope>/` directory, mounted
-  read-only at `/etc/paseo/scope` in the init, app and SSH containers.
-  This repo merges those fragments
-  into `~/.paseo/config.json`, `~/.claude.json` and `~/.codex/config.toml` via
-  the `[dotfiles]` merge entries in `conf.d/paseo/mise.paseo.toml`; a missing
-  mount fails bootstrap (fail closed). Dotfiles itself contains no provider
-  lists and is scope-agnostic except the `PASEO_DATA_SCOPE` env var naming the
-  Proton Pass session directory. Private metadata stays on Mistral and private
-  orchestration disables automatic agent handoffs (both set by the private
-  fragment).
-- Vibe gets the scope's ToolHive endpoint. General native clients and OpenCode
-  get `mcp-general` plus `memini-general`; private memory goes through ToolHive.
-  MCP configuration stores environment references, never rendered credentials.
+- General runs Claude Code and OpenCode; private runs OpenCode and Hermes. Both
+  have separate homes and credentials, and neither mounts a service-account token:
+  general reaches Kubernetes through ToolHive, private only gets Hermes' exec token.
+- Agent config is not here. Home-ops owns it in `agents/paseo/<scope>/config/`
+  (Paseo providers, Claude MCP servers, OpenCode models and MCP), mounted at
+  `/etc/paseo/config` and applied by home-ops' `provision.sh` after this repo's
+  bootstrap. This class only installs CLIs, repos, shell config and the Paseo
+  defaults (`defaults.json`, missing keys only).
 - Proton Pass uses the global login template with a per-scope session and token fingerprint. Grant tokens access only to approved items: general must not
   read the existing `Homelab/Obsidian` login. Machine-only external credentials
   live in `Automation`; vault names do not determine the Paseo data scope. Old sessions require migration cleanup
   and revocation of the old broad token; a new config cannot erase old access.
 - Provisioning is still `bin/paseo-bootstrap` and shared `scripts/provision.sh`.
   Chromium and sshd remain pod sidecars. The private home is a separate PVC.
-- This is normal-workflow separation: general agents retain cluster administration
-  as an accepted route around it. See home-ops `agents/README.md` for rollout.
+- Scope separation is enforced by home-ops (per-scope pods and credentials).
+  See home-ops `agents/README.md`.
 
 ## The CachyOS desktop (`conf.d/cachyos/`)
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Provision the paseo agent host at every pod start, from its `tools` init container
 # (home-ops agents/paseo); fine to run by hand. Only $HOME survives a pod roll. The
-# pod supplies its data scope and read-only policy; provisioning stays shared.
+# pod supplies its data scope; home-ops applies the agent config afterwards.
 set -u
 
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"

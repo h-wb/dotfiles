@@ -45,14 +45,6 @@ class SetupTests(unittest.TestCase):
             "NO_COLOR": "1",
         }
         self.select("paseo")
-        # The paseo layer merges the home-ops scope fragments from
-        # /etc/paseo/scope; retarget that mount into the throwaway HOME (the
-        # repo's convention for privileged paths) with the test fixtures.
-        self.scope_dir = self.home / "etc-paseo/scope"
-        shutil.copytree(ROOT / "tests/fixtures/paseo-scope", self.scope_dir)
-        paseo_toml = self.repo / "conf.d/paseo/mise.paseo.toml"
-        paseo_toml.write_text(paseo_toml.read_text().replace(
-            "/etc/paseo/scope", str(self.scope_dir)))
 
     def select(self, machine):
         (self.repo / "miserc.local.toml").write_text(
@@ -182,33 +174,17 @@ esac
         self.assertIn("bootstrap --dry-run --upgrade", (self.home / "fnox.calls").read_text())
 
     def test_paseo_merge_preserves_app_state_and_version(self):
+        # Defaults only fill missing keys; agent config is merged by home-ops.
         target = self.home / ".paseo/config.json"
         target.parent.mkdir()
         before = {"version": 2, "theme": "dark", "agents": {"providers": {
-            "claude": {"enabled": True, "custom": "keep"},
-            "codex": {"enabled": True}}}}
+            "claude": {"enabled": True, "custom": "keep"}}}}
         target.write_text(json.dumps(before))
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         after = json.loads(target.read_text())
-        # apply merges defaults (missing keys) and the scope fragment (merge
-        # overrides the scope keys, keeps everything else).
         self.assertIn("fresh-worktrees", after.pop("plugins"))
         self.assertTrue(after.pop("pluginsEnabled"))
-        self.assertEqual(after, {
-            "version": 2, "theme": "dark",
-            "agents": {"providers": {
-                # scope.json overrides enabled, keeps the unrelated key
-                "claude": {"enabled": False, "custom": "keep"},
-                "codex": {"enabled": True},  # not in the fixture: untouched
-                "mistral-vibe": {"enabled": True, "env": {
-                    "VIBE_MCP_SERVERS": "[{\"name\":\"toolhive-fixture\"}]"}},
-            }},
-        })
-        # The scope fragments also land in the native client configs.
-        claude = json.loads((self.home / ".claude.json").read_text())["mcpServers"]
-        self.assertEqual("https://mcp-fixture.example/mcp", claude["toolhive-fixture"]["url"])
-        codex = tomllib.loads((self.home / ".codex/config.toml").read_text())
-        self.assertIn("toolhive-fixture", codex["mcp_servers"])
+        self.assertEqual(after, before)
         stamp = target.stat().st_mtime_ns
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         self.assertEqual(target.stat().st_mtime_ns, stamp)
@@ -218,37 +194,8 @@ esac
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         config = json.loads((self.home / ".paseo/config.json").read_text())
         self.assertEqual(config["version"], 1)
-        # Providers come from the home-ops scope fragment merged at bootstrap.
-        self.assertFalse(config["agents"]["providers"]["claude"]["enabled"])
-        self.assertTrue(config["agents"]["providers"]["mistral-vibe"]["enabled"])
-
-    def test_unscoped_paseo_keeps_existing_opencode_tools(self):
-        self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        config = json.loads((self.home / ".config/opencode/opencode.json").read_text())
-        self.assertEqual(set(config["mcp"]), {"chrome-devtools"})
-        self.assertEqual(config["provider"]["litellm"]["options"]["apiKey"], "{env:LITELLM_API_KEY}")
-
-    def test_existing_opencode_symlink_migrates_to_template(self):
-        target = self.home / ".config/opencode/opencode.json"
-        target.parent.mkdir(parents=True)
-        target.symlink_to(self.repo / "conf.d/paseo/opencode.json")
-        self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
-        self.assertFalse(target.is_symlink())
-        self.assertEqual(set(json.loads(target.read_text())["mcp"]), {"chrome-devtools"})
-
-    def test_scoped_general_paseo_gets_matching_opencode_tools(self):
-        self.mise("bootstrap", "dotfiles", "apply", "--yes",
-                  env={**self.env, "PASEO_DATA_SCOPE": "general"})
-        config = json.loads((self.home / ".config/opencode/opencode.json").read_text())
-        self.assertEqual(set(config["mcp"]), {"chrome-devtools", "toolhive-general", "memini-general"})
-        self.assertEqual(config["mcp"]["toolhive-general"]["headers"]["x-api-key"], "{env:MCP_API_KEY}")
-        self.assertEqual(config["mcp"]["memini-general"]["headers"]["Authorization"], "Bearer {env:MEMINI_API_KEY}")
-
-    def test_paseo_merge_fails_closed_without_scope_fragments(self):
-        shutil.rmtree(self.scope_dir)
-        result = self.mise("bootstrap", "dotfiles", "apply", "--yes", ok=False)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse((self.home / ".paseo/config.json").exists())
+        self.assertNotIn("agents", config)
+        self.assertFalse((self.home / ".config/opencode/opencode.json").exists())
 
     def test_paseo_merge_refuses_invalid_json(self):
         target = self.home / ".paseo/config.json"
