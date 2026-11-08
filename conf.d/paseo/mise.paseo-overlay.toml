@@ -1,10 +1,7 @@
-# Env layer `paseo-overlay`: active only on a home-ops paseo pod, where the scope
-# overlay (general/private) is mounted read-only at /etc/paseo/config — miserc.toml
-# tests that path. Not loaded in tests or on workstations, where the source is absent.
+# Layer `paseo-overlay`: only where home-ops mounts the scope's agent config
+# (agents/paseo/<scope>/config at /etc/paseo/config). Its own layer because a merge
+# with a missing source is an error, and CI and tests have no such mount.
 
 [dotfiles]
-# The scope's agent config, merged into the daemon config on every bootstrap (the
-# pod's `mise bootstrap --from` in the `tools` init container). Paseo keeps its own
-# state in ~/.paseo/config.json, so a merge entry writes only the overlay's keys;
-# ours win on conflict, everything else is kept.
+# Paseo keeps its own state in this file: ours win, the rest is kept.
 "~/.paseo/config.json/overlay" = { source = "/etc/paseo/config/paseo.json", merge = true }
