@@ -396,6 +396,12 @@ uv = { path = "locks/pipx-mistral-vibe/3.0.3~1e8dc067", digest = "sha256:79e64fb
 [tools."pipx:mistral-vibe".options]
 python = "3.14"
 
+[[tools."pipx:mistral-vibe"]]
+version = "3.0.2"
+backend = "pipx:mistral-vibe"
+specifiers = ["latest"]
+uv = { path = "locks/pipx-mistral-vibe/3.0.2", digest = "sha256:136d9aa21070890879950ddcb26aaa39b673d5463f62999b46952ccded521f34" }
+
 [[tools.python]]
 version = "3.14.7"
 backend = "core:python"
