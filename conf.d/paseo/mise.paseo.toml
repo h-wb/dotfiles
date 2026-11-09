@@ -9,9 +9,12 @@ LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
-# Repositories carry their Paseo overlays as tracked mise.paseo.toml files;
-# this is the host's only selector. Workstations never set it.
-MISE_ENV = "paseo"
+# Repositories carry their in-cluster access layer as a tracked
+# mise.cluster.toml; this is the host's only selector for it. The name matches
+# fnov's existing "cluster" profile vocabulary, and never collides with the
+# machine-class layer file names below (paseo is the host, cluster the target).
+# Workstations never set it.
+MISE_ENV = "cluster"
 
 [tools]
 "aqua:anomalyco/opencode" = "latest"
@@ -39,7 +42,7 @@ run = [
   { task = "paseo:pass-login" },
 ]
 
-# The overlays these copies used to carry now ship as tracked mise.paseo.toml
+# The overlays these copies used to carry now ship as tracked mise.cluster.toml
 # in the repos themselves; the leftover gitignored files would block the
 # checkouts' next fast-forward, so remove them (idempotent; nothing to do
 # on pods provisioned after the switch).
