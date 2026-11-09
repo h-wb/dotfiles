@@ -1,25 +1,12 @@
 # Private reference map for Sento; no secret values are stored here.
 [providers.protonpass]
 type = "proton-pass"
-vault = "Homelab"
-agent_reason = "sento fnox"
-
-[providers.automation]
-type = "proton-pass"
-vault = "Automation"
+vault = "Automation General"
 agent_reason = "sento fnox"
 
 [secrets]
-SENTO_QBITTORRENT_USERNAME = { provider = "protonpass", value = "pass://Homelab/qBittorrent/username" }
-SENTO_QBITTORRENT_PASSWORD = { provider = "protonpass", value = "pass://Homelab/qBittorrent/password" }
-SENTO_PROWLARR_API_KEY = { provider = "protonpass", value = "pass://Homelab/Prowlarr/api-key" }
+SENTO_QBITTORRENT_USERNAME = { provider = "protonpass", value = "pass://Automation General/qBittorrent/username" }
+SENTO_QBITTORRENT_PASSWORD = { provider = "protonpass", value = "pass://Automation General/qBittorrent/password" }
+SENTO_PROWLARR_API_KEY = { provider = "protonpass", value = "pass://Automation General/Prowlarr/api-key" }
 # Repository-scoped GitHub token: grant explicitly with `mise x --secrets GH_TOKEN -- gh ...`.
-GH_TOKEN = { provider = "automation", value = "pass://Automation/github-sento/password" }
-
-# The general Paseo reader has individual item grants. Workstation tokens
-# retain the named-vault references above. Full share/item IDs need no vault grant.
-[profiles.paseo-general.secrets]
-SENTO_QBITTORRENT_USERNAME = { provider = "protonpass", value = "pass://mN6B_Pk4ldAQnGflEXcg-TVrLDemdRMSxpbJhJQmKssBfG6h0i38KLGpq47dF7xHKFCafBRbOw6DV6L_OlcFbA==/4B7Fj7gLMS4iu_yowCzxAjpgUMo5XFy2Fbypl-SsFQcdyJglwS_i9gEdenFc9Z5clAszppE_gBEKmDWmiZO0gA==/username" }
-SENTO_QBITTORRENT_PASSWORD = { provider = "protonpass", value = "pass://mN6B_Pk4ldAQnGflEXcg-TVrLDemdRMSxpbJhJQmKssBfG6h0i38KLGpq47dF7xHKFCafBRbOw6DV6L_OlcFbA==/4B7Fj7gLMS4iu_yowCzxAjpgUMo5XFy2Fbypl-SsFQcdyJglwS_i9gEdenFc9Z5clAszppE_gBEKmDWmiZO0gA==/password" }
-SENTO_PROWLARR_API_KEY = { provider = "protonpass", value = "pass://V2tLidxqV6N3QMZfP8TaApsHtGRpk2AwY-MfG3HcHRwcT1GQTO-3odEQiUYEBApHTkbqrP2Dux39Iz1x7NHb6g==/3pIgwn94qIEZ9hbCyvutyzttKMxlXTk8Ym7NSFCNeqYvhuBaio_970VhyMwKrKWpwJsTcFbWzVM4CGlpTmzcIg==/api-key" }
-GH_TOKEN = { provider = "automation", value = "pass://T2E3B7LiAMaQC7vTr9nWMXs6vPUa-NVa55pB0Wyi7PBu9gVXj6p5QQUZQp9nG8nIAzitTOoSJ0osokGVGlZI0A==/09vAOks_ksO5JpNLPXzO8l-6__Kuu6_f-Z_VUSjeRv16siKpUuN8IPGPcQeNa9uZ-rSMX-_zjbB5zIRRcrYDOQ==/password" }
+GH_TOKEN = { provider = "protonpass", value = "pass://Automation General/github-sento/password" }

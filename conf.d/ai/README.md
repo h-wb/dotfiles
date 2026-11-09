@@ -42,7 +42,7 @@ set our servers. Vibe's servers are an array, which a merge replaces whole, so
 
 Never committed. Workstations build the public URLs from `SECRET_DOMAIN`,
 which `mise run apply`'s fnox resolves from Proton Pass
-(`Infrastructure/kubernetes-gateway`, field `domain`; repo `fnox.toml`).
+(`Machines/kubernetes-gateway`, field `domain`; repo `fnox.toml`).
 Outside `apply` it is empty and the gateway and memini servers are left out;
 every agent file is merged, so that keeps what the last `apply` wrote. The
 pods need none: they use in-cluster service names.
