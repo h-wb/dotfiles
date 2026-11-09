@@ -52,16 +52,16 @@ managed agent sessions.
 | `Personal` | you | personal logins |
 | `Homelab` | you | homelab service web logins |
 | `Machines` | your machines' dotfiles and CLIs (Mac, neko, cachyos) | kubeconfigs, SSH, WireGuard, GitHub workstation token, agent gateway keys, Anki |
-| `Agents General` | the general Paseo pod, plus the workstation tokens of the repos it works on | everything agents read: home-ops bootstrap and Talos, pipelines, Sento, dawarich-regression |
+| `Automation General` | the general Paseo pod, plus the workstation tokens of the repos it works on | everything agents read: home-ops bootstrap and Talos, pipelines, Sento, dawarich-regression |
 | `Aliases` | Proton/SimpleLogin | email aliases |
 
-If an agent may read an item, it lives in `Agents General`. If a machine needs
+If an agent may read an item, it lives in `Automation General`. If a machine needs
 it, `Machines`. Everything else is yours. An item two readers need goes in the
 narrower reader's vault, and the broader token gets a grant on it too. Add
 `Agents Private` the day the private pod first needs a secret. No folders.
 
 Each token gets a **vault** grant, so every repo keeps one readable map
-(`pass://Agents General/talos-cluster/token`): no item grants, no share/item
+(`pass://Automation General/talos-cluster/token`): no item grants, no share/item
 IDs, no per-scope fnox profiles. Machine item names use lowercase kebab-case
 (`github-workstation`, `kubernetes-gateway`); `toolhive` and `memini` keep one
 field per data scope (`general`/`private`, see `conf.d/ai/fnox.toml`).
