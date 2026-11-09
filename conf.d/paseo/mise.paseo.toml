@@ -9,7 +9,6 @@ LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
-# Repos carry the tracked cluster layer (mise.cluster.toml); this is its only selector.
 MISE_ENV = "cluster"
 
 [tools]
