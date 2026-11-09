@@ -510,45 +510,14 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertFalse((self.home / "consumed").exists())
         self.assertEqual(calls, (self.home / "fnox.calls").read_text())
 
-    def test_pipelines_checkout_uses_the_cluster_profile(self):
-        target = self.home / "Repositories/pipelines/mise.local.toml"
-        self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force", str(target))
-        config = tomllib.loads(target.read_text())
-        self.assertEqual(config["secrets"]["fnox"]["profile"], "cluster")
-
-    def test_sento_task_receives_its_secrets(self):
-        project = self.home / "sento-profile-project"
-        project.mkdir()
-        source = self.repo / "conf.d/paseo/projects/sento/mise.toml"
-        (project / "mise.toml").write_text("[settings]\nexperimental = true\n" + source.read_text().replace(
-            'run = "bash scripts/watch-api.sh"',
-            "run = 'test -n \"$SENTO_PROWLARR_API_KEY\"'"))
-        (project / "fnox.toml").write_text('[secrets]\n')
-        keys = ["SENTO_QBITTORRENT_USERNAME", "SENTO_QBITTORRENT_PASSWORD",
-                "SENTO_PROWLARR_API_KEY"]
-        describe = json.dumps({"schema": 1, "fnox_version": "1.46.0",
-            "profile": ["default"], "keys": [{"key": key, "kind": "secret",
-            "env": "exec", "injectable": {"exec": True, "shell": False}}
-            for key in keys], "dynamic_leases": []})
-        export = json.dumps({"schema": 1, "fnox_version": "1.46.0",
-            "scope": "exec", "profile": ["default"],
-            "set": {key: "dummy-secret" for key in keys}, "files": {},
-            "remove": [], "missing": [], "leases": []})
-        self.fake("fnox", f'''
-if [ "$1" = --version ]; then echo 'fnox 1.46.0'; exit 0; fi
-printf '%s' "$FNOX_PROFILE" > "$HOME/resolved-profile"
-case "$*" in
-*--describe*) printf '%s\\n' '{describe}' ;;
-*) printf '%s\\n' '{export}' ;;
-esac
-''')
-        # One map for every host: no profile is selected, and the task still
-        # receives its secrets.
-        for scope in ("", "general"):
-            with self.subTest(scope=scope):
-                self.mise("-C", str(project), "run", "--skip-tools", "run:watch",
-                          env={**self.env, "PASEO_DATA_SCOPE": scope})
-                self.assertEqual((self.home / "resolved-profile").read_text(), "")
+    def test_repo_checkouts_receive_no_host_copies(self):
+        (self.home / "Repositories/pipelines").mkdir(parents=True)
+        (self.home / "Repositories/sento").mkdir(parents=True)
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        for path in ("Repositories/pipelines/mise.local.toml",
+                     "Repositories/sento/mise.local.toml",
+                     "Repositories/sento/fnox.toml"):
+            self.assertFalse((self.home / path).exists(), path)
 
     def test_paseo_overlay_layer_loads_only_with_the_mount(self):
         # The scope overlay (/etc/paseo/config/paseo.json, mounted by home-ops

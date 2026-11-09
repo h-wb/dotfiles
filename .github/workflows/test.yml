@@ -111,8 +111,9 @@ jobs:
             test -L "$HOME/.bashrc" && test ! -e "$HOME/.profile"
             test ! -e "$HOME/.kube/main.yaml"   # no kubeconfigs: cluster access goes through ToolHive
             test -z "$(mise env --shell bash | grep '^export KUBECONFIG=')"
-            # agent config is home-ops' (agents/paseo/<scope>/config), not rendered here
-            test ! -e "$HOME/.config/opencode/opencode.json" ;;
+            # the shared AI-agent layer renders the base config on every machine;
+            # home-ops' scope overlay (agents/paseo/<scope>/config) merges on top
+            test -e "$HOME/.config/opencode/opencode.json" ;;
           esac
           if [ "$RUNNER_OS" = Linux ]; then
             for f in .zshrc .config/zsh .config/wireguard Library; do
