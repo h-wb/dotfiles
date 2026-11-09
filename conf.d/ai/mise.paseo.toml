@@ -13,5 +13,9 @@ memini_general_url = "{{ get_env(name='MEMINI_BASE_URL', default='http://memini-
 memini_private_url = "{{ get_env(name='MEMINI_BASE_URL', default='http://memini-private.llm.svc.cluster.local:8080') }}"
 chrome_cdp_url = "{{ get_env(name='CHROME_CDP_URL', default='http://127.0.0.1:9222') }}"
 
+[env]
+# From the pod's live LiteLLM key (operator-rotated), not a stored copy.
+ANTHROPIC_CUSTOM_HEADERS = "x-litellm-api-key: Bearer {{ get_env(name='LITELLM_API_KEY', default='') }}"
+
 [dotfiles]
 "~/.config/opencode/opencode.json" = { source = "config/opencode.json", mode = "template" }

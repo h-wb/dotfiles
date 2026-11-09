@@ -225,6 +225,12 @@ esac
                 out = json.loads(self.mise("env", "--json").stdout)
                 self.assertEqual(f"{self.home}/.claude", out["CLAUDE_CONFIG_DIR"])
 
+    def test_ai_paseo_claude_header_follows_the_live_litellm_key(self):
+        self.select("paseo")
+        out = json.loads(self.mise("env", "--json", env={
+            **self.env, "LITELLM_API_KEY": "sk-live", "ANTHROPIC_CUSTOM_HEADERS": "stale"}).stdout)
+        self.assertEqual("x-litellm-api-key: Bearer sk-live", out["ANTHROPIC_CUSTOM_HEADERS"])
+
     def test_ai_paseo_urls_come_from_the_pod_env_when_set(self):
         # home-ops owns its service names; dotfiles only has the defaults.
         self.apply_ai(PASEO_DATA_SCOPE="private", TOOLHIVE_URL="http://gw.test/mcp",
