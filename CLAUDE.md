@@ -116,7 +116,7 @@ and clears the named session on missing/rejected credentials. See
 `conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
 
 Proton Pass vaults are named by who reads them (`Personal`, `Homelab`,
-`Machines`, `Agents General`) and tokens get vault grants, so every repo has one
+`Machines`, `Automation General`) and tokens get vault grants, so every repo has one
 readable `pass://Vault/item/field` map. See `conf.d/proton-pass/README.md`. Do
 not add item grants, share/item ID maps, per-scope fnox profiles, or another
 login implementation.
@@ -441,7 +441,7 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   `agents/paseo/<scope>/config/` (Paseo providers, OpenCode models and
   providers), mounted at `/etc/paseo/config`. This class also installs CLIs,
   repos and shell config.
-- Proton Pass: the general pod's token has one grant, the `Agents General`
+- Proton Pass: the general pod's token has one grant, the `Automation General`
   vault; it logs in with the global login template (per-scope session, token
   fingerprint). The private pod needs no secrets and skips the login task.
 - **Provisioning** is home-ops' `tools` init container, on the app's image:
