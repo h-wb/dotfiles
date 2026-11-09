@@ -9,11 +9,7 @@ LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
-# Repositories carry their in-cluster access layer as a tracked
-# mise.cluster.toml; this is the host's only selector for it. The name matches
-# fnov's existing "cluster" profile vocabulary, and never collides with the
-# machine-class layer file names below (paseo is the host, cluster the target).
-# Workstations never set it.
+# Repos carry the tracked cluster layer (mise.cluster.toml); this is its only selector.
 MISE_ENV = "cluster"
 
 [tools]
@@ -42,10 +38,7 @@ run = [
   { task = "paseo:pass-login" },
 ]
 
-# The overlays these copies used to carry now ship as tracked mise.cluster.toml
-# in the repos themselves; the leftover gitignored files would block the
-# checkouts' next fast-forward, so remove them (idempotent; nothing to do
-# on pods provisioned after the switch).
+# Those overlays are tracked in the repos now; the gitignored leftovers would block their next fast-forward.
 [tasks."paseo:prune-host-copies"]
 description = "Remove the legacy host-copied repo override files"
 hide = true
