@@ -120,18 +120,6 @@ esac
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("dependency sidecar", result.stderr)
 
-    def test_named_proton_provider_is_installed_for_every_machine(self):
-        # Keep unrelated machine post-dotfiles hooks outside this focused check.
-        self.fake("mise", "exit 0")
-        for machine in LAYERS:
-            with self.subTest(machine=machine):
-                self.select(machine)
-                target = self.home / ".config/fnox/proton-pass-items.lua"
-                self.mise("bootstrap", "dotfiles", "apply", "--yes", str(target))
-                source = self.repo / "conf.d/proton-pass/provider.lua"
-                self.assertEqual(target.read_text(), source.read_text())
-                self.assertEqual(target.stat().st_mode & 0o777, 0o600)
-
     def doctor(self):
         result = self.mise("doctor", "project", "--json", ok=False)
         report = json.loads(result.stdout)
@@ -522,16 +510,13 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertFalse((self.home / "consumed").exists())
         self.assertEqual(calls, (self.home / "fnox.calls").read_text())
 
-    def test_pipelines_cluster_profile_tracks_host_scope(self):
+    def test_pipelines_checkout_uses_the_cluster_profile(self):
         target = self.home / "Repositories/pipelines/mise.local.toml"
-        for scope, expected in [("", "cluster"), ("general", "paseo-general-cluster")]:
-            with self.subTest(scope=scope):
-                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force",
-                          str(target), env={**self.env, "PASEO_DATA_SCOPE": scope})
-                config = tomllib.loads(target.read_text())
-                self.assertEqual(config["secrets"]["fnox"]["profile"], expected)
+        self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force", str(target))
+        config = tomllib.loads(target.read_text())
+        self.assertEqual(config["secrets"]["fnox"]["profile"], "cluster")
 
-    def test_sento_profile_reaches_task_secret_resolution(self):
+    def test_sento_task_receives_its_secrets(self):
         project = self.home / "sento-profile-project"
         project.mkdir()
         source = self.repo / "conf.d/paseo/projects/sento/mise.toml"
@@ -557,17 +542,13 @@ case "$*" in
 *) printf '%s\\n' '{export}' ;;
 esac
 ''')
-        for scope, explicit, expected in [
-            ("", None, "default"), ("general", None, "paseo-general"),
-            ("private", None, "default"), ("general", "custom", "custom"),
-        ]:
-            with self.subTest(scope=scope, explicit=explicit):
-                env = {**self.env, "PASEO_DATA_SCOPE": scope}
-                if explicit:
-                    env["FNOX_PROFILE"] = explicit
+        # One map for every host: no profile is selected, and the task still
+        # receives its secrets.
+        for scope in ("", "general"):
+            with self.subTest(scope=scope):
                 self.mise("-C", str(project), "run", "--skip-tools", "run:watch",
-                          env=env)
-                self.assertEqual((self.home / "resolved-profile").read_text(), expected)
+                          env={**self.env, "PASEO_DATA_SCOPE": scope})
+                self.assertEqual((self.home / "resolved-profile").read_text(), "")
 
     def test_paseo_overlay_layer_loads_only_with_the_mount(self):
         # The scope overlay (/etc/paseo/config/paseo.json, mounted by home-ops

@@ -1,0 +1,3 @@
+# Keep the provisioned checkout on the existing in-cluster Prefect endpoint.
+[secrets.fnox]
+profile = "cluster"
