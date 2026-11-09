@@ -18,25 +18,31 @@ config/                the agents' config templates, rendered by the files above
 Each agent's data scope follows where its model runs, and decides both its
 servers and its keys (`*_scope` vars in `mise.toml`, one fnox profile each):
 
-| scope     | agents                                 | servers                                                         |
-| --------- | -------------------------------------- | --------------------------------------------------------------- |
-| `general` | Claude Code, Claude Desktop, Codex     | `mcp-general` (curated tools, no private data) + memini-general |
-| `private` | Vibe (Mistral)                         | `mcp-private` (the whole catalogue) + memini-private            |
+| scope     | agents                             | rendered servers (key → target)                                                       |
+| --------- | ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `general` | Claude Code, Claude Desktop, Codex | `toolhive` → `mcp-general.<domain>` gateway (curated tools, no private data), `memini` → `memini-general` |
+| `private` | Vibe (Mistral)                     | `toolhive` → `mcp-private.<domain>` gateway (the whole catalogue), `memini` → `memini-private`             |
 
-home-ops enforces the split. Both gateways are ToolHive VirtualMCPServers over
-the same tool group: `mcp-general` (`mcp-ops`) allows a curated list,
-`mcp-private` (`mcp-gateway`) everything. ToolHive takes callers anonymously;
-the Envoy route of each hostname checks `x-api-key` against that gateway's own
-key list (a general key gets a 401 on `mcp-private`), and a NetworkPolicy keeps
-in-cluster callers off `mcp-gateway`. Each memini checks its own named client
-keys. memini is connected directly, not through the gateway: ToolHive's
-optimizer hides gateway tools behind `find_tool`/`call_tool`, and memory tools
-should be in view.
+The `toolhive` key is one entry pointing at the scope's gateway URL
+(`mcp_<scope>_url`); the templates render the same two keys for every agent.
+
+home-ops enforces the split. The gateways are ToolHive VirtualMCPServers over
+the same tool group: `mcp-ops` (routed at `mcp-general.<domain>`) allows a
+curated list, `mcp-gateway` (`mcp-private.<domain>`) everything. ToolHive takes
+callers anonymously; the Envoy route of each hostname checks `x-api-key`
+against that gateway's own key list (a general key gets a 401 on `mcp-private`),
+and a NetworkPolicy keeps in-cluster callers off `mcp-gateway`. Each memini
+checks its own named client keys. memini is connected directly, not through the
+gateway: ToolHive's optimizer hides gateway tools behind `find_tool`/`call_tool`,
+and memory tools should be in view.
 On the pods there is one scope per pod (`PASEO_DATA_SCOPE`), so every agent
 there takes it; the pods add the in-cluster memini and `chrome-devtools` on the
 Chromium sidecar. Merged files keep everything the agent wrote itself; we only
-set our servers. Vibe's servers are an array, which a merge replaces whole, so
-`config/vibe.toml` is all of them: add one there, not with `vibe mcp add`.
+set our servers — so renaming a rendered server leaves the old key behind in a
+merged file. Remove it with the agent's own command (`claude mcp remove -s user
+<old>`, `codex mcp remove <old>`), not by editing the rendered file. Vibe's
+servers are an array, which a merge replaces whole, so `config/vibe.toml` is all
+of them: add one there, not with `vibe mcp add`.
 
 ## Domain
 
