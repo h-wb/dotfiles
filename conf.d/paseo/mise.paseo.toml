@@ -9,7 +9,6 @@ LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`
 PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
 PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
-MISE_ENV = "cluster"
 
 [tools]
 "aqua:anomalyco/opencode" = "latest"
@@ -33,15 +32,8 @@ starship = "latest"
 
 [tasks.bootstrap]
 run = [
-  { task = "paseo:prune-host-copies" },
   { task = "paseo:pass-login" },
 ]
-
-# Those overlays are tracked in the repos now; the gitignored leftovers would block their next fast-forward.
-[tasks."paseo:prune-host-copies"]
-description = "Remove the legacy host-copied repo override files"
-hide = true
-run = 'rm -f "$HOME/Repositories/sento/fnox.toml" "$HOME/Repositories/sento/mise.local.toml" "$HOME/Repositories/pipelines/mise.local.toml"'
 
 [tasks."paseo:pass-login"]
 extends = "proton-login"
