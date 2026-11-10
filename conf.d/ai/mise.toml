@@ -5,6 +5,8 @@ claude_scope = "general"
 codex_scope = "general"
 vibe_scope = "private"
 chrome_cdp_url = ""
+# General memory as a second, read-only server; set where a private machine has a key for it.
+memini_general_ro_url = ""
 
 [env]
 CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"

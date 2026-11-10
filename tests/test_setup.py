@@ -181,7 +181,7 @@ esac
         self.assertNotIn("secret-value", target.read_text())
         servers = json.loads(target.read_text())["mcpServers"]
         # In-cluster and keyless: the gateway's NetworkPolicy admits this pod.
-        self.assertEqual(servers["toolhive"], {"type": "http", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(servers["toolhive"], {"type": "http", "url": "http://vmcp-mcp-general.llm.svc.cluster.local:4483/mcp"})
         self.assertEqual(servers["memini"]["url"],
                          "http://memini-general.llm.svc.cluster.local:8080/mcp")
         self.assertEqual(servers["memini"]["headers"],
@@ -194,7 +194,7 @@ esac
         opencode = json.loads(target.read_text())
         self.assertEqual(set(opencode), {"$schema", "mcp", "plugins"})
         oc = opencode["mcp"]["servers"]
-        self.assertEqual(oc["toolhive"], {"type": "remote", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(oc["toolhive"], {"type": "remote", "url": "http://vmcp-mcp-general.llm.svc.cluster.local:4483/mcp"})
         self.assertEqual(set(oc), {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(opencode["plugins"][0]["options"]["base_url"],
                          "http://memini-general.llm.svc.cluster.local:8080")
@@ -203,7 +203,7 @@ esac
         self.apply_ai(PASEO_DATA_SCOPE="private")
         servers = json.loads((self.home / ".claude/.claude.json").read_text())["mcpServers"]
         self.assertEqual(set(servers), {"toolhive", "memini", "chrome-devtools"})
-        self.assertEqual(servers["toolhive"], {"type": "http", "url": "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(servers["toolhive"], {"type": "http", "url": "http://vmcp-mcp-private.llm.svc.cluster.local:4483/mcp"})
         self.assertEqual(servers["memini"]["url"],
                          "http://memini-private.llm.svc.cluster.local:8080/mcp")
         opencode = json.loads((self.home / ".config/opencode/opencode.json").read_text())
@@ -211,6 +211,28 @@ esac
                          {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(opencode["plugins"][0]["options"]["base_url"],
                          "http://memini-private.llm.svc.cluster.local:8080")
+
+    def test_ai_paseo_private_reads_general_memory_when_the_pod_has_a_key(self):
+        # home-ops gives the private pod a read-only key and the store's address.
+        self.apply_ai(PASEO_DATA_SCOPE="private", MEMINI_GENERAL_API_KEY="secret-value",
+                      MEMINI_GENERAL_URL="http://memini-general.llm.svc.cluster.local:8080")
+        target = self.home / ".config/opencode/opencode.json"
+        self.assertNotIn("secret-value", target.read_text())
+        opencode = json.loads(target.read_text())["mcp"]["servers"]
+        self.assertEqual(set(opencode), {"toolhive", "memini", "general_memory", "chrome-devtools"})
+        self.assertEqual(opencode["general_memory"], {
+            "type": "remote", "url": "http://memini-general.llm.svc.cluster.local:8080/mcp",
+            "headers": {"Authorization": "Bearer {env:MEMINI_GENERAL_API_KEY}"}})
+        self.assertEqual(opencode["memini"]["url"], "http://memini-private.llm.svc.cluster.local:8080/mcp")
+        self.assertEqual(self.vibe_servers()["general_memory"], {
+            "name": "general_memory", "transport": "streamable-http",
+            "url": "http://memini-general.llm.svc.cluster.local:8080/mcp",
+            "auth": {"type": "static", "api_key_env": "MEMINI_GENERAL_API_KEY"}})
+        codex = tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"]
+        self.assertEqual(codex["general_memory"]["bearer_token_env_var"], "MEMINI_GENERAL_API_KEY")
+        claude = json.loads((self.home / ".claude/.claude.json").read_text())["mcpServers"]
+        self.assertEqual(claude["general_memory"]["headers"],
+                         {"Authorization": "Bearer ${MEMINI_GENERAL_API_KEY}"})
 
     def vibe(self):
         return tomllib.loads((self.home / ".vibe/config.toml").read_text())
@@ -238,13 +260,13 @@ esac
         self.apply_ai(PASEO_DATA_SCOPE="private")
         codex = tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"]
         self.assertEqual(set(codex), {"toolhive", "memini", "chrome-devtools"})
-        self.assertEqual(codex["toolhive"], {"url": "http://vmcp-mcp-gateway.llm.svc.cluster.local:4483/mcp"})
+        self.assertEqual(codex["toolhive"], {"url": "http://vmcp-mcp-private.llm.svc.cluster.local:4483/mcp"})
         self.assertEqual(set(self.vibe_servers()), {"toolhive", "memini", "chrome-devtools"})
         self.apply_ai()
         general = self.vibe_servers()
         self.assertEqual(set(general), {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(general["toolhive"], {
-            "name": "toolhive", "transport": "streamable-http", "url": "http://vmcp-mcp-ops.llm.svc.cluster.local:4483/mcp"})
+            "name": "toolhive", "transport": "streamable-http", "url": "http://vmcp-mcp-general.llm.svc.cluster.local:4483/mcp"})
         self.assertEqual(general["memini"]["url"],
                          "http://memini-general.llm.svc.cluster.local:8080/mcp")
 
