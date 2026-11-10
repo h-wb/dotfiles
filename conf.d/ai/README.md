@@ -27,14 +27,18 @@ The `toolhive` key is one entry pointing at the scope's gateway URL
 (`mcp_<scope>_url`); the templates render the same two keys for every agent.
 
 home-ops enforces the split. The gateways are ToolHive VirtualMCPServers over
-the same tool group: `mcp-ops` (routed at `mcp-general.<domain>`) allows a
-curated list, `mcp-gateway` (`mcp-private.<domain>`) everything. ToolHive takes
-callers anonymously; the Envoy route of each hostname checks `x-api-key`
-against that gateway's own key list (a general key gets a 401 on `mcp-private`),
-and a NetworkPolicy keeps in-cluster callers off `mcp-gateway`. Each memini
+the same tool group: `mcp-general` allows a curated list, `mcp-private`
+everything. ToolHive takes callers anonymously; the Envoy route of each
+hostname checks `x-api-key` against that gateway's own key list (a general key
+gets a 401 on `mcp-private`), and a NetworkPolicy keeps in-cluster callers off
+`mcp-private`. Each memini
 checks its own named client keys. memini is connected directly, not through the
 gateway: ToolHive's optimizer hides gateway tools behind `find_tool`/`call_tool`,
 and memory tools should be in view.
+Private agents may also read general memory, never write it: where a machine
+has `MEMINI_GENERAL_URL` and a read-only `MEMINI_GENERAL_API_KEY` (home-ops
+gives both to the private pod), every agent gets a third server,
+`general_memory`.
 On the pods there is one scope per pod (`PASEO_DATA_SCOPE`), so every agent
 there takes it; the pods add the in-cluster memini and `chrome-devtools` on the
 Chromium sidecar. Merged files keep everything the agent wrote itself; we only

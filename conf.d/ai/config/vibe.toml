@@ -17,6 +17,14 @@ name = "memini"
 transport = "streamable-http"
 url = "{{ memini }}/mcp"
 auth = { type = "static", api_key_env = "MEMINI_API_KEY" }
+{%- if vars.memini_general_ro_url %}
+
+[[mcp_servers]]
+name = "general_memory"
+transport = "streamable-http"
+url = "{{ vars.memini_general_ro_url }}/mcp"
+auth = { type = "static", api_key_env = "MEMINI_GENERAL_API_KEY" }
+{%- endif %}
 {%- endif %}
 {%- if vars.chrome_cdp_url %}
 

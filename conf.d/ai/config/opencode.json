@@ -18,6 +18,13 @@
         "url": "{{ memini }}/mcp",
         "headers": { "Authorization": "Bearer {env:MEMINI_API_KEY}" }
       }
+{%- if vars.memini_general_ro_url %},
+      "general_memory": {
+        "type": "remote",
+        "url": "{{ vars.memini_general_ro_url }}/mcp",
+        "headers": { "Authorization": "Bearer {env:MEMINI_GENERAL_API_KEY}" }
+      }
+{%- endif %}
 {%- endif %}
 {%- if vars.chrome_cdp_url %}{% if mcp %},{% endif %}
       "chrome-devtools": {

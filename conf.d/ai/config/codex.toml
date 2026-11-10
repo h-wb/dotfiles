@@ -11,6 +11,12 @@ env_http_headers = { "x-api-key" = "MCP_API_KEY" }
 [mcp_servers.memini]
 url = "{{ memini }}/mcp"
 bearer_token_env_var = "MEMINI_API_KEY"
+{%- if vars.memini_general_ro_url %}
+
+[mcp_servers.general_memory]
+url = "{{ vars.memini_general_ro_url }}/mcp"
+bearer_token_env_var = "MEMINI_GENERAL_API_KEY"
+{%- endif %}
 {%- endif %}
 {%- if vars.chrome_cdp_url %}
 
