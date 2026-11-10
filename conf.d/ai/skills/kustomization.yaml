@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# Consumed by h-wb/home-ops: the hermes-skills Flux Kustomization (source: this
+# repo's `dotfiles` GitRepository) builds this directory into the dotfiles-skills
+# ConfigMap, which the assistant pod mounts read-only at
+# /opt/dotfiles-skills/<name>/SKILL.md. ConfigMap keys cannot contain "/", so
+# each skill is one flat key; add a line here and a mount in home-ops when
+# adding a skill. Agents ignore this file (skills are the folders beside it).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: dotfiles-skills
+    options:
+      disableNameSuffixHash: true
+    files:
+      - tool-gateway.md=./tool-gateway/SKILL.md
+      - paseo-workspace-hygiene.md=./paseo-workspace-hygiene/SKILL.md

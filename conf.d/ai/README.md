@@ -65,6 +65,12 @@ assistant's routines live in home-ops beside the assistant. To add a skill,
 add its folder and run `mise run apply`; a removed skill leaves a dangling link
 to delete by hand.
 
+home-ops also consumes this folder directly, without a sync pod: the
+`hermes-skills` Flux Kustomization there (source: this repo) builds
+`skills/kustomization.yaml` into the `dotfiles-skills` ConfigMap, mounted
+read-only in the assistant pod at `/opt/dotfiles-skills`. Adding a skill means
+a line in that kustomization and a mount in home-ops' `llm/hermes` release.
+
 ## Domain
 
 Never committed. Workstations build the public URLs from `SECRET_DOMAIN`,
