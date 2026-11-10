@@ -15,3 +15,8 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 "~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 "~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
 "~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }
+# The shared skills (README.md): Claude Code reads the first folder; Codex, OpenCode
+# and Vibe the second. symlink-each links our files and leaves what others keep
+# there alone (Paseo's own skills, Claude's `synced`).
+"~/.claude/skills" = { source = "skills", mode = "symlink-each" }
+"~/.agents/skills" = { source = "skills", mode = "symlink-each" }

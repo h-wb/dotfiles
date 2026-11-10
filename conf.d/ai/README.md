@@ -11,6 +11,7 @@ mise.personal.toml     MacBook: Claude Desktop's config, the mcp-remote wrapper
 mise.paseo.toml        paseo pods: in-cluster URLs, OpenCode
 fnox.toml              the only secrets the agents may read (MCP_API_KEY)
 config/                the agents' config templates, rendered by the files above
+skills/                the shared skills, linked into every agent's skills folder
 ```
 
 ## Scopes
@@ -47,6 +48,22 @@ merged file. Remove it with the agent's own command (`claude mcp remove -s user
 <old>`, `codex mcp remove <old>`), not by editing the rendered file. Vibe's
 servers are an array, which a merge replaces whole, so `config/vibe.toml` is all
 of them: add one there, not with `vibe mcp add`.
+
+## Skills
+
+`skills/<name>/SKILL.md` holds habits that are true on every machine, in the
+Agent Skills format (`name` and `description` in the front matter; the
+description is what an agent reads to decide whether to load the rest).
+`mise.toml` links each one into `~/.claude/skills` (Claude Code) and
+`~/.agents/skills` (Codex, OpenCode, Vibe) with `symlink-each`, so whatever
+else lives in those folders stays: Paseo installs and refreshes its own skills
+there, and Claude keeps `synced`.
+
+Only general habits belong here; nothing private, no domain, no secrets.
+A procedure for one repo lives in that repo (`.agents/skills/`), and the
+assistant's routines live in home-ops beside the assistant. To add a skill,
+add its folder and run `mise run apply`; a removed skill leaves a dangling link
+to delete by hand.
 
 ## Domain
 

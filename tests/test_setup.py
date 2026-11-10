@@ -270,6 +270,48 @@ esac
         self.assertEqual(general["memini"]["url"],
                          "http://memini-general.llm.svc.cluster.local:8080/mcp")
 
+    SKILL_DIRS = (".claude/skills", ".agents/skills")  # Claude Code; Codex, OpenCode and Vibe
+
+    def skill_meta(self, path):
+        head = path.read_text().split("---\n")
+        self.assertEqual("", head[0], path)
+        return dict(line.split(": ", 1) for line in head[1].splitlines())
+
+    def test_ai_skills_are_named_after_their_folder_and_say_when_to_use_them(self):
+        skills = sorted(p.parent.name for p in (ROOT / "conf.d/ai/skills").glob("*/SKILL.md"))
+        self.assertIn("tool-gateway", skills)
+        self.assertEqual(skills, sorted(p.name for p in (ROOT / "conf.d/ai/skills").iterdir()))
+        for name in skills:
+            meta = self.skill_meta(ROOT / "conf.d/ai/skills" / name / "SKILL.md")
+            self.assertEqual(name, meta["name"])
+            self.assertGreater(len(meta["description"]), 40, name)
+
+    def test_ai_skills_reach_every_agent_folder(self):
+        for layers in (["paseo"], ["workstation"]):
+            with self.subTest(layers=layers):
+                (self.repo / "miserc.local.toml").write_text("env = " + json.dumps(layers) + "\n")
+                self.apply_ai()
+                for folder in self.SKILL_DIRS:
+                    skill = self.home / folder / "tool-gateway/SKILL.md"
+                    source = self.repo / "conf.d/ai/skills/tool-gateway/SKILL.md"
+                    self.assertEqual(source.resolve(), skill.resolve())
+                    self.assertEqual("tool-gateway", self.skill_meta(skill)["name"])
+
+    def test_ai_skills_leave_other_skills_in_the_folder_alone(self):
+        # Paseo installs and refreshes its own skills there; Claude keeps `synced`.
+        theirs = [self.home / folder / "paseo-advisor/SKILL.md" for folder in self.SKILL_DIRS]
+        theirs.append(self.home / ".claude/skills/synced/bucket/notes.md")
+        for path in theirs:
+            path.parent.mkdir(parents=True)
+            path.write_text("theirs\n")
+        for _ in range(2):
+            self.apply_ai()
+        for path in theirs:
+            self.assertFalse(path.is_symlink(), path)
+            self.assertEqual("theirs\n", path.read_text())
+        for folder in self.SKILL_DIRS:
+            self.assertTrue((self.home / folder / "tool-gateway/SKILL.md").is_symlink())
+
     def test_ai_workstation_configs_reference_the_key_by_name(self):
         # `workstation` without a class, then personal for Claude Desktop.
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
