@@ -8,6 +8,8 @@
 name = "toolhive"
 transport = "streamable-http"
 url = "{{ mcp }}"
+# ToolHive's cold-start embedding request can take up to 280 seconds.
+startup_timeout_sec = 300
 {%- if vars.mcp_auth == "api-key" %}
 auth = { type = "static", api_key_env = "MCP_API_KEY", api_key_header = "x-api-key", api_key_format = "{token}" }
 {%- endif %}

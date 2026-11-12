@@ -262,11 +262,13 @@ esac
         self.assertEqual(set(codex), {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(codex["toolhive"], {"url": "http://vmcp-mcp-private.llm.svc.cluster.local:4483/mcp"})
         self.assertEqual(set(self.vibe_servers()), {"toolhive", "memini", "chrome-devtools"})
+        self.assertEqual(self.vibe_servers()["toolhive"]["startup_timeout_sec"], 300)
         self.apply_ai()
         general = self.vibe_servers()
         self.assertEqual(set(general), {"toolhive", "memini", "chrome-devtools"})
         self.assertEqual(general["toolhive"], {
-            "name": "toolhive", "transport": "streamable-http", "url": "http://vmcp-mcp-general.llm.svc.cluster.local:4483/mcp"})
+            "name": "toolhive", "transport": "streamable-http", "url": "http://vmcp-mcp-general.llm.svc.cluster.local:4483/mcp",
+            "startup_timeout_sec": 300})
         self.assertEqual(general["memini"]["url"],
                          "http://memini-general.llm.svc.cluster.local:8080/mcp")
 
@@ -353,6 +355,7 @@ esac
         self.assertEqual(servers["memini"]["url"], "https://memini-private.example.test/mcp")
         self.assertEqual(servers["memini"]["auth"], {"type": "static", "api_key_env": "MEMINI_API_KEY"})
         self.assertEqual(servers["toolhive"]["url"], "https://mcp-private.example.test/mcp")
+        self.assertEqual(servers["toolhive"]["startup_timeout_sec"], 300)
         self.assertEqual(servers["toolhive"]["auth"], {
             "type": "static", "api_key_env": "MCP_API_KEY",
             "api_key_header": "x-api-key", "api_key_format": "{token}"})
