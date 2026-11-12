@@ -1,4 +1,7 @@
+# lock: every task extending this template takes it, so two agents never clear
+# and rebuild a session under each other.
 [task_templates.proton-login]
+lock = "proton-pass-login"
 usage = '''
 arg "[session]" help="Session name; defaults to the task's PROTON_PASS_LOGIN_SESSION"
 '''

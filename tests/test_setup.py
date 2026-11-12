@@ -101,6 +101,26 @@ esac
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
                     self.mise("tasks", "info", line.split()[0])
 
+    # The envs each machine's own folders may use; `personal` is the MacBook.
+    MACHINE_ENVS = {"macos": {"macos", "personal"}, "neko": {"neko"},
+                    "cachyos": {"cachyos"}, "paseo": {"paseo", "paseo-overlay"}}
+
+    def test_conf_d_folder_names_say_where_they_load(self):
+        # A folder that loads on one machine is named after it (`neko`,
+        # `neko-anki`); one that loads on several carries no machine's name.
+        for folder in sorted(p for p in (ROOT / "conf.d").iterdir() if p.is_dir()):
+            with self.subTest(folder=folder.name):
+                files = [f.name for f in folder.glob("mise*.toml") if not f.name.endswith(".local.toml")]
+                self.assertTrue(files, "not a fragment: no mise.toml or mise.<env>.toml")
+                envs = {name.split(".")[1] if name.count(".") == 2 else "" for name in files}
+                owners = [m for m, own in self.MACHINE_ENVS.items() if envs <= own]
+                named = [m for m in self.MACHINE_ENVS
+                         if folder.name == m or folder.name.startswith(m + "-")]
+                self.assertEqual(owners, named, f"loads for {sorted(envs)}")
+        # Machines are folders, so the root holds only the shared layers.
+        self.assertEqual({p.name for p in ROOT.glob("config*.toml")} - {"config.local.toml"},
+                         {"config.toml", "config.workstation.toml"})
+
     def test_lockfiles_and_sidecars(self):
         self.mise("install", "--locked", "--dry-run", "npm:chrome-devtools-mcp")
         lock = tomllib.loads((self.repo / "mise.workstation.lock").read_text())
@@ -530,6 +550,18 @@ env.PROTON_PASS_LOGIN_SESSION = "obsidian-workspace"
         self.assertEqual((session / "authenticated").read_text(), "repo-dummy-token")
         self.assertFalse((self.home / ".local/state/pass-cli/paseo-general").exists())
 
+    def test_proton_login_holds_one_lock_per_machine(self):
+        # Two agents logging in at once would clear and rebuild a session under
+        # each other. The template's lock reaches every task that extends it.
+        project = self.home / "project"
+        project.mkdir()
+        (project / "mise.toml").write_text(
+            '[tasks."pass:login"]\nextends = "proton-login"\nenv.PROTON_PASS_LOGIN_SESSION = "x"\n')
+        for args in (("tasks", "info", "--json", "proton:login"),
+                     ("-C", str(project), "tasks", "info", "--json", "pass:login")):
+            with self.subTest(args=args):
+                self.assertEqual(json.loads(self.mise(*args).stdout)["lock"], ["proton-pass-login"])
+
     def test_proton_login_rejects_session_paths_before_mutation(self):
         self.mock_proton()
         result = self.proton_login("../outside", PROTON_PASS_TOKEN="dummy-token")
@@ -682,7 +714,7 @@ exit 22
     def test_zsh_noninteractive_path(self):
         if not shutil.which("zsh"):
             self.skipTest("zsh is not installed")
-        (self.home / ".zshenv").symlink_to(self.repo / "conf.d/zsh/zshenv")
+        (self.home / ".zshenv").symlink_to(self.repo / "conf.d/macos/zsh/zshenv")
         result = self.run_cmd("zsh", "-c", "command -v mise; print -r -- $PATH",
                              env={**self.env, "PATH": "/usr/bin:/bin"})
         self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
@@ -692,7 +724,7 @@ exit 22
         if not shutil.which("zsh"):
             self.skipTest("zsh is not installed")
         result = self.run_cmd("zsh", "-f", "-c", '''
-fpath=("$HOME/.dotfiles/conf.d/zsh/config/completions" $fpath)
+fpath=("$HOME/.dotfiles/conf.d/macos/zsh/config/completions" $fpath)
 autoload -Uz _mise
 BUFFER='mise ta'
 CURSOR=${#BUFFER}

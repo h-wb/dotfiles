@@ -63,9 +63,8 @@ job and how `mise -E neko` selects a machine.
 | ---------------------------------- | ---------------------------------------------------------------------------- |
 | `config.toml`                      | always (what every machine wants: tools, env, vars, `[shell_alias]`, doctor) |
 | `config.workstation.toml`          | layer `workstation`                                                          |
-| `config.macos.toml`                | any Mac — **platform environment** via `auto_env`                            |
-| `config.personal.toml`             | machine class `personal`                                                     |
-| `conf.d/<feature>/mise.<env>.toml` | that env or platform — **folder fragments**                                  |
+| `conf.d/<folder>/mise.toml`        | always — **folder fragments**                                                |
+| `conf.d/<folder>/mise.<env>.toml`  | that class or layer, or that platform (`macos` = any Mac, via `auto_env`)    |
 | `config.local.toml`                | always, last (untracked per-machine `[vars]`)                                |
 | `miserc.toml`                      | early init, committed: `env_conf_d`, `auto_env`                              |
 | `miserc.local.toml`                | early init, untracked, optional: pins the class (`[env_sets]` expands it)    |
@@ -73,11 +72,25 @@ job and how `mise -E neko` selects a machine.
 - **Folder fragments** (mise 2026.9.14): a folder in `conf.d/` reads only
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
   nothing else, not recursively. Relative sources resolve **inside the folder**,
-  and its tasks **run in the folder** (2026.9.15). Each machine class and each
-  self-contained feature is one folder: `ai/`, `zsh/`, `macos-defaults/`, `k8s-dns/`,
-  `zen-history/`, `neko/`, `anki/`, `obsidian/`, `cachyos/`, `paseo/`.
-- **`home/`** holds sources for the root `config*.toml` files only (git, ssh,
-  kube, wireguard, BTT). A folder fragment never reaches into `home/`.
+  and its tasks **run in the folder** (2026.9.15).
+- **A folder's name says where it loads.** Every machine is one folder named
+  like its environment: `macos/` (`mise.macos.toml` for any Mac,
+  `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`. A
+  feature only that machine has is `<machine>-<feature>/`: `macos-defaults/`,
+  `macos-k8s-dns/`, `macos-local-llm/`, `macos-zen-history/`, `neko-anki/`,
+  `neko-obsidian/`. A folder with no machine in its name loads on several:
+  `ai/`, `proton-pass/`. So the root holds only the shared layers, and
+  `test_conf_d_folder_names_say_where_they_load` holds the names to this. Give
+  a feature its own folder when it has its own files, tasks or doctor checks;
+  otherwise it is a section of its machine's file.
+- **Renaming a folder moves its symlink sources**: the old links dangle until
+  the next dotfiles apply, which re-points them without `--force`. On the Mac
+  apply right after pulling (`~/.zshrc` is one of them); neko's session-start
+  bootstrap does it, except in `protect` mode, which skips dotfiles. Never
+  move `conf.d/neko/bin/neko-bootstrap`: the autostart re-executes it by path
+  after it has pulled.
+- **`home/`** holds sources for the two root configs only (git, ssh, kube). A
+  folder fragment never reaches into `home/`.
 - **Platform environments** (`auto_env = true` in `miserc.toml`): `macos`,
   `linux`, `unix`, `<os>-<arch>` are active automatically, below explicit envs
   in precedence. This replaced `os = "macos"` on every brew entry and every
@@ -126,7 +139,9 @@ Managed agent sessions use the global `proton-login` task template in
 and keep `PROTON_PASS_SESSION_DIR` pointed at that name. Credential-consuming
 tasks depend on login. The shared task selects `pass-cli-<name>` from macOS
 Keychain or `PROTON_PASS_TOKEN` on Linux, checks token rotation and expiry,
-and clears the named session on missing/rejected credentials. See
+and clears the named session on missing/rejected credentials. The template
+holds a machine-wide `lock`, which every task extending it inherits, so two
+agents logging in at once take turns. See
 `conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
 
 Proton Pass vaults are named by who reads them (`Personal`, `Homelab`,
@@ -195,6 +210,11 @@ picked, a missing main IP is fine).
   A nested `mise run` keeps the terminal on stdin, so wrappers like `diff` →
   `apply --dry-run` still let `pass-cli login` prompt.
 - **Same-named hooks accumulate across configs; same-named tasks override.**
+  A hook table takes a `description`, printed instead of the script's first line.
+- **`{{ config_root }}` in a folder fragment is the folder**, doctor checks
+  included, so a check can read its own file without spelling the path
+  (`macos-k8s-dns`). Task *templates* are the exception: they render in the
+  extending task's project, hence `mise_config_dir` in `proton-pass`.
 - **Hooks fire on a full `mise bootstrap` and with `--only <step>`**, not for
   sub-commands like `mise bootstrap macos defaults apply`.
 - **A hook that writes a file the dotfiles step renders is erased by it** — git
@@ -258,6 +278,11 @@ picked, a missing main IP is fine).
   resolver template applies `/etc/resolver` too unless the entry itself is
   retargeted. CI retargets in place for that reason (runners have passwordless
   sudo).
+- **LaunchAgents and login items too: `--dry-run` only.** launchctl's domain is
+  the logged-in user (`gui/<uid>`), not `$HOME`, so an apply from a sandbox
+  boots out the real `dev.mise.*` agents and loads the sandbox's. A dry run
+  does not print the plist; the key mapping is in mise's
+  `crates/mise-system/src/launchd.rs`.
 - Linux checks without the CachyOS box: the neko pod has a stock userland; use
   a temporary mise in `/tmp` and `MISE_CONFIG_DIR=/tmp/<copy>`. Tar from a Mac
   with `COPYFILE_DISABLE=1 tar --no-mac-metadata` or you ship `._*` files.
@@ -295,17 +320,24 @@ is v3 (`mise lock --upgrade`).
 
 ## The MacBook (`personal`) and every Mac (`macos`)
 
-- `config.macos.toml`: Rosetta + `/etc/paths` hook, casks, the Proton Pass
-  ssh-agent LaunchAgent (`SSH_AUTH_SOCK` is set here only, so Linux needs no
-  override), wireguard, BTT. `config.personal.toml`: MacBook-only packages.
+- `conf.d/macos/mise.macos.toml`: Rosetta + `/etc/paths` hook, casks, zsh, the
+  Proton Pass ssh-agent LaunchAgent (`SSH_AUTH_SOCK` is set here only, so Linux
+  needs no override), wireguard, BTT. `mise.personal.toml` beside it:
+  MacBook-only packages.
 - **Homebrew itself is not installed**: mise installs `brew:` formulae and
   `brew-cask:` casks natively into `/opt/homebrew` (Apple Silicon only for
   formulae). An existing Homebrew sees and manages them.
 - **A LaunchAgent must find pass-cli itself**: launchd's PATH has no mise shims,
   so the agent resolves it with `$HOME/.local/bin/mise which pass-cli`. Get this
   wrong and every fnox secret fails while the agent looks healthy. mise forces
-  the label `dev.mise.<key>` and rejects `Label`/`EnvironmentVariables`/
-  `Standard*Path`, so logging is folded into the `sh -c` string.
+  the label `dev.mise.<key>`. Env and log files are the agent's own
+  `environment`/`stdout_path`/`stderr_path` keys (launchd appends), so `sh -c`
+  is only there for the `$(mise which …)`; an agent that needs none of that
+  runs mise directly (`macos-zen-history`).
+- **Login items** are `[bootstrap.macos.login_items]`: additive (what an app
+  registered itself stays) and combined across files, so every Mac's two and
+  the MacBook's three sit next to the casks that install them. List only apps
+  a cask here installs: mise adds the path as written.
 - **macOS defaults** (`conf.d/macos-defaults/`): the scalar table, plus
   `[[bootstrap.macos.defaults_entries]]` for the rest — `value` takes real TOML
   types, `path` addresses one key inside a shared dict (components are literal;
@@ -316,7 +348,7 @@ is v3 (`mise lock --upgrade`).
   identical without it, launchd and defaults included, and mise's remaining
   experimental gates (daemons, `mise secrets`, OCI, task caching) are unused.
 
-### k8s-gateway DNS (`conf.d/k8s-dns/`)
+### k8s-gateway DNS (`conf.d/macos-k8s-dns/`)
 
 Both clusters run k8s-gateway **authoritative for the same zone** with no
 `fallthrough`, so the first to answer returns an authoritative NXDOMAIN for a
@@ -336,7 +368,7 @@ one-line wrappers) and `dns:status`.
 - Flush after a switch (`dscacheutil -flushcache; killall -HUP mDNSResponder`)
   or lookups keep the old answer, which reads exactly like the switch failing.
 
-### Local LLMs (`conf.d/local-llm/`)
+### Local LLMs (`conf.d/macos-local-llm/`)
 
 LM Studio serves models to the cluster's LiteLLM over WireGuard (home-ops
 `kubernetes/apps/main/llm/litellm`). On a 24 GB M4 Pro the GPU may wire only ~16
@@ -418,18 +450,18 @@ in `conf.d/ai/README.md`; what is easy to break:
   APK). `ubi:` is deprecated. Menu entries' `Exec` is the mise shim, stable
   across bumps.
 - `bin/` is only for what goes in `~/.local/bin`; task bodies live in `tasks/`.
-- **Anki** is `conf.d/anki/` (class `neko`), kept running by the container's
+- **Anki** is `conf.d/neko-anki/`, kept running by the container's
   supervisord so n8n can reach AnkiConnect on :8765 and ToolHive the AnkiMCP
   add-on on :3141 (home-ops has both Services; ToolHive's `anki`
   MCPServerEntry). `anki:setup` = `anki:addon` (links both add-ons, writes
   their `meta.json`) then `anki:start` (`supervisorctl update anki`). Bind
-  `0.0.0.0` only ever with a key (Proton Pass `Automation/anki-connect`,
-  `Automation/anki-mcp`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
+  `0.0.0.0` only ever with a key (Proton Pass `Machines/anki-connect`,
+  `Machines/anki-mcp`; the second also in BWS `toolhive` as `ANKIMCP_API_KEY`), and
   `update_enabled: false` or Anki's updater deletes the linked add-on.
   AnkiMCP's `http_allowed_hosts` must list the Service name ToolHive dials,
   or every request is a 421 (a wrong key is a 403). The `.ankiaddon` needs
   `format = "zip"`.
-- **Obsidian** is `conf.d/obsidian/` (class `neko`), kept running the same way
+- **Obsidian** is `conf.d/neko-obsidian/`, kept running the same way
   so n8n's Paperless journal mirror can read and write the vault through the
   Local REST API plugin on :27124 (home-ops `neko-obsidian` Service). Never
   write vault files from outside Obsidian: Sync only uploads what its own

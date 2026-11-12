@@ -1,7 +1,8 @@
-# Every machine, the paseo agent host included: only what all of them want (the
-# rest is a layer, see miserc.toml). ~/.config/mise is a symlink to this repo (first [dotfiles]
-# entry), so mise reads these files under their native names. What loads when:
-# see the table in CLAUDE.md.
+# Every machine, the paseo agent host included: only what all of them want. The
+# rest is the `workstation` layer (config.workstation.toml) or a folder in
+# conf.d/: one per machine, plus the features (see miserc.toml and the README).
+# ~/.config/mise is a symlink to this repo (first [dotfiles] entry), so mise
+# reads these files under their native names.
 
 # scripts/provision.sh reads this line with sed: keep its shape. 2026.11.1 is
 # the first release that expands miserc.toml's [env_sets]: anything older loads

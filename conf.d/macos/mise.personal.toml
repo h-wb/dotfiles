@@ -14,3 +14,7 @@
 "brew-cask:steam" = "latest"
 "brew-cask:whatsapp" = "latest"
 "mas:1451685025" = "latest"            # WireGuard
+
+# Combined with every Mac's list (mise.macos.toml).
+[bootstrap.macos.login_items]
+apps = ["/Applications/Nextcloud.app", "/Applications/ProtonVPN.app", "/Applications/ScreenMemory.app"]

@@ -65,11 +65,11 @@ jobs:
           for t in $(mise tasks --hidden --no-header | awk '{print $1}'); do mise tasks info "$t" >/dev/null; done
           case "${{ matrix.env }}" in
           personal)
-            for f in config.macos.toml config.personal.toml conf.d/zsh/mise.macos.toml \
-                     conf.d/macos-defaults/mise.macos.toml conf.d/k8s-dns/mise.personal.toml; do
+            for f in conf.d/macos/mise.macos.toml conf.d/macos/mise.personal.toml \
+                     conf.d/macos-defaults/mise.macos.toml conf.d/macos-k8s-dns/mise.personal.toml; do
               grep -q "$f" /tmp/cfg || { echo "::error::$f not loaded"; exit 1; }
             done ;;
-          neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg && grep -q conf.d/anki/mise.neko.toml /tmp/cfg ;;
+          neko)    grep -q conf.d/neko/mise.neko.toml /tmp/cfg && grep -q conf.d/neko-anki/mise.neko.toml /tmp/cfg ;;
           cachyos) grep -q conf.d/cachyos/mise.cachyos.toml /tmp/cfg ;;
           paseo)   grep -q conf.d/paseo/mise.paseo.toml /tmp/cfg ;;
           esac
@@ -134,9 +134,10 @@ jobs:
         if: matrix.env == 'personal'
         run: |
           tmp="$(mktemp -d)"; out="$tmp/resolver"
-          f=conf.d/k8s-dns/mise.personal.toml
+          f=conf.d/macos-k8s-dns/mise.personal.toml
+          llm=conf.d/macos-local-llm/mise.personal.toml
           sed -i.bak -e "s#/etc/resolver/example.test#$out#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' "$f"
-          sed -i.bak -e "s#/Library/LaunchDaemons/#$tmp/#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' conf.d/local-llm/mise.personal.toml
+          sed -i.bak -e "s#/Library/LaunchDaemons/#$tmp/#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' "$llm"
           ! grep -q /etc/resolver/ "$f"   # the retarget took
           export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
           k8s_dns_cluster=main mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
@@ -149,7 +150,7 @@ jobs:
           # a missing secret must fail and leave the previous file alone
           ! k8s_dns_cluster=edge K8S_GATEWAY_IP_EDGE= mise bootstrap files apply --yes
           test "$(cat "$out")" = "nameserver 10.1.1.1"
-          mv "$f.bak" "$f"; mv conf.d/local-llm/mise.personal.toml.bak conf.d/local-llm/mise.personal.toml
+          mv "$f.bak" "$f"; mv "$llm.bak" "$llm"
 
       # Only the repo-state doctor checks can pass on a runner.
       - name: Repo invariants

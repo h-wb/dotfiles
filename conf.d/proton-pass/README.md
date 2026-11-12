@@ -34,7 +34,10 @@ The shared implementation fingerprints the selected token, reuses a matching
 healthy session, and logs in again on rotation or expiry. Missing or rejected
 credentials clear that named session's cache and fail the task. Other sessions
 are left alone. Secret-consuming tasks depend on login so the credential is
-checked before fnox fetches their grants.
+checked before fnox fetches their grants. The template holds a machine-wide
+task lock (`proton-pass-login`), which every task extending it inherits: two
+agents that log in at once take turns instead of clearing a session under each
+other.
 
 This manages local cached authentication; revoke superseded tokens in Proton
 Pass too. Actual token grants define access. Different session directories do

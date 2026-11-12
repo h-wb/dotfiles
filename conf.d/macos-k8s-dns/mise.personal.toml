@@ -75,7 +75,7 @@ hint = "run `mise run dns:main` or `mise run dns:edge`"
 run = '''
 zone="{{ vars.k8s_dns_zone }}"
 cd "{{ vars.repo }}" || exit 1
-grep -qF "[bootstrap.files.\"/etc/resolver/$zone\"]" conf.d/k8s-dns/mise.personal.toml ||
+grep -qF "[bootstrap.files.\"/etc/resolver/$zone\"]" "{{ config_root }}/mise.personal.toml" ||
 	{ echo "the [bootstrap.files] key does not match vars.k8s_dns_zone ($zone)"; exit 1; }
 grep -q '^nameserver ' "/etc/resolver/$zone" 2>/dev/null ||
 	{ echo "/etc/resolver/$zone is missing or has no nameserver"; exit 1; }

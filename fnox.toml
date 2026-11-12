@@ -4,15 +4,11 @@
 type = "proton-pass"
 vault = "Machines"
 
-[providers.automation]
-type = "proton-pass"
-vault = "Machines"
-
 [secrets]
 SSH_TRUENAS_HOST = { provider = "protonpass", value = "pass://Machines/truenas-ssh/host" }
 SSH_TRUENAS_USER = { provider = "protonpass", value = "pass://Machines/truenas-ssh/username" }
-WG0_HOME_CONF = { provider = "automation", value = "pass://Machines/wireguard-home-split/note" }
-# Internal addresses in a public repo; conf.d/k8s-dns reads them as bootstrap secrets.
+WG0_HOME_CONF = { provider = "protonpass", value = "pass://Machines/wireguard-home-split/note" }
+# Internal addresses in a public repo; conf.d/macos-k8s-dns reads them as bootstrap secrets.
 K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://Machines/kubernetes-gateway/ip address" }
 K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://Machines/kubernetes-gateway/ip address edge" }
 
@@ -25,11 +21,11 @@ KUBECONFIG_MAIN = { provider = "protonpass", value = "pass://Machines/kubeconfig
 KUBECONFIG_EDGE = { provider = "protonpass", value = "pass://Machines/kubeconfig/edge" }
 
 # GH_TOKEN is only really needed in neko (the Macs' keychain covers git and gh).
-GIT_EMAIL = { provider = "automation", value = "pass://Machines/github-workstation/email" }
-GH_TOKEN = { provider = "automation", value = "pass://Machines/github-workstation/token" }
+GIT_EMAIL = { provider = "protonpass", value = "pass://Machines/github-workstation/email" }
+GH_TOKEN = { provider = "protonpass", value = "pass://Machines/github-workstation/token" }
 
-# AnkiConnect's apiKey (conf.d/anki); n8n holds the same value.
-ANKICONNECT_API_KEY = { provider = "automation", value = "pass://Machines/anki-connect/password" }
-# AnkiMCP's bearer key (conf.d/anki); ToolHive holds the same value (BWS `toolhive`).
-ANKIMCP_API_KEY = { provider = "automation", value = "pass://Machines/anki-mcp/password" }
+# AnkiConnect's apiKey (conf.d/neko-anki); n8n holds the same value.
+ANKICONNECT_API_KEY = { provider = "protonpass", value = "pass://Machines/anki-connect/password" }
+# AnkiMCP's bearer key (conf.d/neko-anki); ToolHive holds the same value (BWS `toolhive`).
+ANKIMCP_API_KEY = { provider = "protonpass", value = "pass://Machines/anki-mcp/password" }
 

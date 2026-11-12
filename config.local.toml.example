@@ -18,7 +18,7 @@ git_email = "you@example.com"
 # ssh_truenas_host = "truenas.lan"
 # ssh_truenas_user = "you"
 
-# Whole-file WireGuard config (Macs; config.macos.toml).
+# Whole-file WireGuard config (Macs; conf.d/macos).
 # wg0_home_conf = """
 # [Interface]
 # ...

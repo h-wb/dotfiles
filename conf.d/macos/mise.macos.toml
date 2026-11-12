@@ -1,0 +1,76 @@
+# Every Mac (auto_env platform `macos`), whatever the machine class: apps, the
+# shell, the ssh agent, WireGuard and BetterTouchTool. Preferences are their own
+# folder (conf.d/macos-defaults); what only the MacBook wants is mise.personal.toml.
+
+[tools]
+"github:nikolaeu/numi" = "latest"
+
+[env]
+SSH_AUTH_SOCK = "{{ env.HOME }}/.ssh/proton-pass-agent.sock"
+
+[shell_alias]
+library = "cd {{ env.HOME }}/Library"
+ez = "exec zsh"
+
+[vars]
+wg0_home_conf = "{{ get_env(name='WG0_HOME_CONF', default='') }}"
+
+# No Homebrew install: mise installs brew: formulae and casks itself. This only
+# adds Rosetta and puts its /opt/homebrew/bin on every PATH.
+[bootstrap.hooks.pre-packages]
+description = "Rosetta, and /opt/homebrew/bin in /etc/paths"
+run = '''
+if [ "$(uname -m)" = "arm64" ] && [ ! -f /Library/Apple/usr/share/rosetta/rosetta ]; then
+  softwareupdate --install-rosetta --agree-to-license
+fi
+if [ "$(uname -m)" = "arm64" ] && ! grep -q "/opt/homebrew/bin" /etc/paths 2>/dev/null; then
+  printf '%s\n' "/opt/homebrew/bin" "$(cat /etc/paths)" | sudo tee /etc/paths >/dev/null
+fi
+'''
+
+[bootstrap.packages]
+"brew-cask:zen" = "latest"
+"brew-cask:alt-tab" = "latest"             # windows-style alt-tab switcher
+"brew-cask:anki" = "latest"                # flashcards
+"brew-cask:betterdisplay" = "latest"       # display management
+"brew-cask:bettertouchtool" = "latest"
+"brew-cask:ghostty" = "latest"             # terminal
+"brew-cask:obsidian" = "latest"
+"brew-cask:orbstack" = "latest"            # Docker / Linux VMs
+"brew-cask:plexamp" = "latest"
+"brew-cask:proton-pass" = "latest"
+"brew-cask:raycast" = "latest"             # launcher (takes Cmd-Space, see macos-defaults)
+"brew-cask:spotify" = "latest"
+"brew-cask:utm" = "latest"
+"brew-cask:visual-studio-code" = "latest"
+"brew-cask:deepl" = "latest"
+
+# Additive: apps that register themselves (AltTab's own LaunchAgent) are left
+# alone. List only apps the casks here install: mise adds the path as written,
+# without checking that the app exists.
+[bootstrap.macos.login_items]
+apps = ["/Applications/Raycast.app", "/Applications/BetterTouchTool.app"]
+
+[dotfiles]
+# zsh + z4h + p10k. Aliases are mise [shell_alias].
+"~/.zshrc"      = { source = "zsh/zshrc", mode = "symlink" }
+"~/.zshenv"     = { source = "zsh/zshenv", mode = "symlink" }
+"~/.p10k.zsh"   = { source = "zsh/p10k.zsh", mode = "symlink" }
+"~/.config/zsh" = { source = "zsh/config", mode = "symlink" }   # exports.zsh + completions/
+# Renders empty without vars.wg0_home_conf (fnox).
+"~/.config/wireguard/wg0.home.conf" = { source = "wireguard/wg0.home.conf.tmpl", mode = "template", permissions = "0600" }
+"~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "bettertouchtool/Default.bttpreset", mode = "symlink" }
+
+# The Proton Pass ssh agent. launchd's PATH has no shims, so the agent finds
+# pass-cli itself with `mise which`.
+[bootstrap.macos.launchd.agents.pass-cli-ssh-agent]
+program = "/bin/sh"
+args = [
+  "-c",
+  "exec \"$(\"$HOME/.local/bin/mise\" which pass-cli)\" ssh-agent start --socket-path \"$HOME/.ssh/proton-pass-agent.sock\"",
+]
+environment = { PASS_LOG_LEVEL = "error" }
+stdout_path = "~/.ssh/proton-pass-agent.log"
+stderr_path = "~/.ssh/proton-pass-agent.log"
+run_at_load = true
+keep_alive = true

@@ -31,6 +31,7 @@ ef = "exec fish"
 
 # Nothing orders pacman entries before the flatpak: one.
 [bootstrap.hooks.pre-packages]
+description = "Install flatpak before the flatpak: package needs it"
 run = '''
 [ -f /etc/arch-release ] || exit 0
 command -v flatpak >/dev/null 2>&1 || sudo pacman -S --needed --noconfirm flatpak
@@ -69,6 +70,7 @@ action = "allow"
 
 # systemd only notices a new or changed drop-in after a reload.
 [bootstrap.hooks.post-dotfiles]
+description = "Reload the systemd user manager"
 run = '''
 command -v systemctl >/dev/null 2>&1 || exit 0
 systemctl --user daemon-reload 2>/dev/null || true

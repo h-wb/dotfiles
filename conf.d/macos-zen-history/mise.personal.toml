@@ -27,10 +27,9 @@ echo "$(date -u +%FT%TZ) snapshot ok: $src"
 
 # Every 6h (a missed run happens once on wake). launchd has no PATH, hence the absolute mise.
 [bootstrap.macos.launchd.agents.zen-history-snapshot]
-program = "/bin/sh"
-args = [
-  "-c",
-  "exec \"$HOME/.local/bin/mise\" run --quiet zen-history-snapshot >> \"$HOME/Library/Logs/zen-history-snapshot.log\" 2>&1",
-]
+program = "~/.local/bin/mise"
+args = ["run", "--quiet", "zen-history-snapshot"]
+stdout_path = "~/Library/Logs/zen-history-snapshot.log"
+stderr_path = "~/Library/Logs/zen-history-snapshot.log"
 run_at_load = true
 start_interval = 21600

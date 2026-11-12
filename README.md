@@ -18,29 +18,32 @@ LaunchAgents, services, firewall, tools and dotfiles, with secrets injected by
 
 ```
 config.toml              every machine, paseo included: tools, env, vars, shell aliases, doctor checks
-config.macos.toml        every Mac (loaded by platform): brew casks, ssh agent, wireguard
 config.workstation.toml  personal/neko/cachyos: credentialed CLIs, kubeconfigs, apply tasks
-config.personal.toml     the MacBook's own packages
-miserc.toml              shared early-init settings (env_conf_d, auto_env)
-conf.d/
-  ai/                    agent MCP servers, once: Claude Code/Desktop, Codex, Vibe, the pods' OpenCode
-  zsh/                   zsh + z4h + p10k (Macs)
-  macos-defaults/        `defaults write`, declaratively (Macs)
-  k8s-dns/               pick which cluster resolves the internal zone (MacBook)
-  local-llm/             LM Studio GPU memory limit and RAM triage (MacBook)
-  zen-history/           Zen history snapshots → Nextcloud (MacBook)
-  neko/                  the neko/xfce container, whole
-  anki/                  Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive) (neko)
-  cachyos/               the CachyOS gaming desktop, whole
-  paseo/                 the headless coding-agent pod
-  pod/                   shared pod tools, locale and repositories
-home/                    sources for the root configs (git, ssh, kube, wireguard, BTT)
+miserc.toml              picks the machine class and its layers (plus env_conf_d, auto_env)
+conf.d/                  one folder per machine, and the features
+  ai/                    every machine: agent MCP servers and shared skills (Claude Code/Desktop, Codex, Vibe, OpenCode)
+  proton-pass/           every machine: the named-session login task other repos extend
+  macos/                 the Macs: apps, zsh + z4h + p10k, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
+  macos-defaults/        `defaults write`, declaratively
+  macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
+  macos-local-llm/       LM Studio GPU memory limit and RAM triage (MacBook)
+  macos-zen-history/     Zen history snapshots → Nextcloud (MacBook)
+  neko/                  the neko/xfce container
+  neko-anki/             Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive), kept running there
+  neko-obsidian/         Obsidian + Local REST API (n8n), kept running there
+  cachyos/               the CachyOS gaming desktop
+  paseo/                 the headless coding-agent pods
+home/                    sources for the two root configs (git, ssh, kube)
 fnox.toml                Proton Pass secret references (no values); the agents' own in conf.d/ai/
 scripts/                 first-install helpers and Proton Pass preflight
 ```
 
-Each `conf.d/` folder holds its own config and the files it uses; inside it,
-`mise.<env>.toml` loads only for that machine class or platform.
+Each `conf.d/` folder holds its own config and the files it uses. The name says
+where it loads: a machine's folder is named like its environment (`neko`), a
+feature only that machine has is `<machine>-<feature>` (`neko-anki`), and a
+folder with no machine in its name loads on several. Inside a folder,
+`mise.<env>.toml` says exactly when: `macos/` holds `mise.macos.toml` for any
+Mac and `mise.personal.toml` for the MacBook.
 
 ### Machines
 
@@ -60,7 +63,7 @@ entry in `config.toml`, so mise creates and maintains the link.
 ## Set up a machine
 
 ```sh
-sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/main/install.sh)"
+sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/master/install.sh)"
 ```
 
 On a Mac, sign in to iCloud and the App Store first. The installer installs mise,

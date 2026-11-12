@@ -1,6 +1,0 @@
-# zsh + z4h + p10k, the Macs' shell. Aliases are mise [shell_alias].
-[dotfiles]
-"~/.zshrc"      = { source = "zshrc", mode = "symlink" }
-"~/.zshenv"     = { source = "zshenv", mode = "symlink" }
-"~/.p10k.zsh"   = { source = "p10k.zsh", mode = "symlink" }
-"~/.config/zsh" = { source = "config", mode = "symlink" }   # exports.zsh + completions/

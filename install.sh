@@ -7,8 +7,6 @@ REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
 DOTFILES_DIR="${HOME}/.dotfiles" # fixed: config.toml links ~/.config/mise here
 export PATH="${HOME}/.local/bin:${PATH}"
 
-# Provision ~/.dotfiles; DOTFILES_ENV overrides the detected class (its layers
-# come from miserc.toml's [env_sets]).
 case "${DOTFILES_ENV:-}" in
 "" | personal | neko | cachyos | paseo) ;;
 *) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;

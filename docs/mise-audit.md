@@ -161,3 +161,53 @@ of this repo on mise 2026.11.4) and adopted what pays for itself:
   (2026.11.0); tool completion through shims works (2026.11.4).
 - **Coming with the next `mise run upgrade`:** `node = "lts"` moves from 24 to
   26 (2026.10.22); the lockfile rewrite will also move to format version 4.
+
+## Addendum: conf.d layout, and releases 2026.11.5 → 2026.11.7 (2026-11-11)
+
+**Layout.** `conf.d` held three kinds of folder with nothing to tell them
+apart: machines (`neko`), features of one machine (`anki`, `k8s-dns`) and
+features of every machine (`ai`). The Mac was the odd one out, split between
+two root files, `home/` and five folders. Now every machine is a folder named
+like its environment, a feature only that machine has is `<machine>-<feature>`,
+and a folder with no machine in its name loads on several; the root keeps the
+two shared layers. `conf.d` cannot nest (mise reads one level) and `include`
+carries no `[dotfiles]`, `[tasks]` or `[settings]`, so the name is the only
+native place to put the grouping. Dotfile groups stay unused: they group files
+by directory tree, not config by machine.
+
+**Adopted** (all at or below `min_version`, checked in sandbox homes):
+
+- LaunchAgent `environment`, `stdout_path` and `stderr_path`. The claim that
+  mise rejects them was out of date; the ssh agent keeps `sh -c` only for
+  `$(mise which pass-cli)`, and the Zen snapshot runs mise with no shell.
+- `[bootstrap.macos.login_items]` for the apps that are login items today and
+  that a cask here installs. Additive, and a no-op on the current MacBook.
+- Task `lock` on the `proton-login` template (2026.11.0). Extending tasks
+  inherit it, so logins on a multi-agent pod take turns.
+- Hook `description` (2026.10.22) on the three bootstrap hooks.
+- `{{ config_root }}` in the `k8s-dns` doctor check, in place of its own path.
+
+**Not adopted:**
+
+- `mode = "fnox"` (2026.10.23) for the kubeconfigs and WireGuard. fnox keeps
+  such files under `[files]` in its *global* config, keyed by target path, and
+  `conf.d/ai` keeps no global fnox config on purpose. The values are also
+  Proton Pass fields that other consumers read. Worth another look if the
+  whole-file secrets ever move out of `[vars]`: it is the native answer to the
+  silent-overwrite trap for those three files, not for `~/.ssh/config` or git.
+- Unprefixed `[bootstrap.packages]` keys (2026.11.6): each class has one
+  package manager and its own file, so the prefix costs nothing.
+- `bootstrap --save-env` (2026.11.1): `install.sh` needs `miserc.local.toml`
+  before its first `mise config`, earlier than bootstrap runs.
+- The Claude Code `SessionStart` hook from the new "Coding agents" page
+  (`eval "$(mise hook-env -s bash)"` into `$CLAUDE_ENV_FILE`): it gives an
+  agent's shell a project's `[env]`, where shims only give it to the tool they
+  launch. A change to every agent session on every machine, so left as a
+  decision; it would be a merge entry in `conf.d/ai`.
+- `shims.fallback_to_installed`, `mise run --multi`, task tags, history and
+  logs, launchd resource limits, the named `[bootstrap.macos.dock]`/`finder`
+  sections: nothing here needs them.
+
+**Free with the upgrade:** 2026.11.7 drops the new-version notice and hints
+when it detects a coding agent, and 2026.11.6 changes the prompt theme to
+`base16`.
