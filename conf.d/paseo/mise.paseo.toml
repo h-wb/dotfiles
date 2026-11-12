@@ -16,6 +16,7 @@ PROTON_PASS_AGENT_REASON = "{{ vars.pass_session }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 
 [tools]
+node = "24" # 26 needs libatomic.so.1, which the Paseo image lacks
 "aqua:anomalyco/opencode" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
 starship = "latest"

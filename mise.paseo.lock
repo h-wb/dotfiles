@@ -11,6 +11,15 @@ specifiers = ["latest"]
 checksum = "sha256:2edaf8cf96e81dec5ee996a3196b03345cf59e5a1673d83a4599bb4afc5c5f6d"
 url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-x64.tar.gz"
 
+[[tools.node]]
+version = "24.22.1"
+backend = "core:node"
+specifiers = ["24"]
+
+[tools.node."platforms.linux-x64"]
+checksum = "sha256:eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c"
+url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.gz"
+
 [[tools."npm:chrome-devtools-mcp"]]
 version = "1.12.0"
 aube = { path = "locks/mise.paseo/npm-chrome-devtools-mcp/1.12.0", digest = "sha256:0a625298cb87475a660765dfaa086356bd2d1b6dd887feb0a195d77805ee6844" }
@@ -27,4 +36,3 @@ checksum = "sha256:321f0dd7af8340a5f2e6a8fec6538a04f617486f9ec70d878f91c09cd8dee
 checksum_source = "mise-versions"
 url = "https://github.com/starship/starship/releases/download/v1.26.0/starship-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/starship/starship/releases/assets/460374620"
-
