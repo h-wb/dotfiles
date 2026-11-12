@@ -3,21 +3,21 @@
 lockfile_version = 3
 
 [[tools.aws-cli]]
-version = "2.36.40"
+version = "2.40.0"
 backend = "aqua:aws/aws-cli"
 specifiers = ["latest"]
 
 [tools.aws-cli."platforms.linux-arm64"]
-checksum = "sha256:f26e08d0d64d9f35f304a9df94d63cbd11ffe8881c8b4bf60be934cf9e4d13a9"
-url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.36.40.zip"
+checksum = "sha256:d293743e9e79dc69dc79dcbc23e26d1258193f0dd1253ba0c09ccf56b6123c6e"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.40.0.zip"
 
 [tools.aws-cli."platforms.linux-x64"]
-checksum = "sha256:a904e314340ad4c4b62beb50e9259d4becb2acf3dffc86c96c553c834d7fdf7a"
-url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.40.zip"
+checksum = "sha256:4a6d34150060a6bc30160ef1f66e536db64674797bbb582044f93bb9c6e299e7"
+url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.40.0.zip"
 
 [tools.aws-cli."platforms.macos-arm64"]
-checksum = "blake3:5db2bdbe1a49c6b544796a62b37aea7452f706f40d8becea3f41088309084812"
-url = "https://awscli.amazonaws.com/AWSCLIV2-2.36.40.pkg"
+checksum = "blake3:938daf1616885fd517de60b456faed536b7fb665387bb82f4e69e967827b8a1e"
+url = "https://awscli.amazonaws.com/AWSCLIV2-2.40.0.pkg"
 
 [[tools.bitwarden-secrets-manager]]
 version = "2.1.0"
@@ -43,7 +43,7 @@ url = "https://github.com/bitwarden/sdk-sm/releases/download/bws-v2.1.0/bws-aarc
 url_api = "https://api.github.com/repos/bitwarden/sdk-sm/releases/assets/426507211"
 
 [[tools."npm:@metabase/cli"]]
-version = "0.3.1"
-aube = { path = "locks/mise.workstation/npm-metabase-cli/0.3.1", digest = "sha256:00a09d6a560b4250f6d7aa6e0029942f48c04bd3ae7c048733078c917865dacc" }
+version = "0.5.16"
+aube = { path = "locks/mise.workstation/npm-metabase-cli/0.5.16", digest = "sha256:3e4746b0471cbf23af35a071df8578aad3680b034b16c3e667088c19a90af822" }
 backend = "npm:@metabase/cli"
 specifiers = ["latest"]

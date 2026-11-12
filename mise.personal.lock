@@ -2,14 +2,6 @@
 
 lockfile_version = 3
 
-[conda-packages.macos-arm64."icu-78.3-py310h579977c_2"]
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.3-py310h579977c_2.conda"
-checksum = "sha256:6cdb5dee54c72e56ab189fb3ad33cb28533553d42590e7e831160248f4416a43"
-
-[conda-packages.macos-arm64."libsqlite-3.53.4-hca69786_1"]
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/libsqlite-3.53.4-hca69786_1.conda"
-checksum = "sha256:839b31d4830e896b4d315b551d27f2bb08026bc946df04bcc360d8627c3ba2cd"
-
 [conda-packages.macos-arm64."libzlib-1.3.2-h8088a28_3"]
 url = "https://conda.anaconda.org/conda-forge/osx-arm64/libzlib-1.3.2-h8088a28_3.conda"
 checksum = "sha256:a18fa5d5bac452401459f966cf0d872224e8080c4ff93c77e168d43ab42ef9d7"
@@ -23,14 +15,14 @@ url = "https://conda.anaconda.org/conda-forge/osx-arm64/readline-8.3-h8b90a29_1.
 checksum = "sha256:d6782b430e6dce4fe8c7ac118cd988d5a193eb4a7f60741edfaede58016b6110"
 
 [[tools."github:ReagentX/imessage-exporter"]]
-version = "4.3.0"
+version = "5.0.1"
 backend = "github:ReagentX/imessage-exporter"
 specifiers = ["latest"]
 
 [tools."github:ReagentX/imessage-exporter"."platforms.macos-arm64"]
-checksum = "sha256:45d22088439443d4282b0cd2292bf81d1677cb560a13af4cc2675b3fbcb89f00"
-url = "https://github.com/ReagentX/imessage-exporter/releases/download/4.3.0/imessage-exporter-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/ReagentX/imessage-exporter/releases/assets/564620232"
+checksum = "sha256:6170abd798085f204c79263e430c3db3ff92724c62689ec2eac747225d1f57b6"
+url = "https://github.com/ReagentX/imessage-exporter/releases/download/5.0.1/imessage-exporter-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/ReagentX/imessage-exporter/releases/assets/687387581"
 
 [[tools."npm:mcp-remote"]]
 version = "0.15.2"
@@ -39,7 +31,7 @@ backend = "npm:mcp-remote"
 specifiers = ["0.15.2"]
 
 [[tools.sqlite]]
-version = "3.53.4"
+version = "3.54.1"
 backend = "conda:sqlite"
 specifiers = ["latest"]
 
@@ -47,12 +39,11 @@ specifiers = ["latest"]
 channel = "conda-forge"
 
 [tools.sqlite."platforms.macos-arm64"]
-checksum = "sha256:4e0c8704a29b6c265e7bdb6508e1d4180570adcc6e031daf182578d3777fb8b1"
-url = "https://conda.anaconda.org/conda-forge/osx-arm64/sqlite-3.53.4-ha9f7ffe_1.conda"
+checksum = "sha256:9e36fa9989e80b5966345a6e0a4b08787bf35da9836f57077ab0285db2a39192"
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/sqlite-3.54.1-hdb6324b_101.conda"
 conda_deps = [
-    "libsqlite-3.53.4-hca69786_1",
+    "libsqlite-3.54.1-h34a968b_101",
     "libzlib-1.3.2-h8088a28_3",
     "ncurses-6.6-he64c551_1",
     "readline-8.3-h8b90a29_1",
-    "icu-78.3-py310h579977c_2",
 ]
