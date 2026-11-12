@@ -4,8 +4,9 @@
 sqlite = "latest"
 
 # Zen holds an exclusive lock, so `.backup` fails: copy the DB + WAL, check the
-# copy (a write can land mid-copy; the next run retries), VACUUM INTO one file,
-# and rename it into place so Nextcloud never uploads a partial one.
+# copy (a write can land mid-copy; the next run retries), keep the tables the
+# pipeline reads (about half the upload: no indexes, no other tables) and
+# rename the result into place so Nextcloud never uploads a partial one.
 [tasks.zen-history-snapshot]
 description = "Snapshot Zen's history DB into Nextcloud"
 env = { ZEN_PROFILES = "{{env.HOME}}/Library/Application Support/zen/Profiles", ZEN_SNAPSHOT_DIR = "{{env.HOME}}/Nextcloud/Hugo/Documents/data/browser" }
@@ -18,7 +19,13 @@ cp "$src" "$tmp/places.sqlite"
 [ -f "$src-wal" ] && cp "$src-wal" "$tmp/places.sqlite-wal"
 check="$(sqlite3 "$tmp/places.sqlite" 'PRAGMA quick_check;')"
 [ "$check" = "ok" ] || { echo "$(date -u +%FT%TZ) copy not consistent, skipping: $check" >&2; exit 1; }
-sqlite3 "$tmp/places.sqlite" "VACUUM INTO '$tmp/zen-places.sqlite';"
+# What the dlt `browser_history` source selects from, whole. A table it starts
+# reading has to be added here first.
+copy="ATTACH '$tmp/zen-places.sqlite' AS snapshot;"
+for table in moz_places moz_historyvisits moz_places_metadata moz_origins moz_bookmarks; do
+  copy="$copy CREATE TABLE snapshot.$table AS SELECT * FROM main.$table;"
+done
+sqlite3 "$tmp/places.sqlite" "$copy"
 gzip -9 "$tmp/zen-places.sqlite"
 mkdir -p "$ZEN_SNAPSHOT_DIR"
 mv "$tmp/zen-places.sqlite.gz" "$ZEN_SNAPSHOT_DIR/zen-places.sqlite.gz"
