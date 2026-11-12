@@ -4,9 +4,9 @@ Dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi is
 long gone). Secrets come from **fnox** backed by **Proton Pass**. Four machine
 classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s pod
 (`neko`), a CachyOS KDE gaming desktop (`cachyos`) and a headless coding-agent
-pod (`paseo`). What several classes share lives in a **layer** (`workstation`), not in
-each class. Read the section for a
-machine before touching anything it loads.
+pod (`paseo`). What several classes share lives in a **layer** (`workstation`),
+not in each class. Read the section for a machine before touching anything it
+loads.
 
 **On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
 is the pod's live config: read-only, and cloned fresh at every start. Work in
@@ -77,8 +77,7 @@ job and how `mise -E neko` selects a machine.
   like its environment: `macos/` (`mise.macos.toml` for any Mac,
   `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`. A
   feature only that machine has is `<machine>-<feature>/`: `macos-defaults/`,
-  `macos-k8s-dns/`, `macos-local-llm/`, `macos-zen-history/`, `neko-anki/`,
-  `neko-obsidian/`. A folder with no machine in its name loads on several:
+  `macos-k8s-dns/`, `macos-zen-history/`, `neko-anki/`, `neko-obsidian/`. A folder with no machine in its name loads on several:
   `ai/`, `proton-pass/`. So the root holds only the shared layers, and
   `test_conf_d_folder_names_say_where_they_load` holds the names to this. Give
   a feature its own folder when it has its own files, tasks or doctor checks;
@@ -131,24 +130,9 @@ job and how `mise -E neko` selects a machine.
 - `mise lock --global` — refresh lockfiles. Without `--platform` it reuses the
   platforms each lockfile already lists, which is what you want (see Lockfiles).
 
-## Secrets: the silent-overwrite trap
+## Secrets
 
-Managed agent sessions use the global `proton-login` task template in
-`conf.d/proton-pass/mise.toml`. Repositories define `pass:login` with
-`extends = "proton-login"` and `env.PROTON_PASS_LOGIN_SESSION = "<name>"`,
-and keep `PROTON_PASS_SESSION_DIR` pointed at that name. Credential-consuming
-tasks depend on login. The shared task selects `pass-cli-<name>` from macOS
-Keychain or `PROTON_PASS_TOKEN` on Linux, checks token rotation and expiry,
-and clears the named session on missing/rejected credentials. The template
-holds a machine-wide `lock`, which every task extending it inherits, so two
-agents logging in at once take turns. See
-`conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
-
-Proton Pass vaults are named by who reads them (`Personal`, `Homelab`,
-`Machines`, `Automation General`) and tokens get vault grants, so every repo has one
-readable `pass://Vault/item/field` map. See `conf.d/proton-pass/README.md`. Do
-not add item grants, share/item ID maps, per-scope fnox profiles, or another
-login implementation.
+### The silent-overwrite trap
 
 `fnox exec` defaults to `--if-missing warn`: a dead Proton Pass session is a
 WARN, fnox exits 0, the bootstrap runs with every secret unset, and the
@@ -175,8 +159,8 @@ template branch references are resolved (verified 2026-10-01: with `edge`
 picked, a missing main IP is fine).
 
 - **Right for `/etc/resolver`** — the only alternative outcome there is a
-  resolver with no nameserver, which breaks the zone. (The MacBook always runs
-  under fnox anyway.)
+  resolver with no zone or no nameserver, which breaks the lookups. (The
+  MacBook always runs under fnox anyway.)
 - **Wrong for the shared templates**, because the abort is global. On a fresh
   neko PVC with no Proton Pass session, `neko-bootstrap`'s `fresh` mode applies
   dotfiles with no secrets on purpose — that is what gives a new container its
@@ -185,6 +169,32 @@ picked, a missing main IP is fine).
   precisely; keep them.
 - **Never `remove_empty = true` on a secret-gated template**: a dead session
   would then _delete_ `~/.ssh/config` instead of blanking it.
+
+### The cluster's domain comes from fnox
+
+`SECRET_DOMAIN` (`Machines/kubernetes-gateway/domain`) is its only source, like
+home-ops' variable of the same name. Don't spell it here: not in a URL, a path
+(hence `/etc/resolver/k8s-gateway`), a label, a comment or a commit message.
+Examples and tests use `example.test`.
+
+### Sessions and vaults
+
+Managed agent sessions use the global `proton-login` task template in
+`conf.d/proton-pass/mise.toml`. Repositories define `pass:login` with
+`extends = "proton-login"` and `env.PROTON_PASS_LOGIN_SESSION = "<name>"`,
+and keep `PROTON_PASS_SESSION_DIR` pointed at that name. Credential-consuming
+tasks depend on login. The shared task selects `pass-cli-<name>` from macOS
+Keychain or `PROTON_PASS_TOKEN` on Linux, checks token rotation and expiry,
+and clears the named session on missing/rejected credentials. The template
+holds a machine-wide `lock`, which every task extending it inherits, so two
+agents logging in at once take turns. See
+`conf.d/proton-pass/README.md`; do not add repository-specific login scripts.
+
+Proton Pass vaults are named by who reads them (`Personal`, `Homelab`,
+`Machines`, `Automation General`) and tokens get vault grants, so every repo has one
+readable `pass://Vault/item/field` map. See `conf.d/proton-pass/README.md`. Do
+not add item grants, share/item ID maps, per-scope fnox profiles, or another
+login implementation.
 
 ## mise behaviour worth knowing (verified, not guessed)
 
@@ -201,8 +211,13 @@ picked, a missing main IP is fine).
 - **Templated vs literal.** Templated: task fields, dotfile _content_
   (`mode = "template"`), `[bootstrap.files]` content **with `template = true`**,
   launchd agent and systemd unit values, hook commands, `[shell_alias]`, doctor
-  `run`/`description`/`hint`. Literal: every _key_ (so `/etc/resolver/example.test`
-  is spelled out), dotfile `source`, package specs, macOS defaults.
+  `run`/`description`/`hint`. Literal: every _key_ (so a `[bootstrap.files]`
+  path cannot come from a secret, see k8s-dns), dotfile `source`, package
+  specs, macOS defaults.
+- **Inline task and hook bodies run under `sh -o errexit`.** An assignment from
+  a failing command substitution (`x="$(awk … a-missing-file)"`) ends the body
+  right there, before the line that would have reported it. End it with
+  `|| true` when an empty value is an answer (`macos-k8s-dns`).
 - **Task arguments need a `usage` spec.** Without one, `mise run <task> foo`
   appends `foo` to the _last line_ of a multi-line script instead of making it
   `$1`. With `usage = 'arg "<x>" { choices "a" "b"; }'` (or `flag "--y"`) it
@@ -212,9 +227,9 @@ picked, a missing main IP is fine).
 - **Same-named hooks accumulate across configs; same-named tasks override.**
   A hook table takes a `description`, printed instead of the script's first line.
 - **`{{ config_root }}` in a folder fragment is the folder**, doctor checks
-  included, so a check can read its own file without spelling the path
-  (`macos-k8s-dns`). Task *templates* are the exception: they render in the
-  extending task's project, hence `mise_config_dir` in `proton-pass`.
+  included, so a check can read its own files without spelling the path. Task
+  *templates* are the exception: they render in the extending task's project,
+  hence `mise_config_dir` in `proton-pass`.
 - **Hooks fire on a full `mise bootstrap` and with `--only <step>`**, not for
   sub-commands like `mise bootstrap macos defaults apply`.
 - **A hook that writes a file the dotfiles step renders is erased by it** — git
@@ -318,6 +333,42 @@ is v3 (`mise lock --upgrade`).
   what every current mise computes, so nothing normalises the lockfiles dirty.
 - `http:` tools are pinned by hand: bump the version and every URL, then lock.
 
+## Shared by several machines
+
+### Kubeconfigs (layer `workstation`)
+
+`~/.kube/main.yaml` + `~/.kube/edge.yaml` from the `Kubeconfig` item (one field
+per cluster); `[env] KUBECONFIG` lists both so kubectl merges them.
+`~/.kube/config` is deliberately unmanaged and **not** in the list, so a stale
+hand-written file cannot win a context-name collision.
+
+### Agent MCP servers and skills (`conf.d/ai/`)
+
+One definition of the MCP servers every agent connects to (Claude Code,
+Desktop, Codex, Vibe, the pods' OpenCode), for every machine. How it works is
+in `conf.d/ai/README.md`; what is easy to break:
+
+- **A scope per agent sets both its servers and its fnox profile**
+  (`vars.<agent>_scope`, `-P {{ vars.<agent>_scope }}` in its wrapper). On the
+  pods every agent takes `PASEO_DATA_SCOPE`: a pod's network only opens its
+  own scope.
+- **Pods get no gateway key**, workstations go through Envoy with one. Server
+  names carry no scope (`toolhive`, `memini`): the URL says which.
+- **An empty domain leaves the cluster servers out, never writes over them.**
+  `SECRET_DOMAIN` only exists under `apply`'s fnox; every agent file is a
+  merge, so an empty render keeps the last good entries. Don't add a default
+  domain or a `[bootstrap.secrets]` entry (neko's `fresh` mode renders without
+  secrets on purpose).
+- **Vibe's servers are an array**, which a merge replaces whole:
+  `config/vibe.toml` owns all of them.
+- claude.ai (web, phone) is out of reach: its connectors call from Anthropic's
+  cloud and want OAuth, and the gateway is internal with a static key.
+- **Skills are two trees.** `conf.d/ai/skills` reaches every machine;
+  `conf.d/paseo/skills` only the pods, with one `symlink-each` entry per skill
+  because the shared entry already owns both target folders
+  (`~/.claude/skills`, `~/.agents/skills`). The next apply prunes the link of
+  a skill that was deleted or moved.
+
 ## The MacBook (`personal`) and every Mac (`macos`)
 
 - `conf.d/macos/mise.macos.toml`: Rosetta + `/etc/paths` hook, casks, zsh, the
@@ -361,61 +412,18 @@ one-line wrappers) and `dns:status`.
   survives `apply`) < any config file (`config.local.toml`) < a lowercase
   `k8s_dns_cluster` env var (what CI drives). `dns:use` reads the value back
   after saving and fails if a higher source still wins.
-- `/etc/resolver/example.test` is a `[bootstrap.files]` template over two bootstrap
-  secrets (`K8S_GATEWAY_IP_MAIN`/`_EDGE` in fnox — internal IPs, public repo).
-  The zone had to be a literal (keys are not templated); the `k8s-dns` doctor
-  check asserts it matches the var. An unknown cluster falls back to main.
+- `/etc/resolver/k8s-gateway` is a `[bootstrap.files]` template over three
+  bootstrap secrets: the zone (`SECRET_DOMAIN`) and the two gateway addresses
+  (`K8S_GATEWAY_IP_MAIN`/`_EDGE`; internal IPs, public repo). **The file is not
+  named after the zone**: keys are not templated and the domain is never
+  committed, so the zone is the file's `domain` line, which `resolver(5)`
+  reads in place of the file name. An unknown cluster falls back to main.
+- The tasks and the doctor check read the zone back from the installed file,
+  so none of them needs a secret to look. The check also fails when a second
+  file named after the zone exists: it would keep its own nameserver across a
+  switch. (The `final` hook removes the one the pre-2026-11 layout left.)
 - Flush after a switch (`dscacheutil -flushcache; killall -HUP mDNSResponder`)
   or lookups keep the old answer, which reads exactly like the switch failing.
-
-### Local LLMs (`conf.d/macos-local-llm/`)
-
-LM Studio serves models to the cluster's LiteLLM over WireGuard (home-ops
-`kubernetes/apps/main/llm/litellm`). On a 24 GB M4 Pro the GPU may wire only ~16
-GB by default, too little for a 27B model (14.3 GB of weights at UD-IQ4_XS, plus
-KV cache).
-
-- **`iogpu.wired_limit_mb` resets on reboot.** mise manages LaunchAgents only, so
-  the boot-time `sysctl` is a root LaunchDaemon plist written by
-  `[bootstrap.files]`; `gpu:wired` applies it now. It is a cap, not a
-  reservation: nothing is wired until a model loads. `0` restores the default.
-- **`ram:free` quits apps with AppleScript `quit`**, never `kill`, so unsaved work
-  prompts instead of being lost; the first run per app raises the Automation
-  prompt. "Foreground" apps from `lsappinfo` only, so menu-bar utilities are
-  never touched. Keep list: `vars.ram_keep_apps`.
-- **Don't `lms load` a small model by hand** for day-to-day use: a manually
-  loaded model is pinned, and LM Studio's guardrail then refuses to JIT-load the
-  other one instead of swapping (seen 2026-10-02 with qwen3-vl-8b + qwen3.5-9b).
-  `llm:big` loads with `--ttl 3600` so the big model releases itself.
-
-### Kubeconfigs
-
-`~/.kube/main.yaml` + `~/.kube/edge.yaml` from the `Kubeconfig` item (one field
-per cluster); `[env] KUBECONFIG` lists both so kubectl merges them.
-`~/.kube/config` is deliberately unmanaged and **not** in the list, so a stale
-hand-written file cannot win a context-name collision.
-
-### Agent MCP servers (`conf.d/ai/`)
-
-One definition of the MCP servers every agent connects to (Claude Code,
-Desktop, Codex, Vibe, the pods' OpenCode), for every machine. How it works is
-in `conf.d/ai/README.md`; what is easy to break:
-
-- **A scope per agent sets both its servers and its fnox profile**
-  (`vars.<agent>_scope`, `-P {{ vars.<agent>_scope }}` in its wrapper). On the
-  pods every agent takes `PASEO_DATA_SCOPE`: a pod's network only opens its
-  own scope.
-- **Pods get no gateway key**, workstations go through Envoy with one. Server
-  names carry no scope (`toolhive`, `memini`): the URL says which.
-- **An empty domain leaves the cluster servers out, never writes over them.**
-  `SECRET_DOMAIN` only exists under `apply`'s fnox; every agent file is a
-  merge, so an empty render keeps the last good entries. Don't add a default
-  domain or a `[bootstrap.secrets]` entry (neko's `fresh` mode renders without
-  secrets on purpose).
-- **Vibe's servers are an array**, which a merge replaces whole:
-  `config/vibe.toml` owns all of them.
-- claude.ai (web, phone) is out of reach: its connectors call from Anthropic's
-  cloud and want OAuth, and the gateway is internal with a static key.
 
 ## The neko container (`conf.d/neko/`)
 
@@ -488,7 +496,7 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   both MCP lists (verified with 2.2.6). Home-ops keeps the rest in
   `agents/paseo/<scope>/config/` (Paseo providers, OpenCode models and
   providers), mounted at `/etc/paseo/config`. This class also installs CLIs,
-  repos and shell config.
+  repos, shell config and the skills only a Paseo pod can use (`skills/`).
 - Proton Pass: the general pod's token has one grant, the `Automation General`
   vault; it logs in with the global login template (per-scope session, token
   fingerprint). The private pod needs no secrets and skips the login task.
@@ -575,6 +583,10 @@ of the neko constraints: apps are `pacman:` packages.
   refuses the gateway's private IP without `allow_private`), **`fnox
   activate`** (the keys in every shell's env): `conf.d/ai` uses mise
   `[wrappers]` under `fnox exec` instead.
+- **`mode = "fnox"` for the kubeconfigs and WireGuard** — fnox keeps such files
+  under `[files]` in its _global_ config, keyed by target path, and `conf.d/ai`
+  keeps no global fnox config on purpose: it would load under every agent
+  wrapper.
 
 ## Don'ts
 
@@ -583,4 +595,5 @@ of the neko constraints: apps are `pacman:` packages.
   `dev.mise.<key>`.
 - Don't commit a source executable unless it is a real script (`install.sh`,
   `scripts/*`, `conf.d/*/bin/*`) — a template takes its source's mode.
+- Don't write the cluster's domain anywhere — see Secrets.
 - Don't run `chezmoi apply` — chezmoi is gone.

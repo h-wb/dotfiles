@@ -175,6 +175,11 @@ carries no `[dotfiles]`, `[tasks]` or `[settings]`, so the name is the only
 native place to put the grouping. Dotfile groups stay unused: they group files
 by directory tree, not config by machine.
 
+The same pass removed the LM Studio folder (unused) and moved the two
+Paseo-only skills from `conf.d/ai` to `conf.d/paseo`. The resolver file is now
+`/etc/resolver/k8s-gateway`, with the zone as its `domain` line: a bootstrap
+secret, like the nameserver.
+
 **Adopted** (all at or below `min_version`, checked in sandbox homes):
 
 - LaunchAgent `environment`, `stdout_path` and `stderr_path`. The claim that
@@ -184,8 +189,7 @@ by directory tree, not config by machine.
   that a cask here installs. Additive, and a no-op on the current MacBook.
 - Task `lock` on the `proton-login` template (2026.11.0). Extending tasks
   inherit it, so logins on a multi-agent pod take turns.
-- Hook `description` (2026.10.22) on the three bootstrap hooks.
-- `{{ config_root }}` in the `k8s-dns` doctor check, in place of its own path.
+- Hook `description` (2026.10.22) on the bootstrap hooks.
 
 **Not adopted:**
 

@@ -5,30 +5,40 @@
 
 # Saved per machine by dns:use (`mise vars`). A config file or a lowercase
 # `k8s_dns_cluster` env var (what CI uses) outranks the saved answer.
-[vars]
-k8s_dns_zone = "example.test"
-
 [vars.k8s_dns_cluster]
 default = "main"
 
 # Bootstrap secrets: a missing one aborts before anything is written, so the
-# resolver can never be rewritten without a nameserver. Only the selected
-# branch is resolved.
+# resolver can never be rewritten without its zone or a nameserver. Of the two
+# addresses, only the selected branch's is resolved.
 [bootstrap.secrets]
+k8s_dns_zone = "SECRET_DOMAIN"
 k8s_gateway_ip_main = "K8S_GATEWAY_IP_MAIN"
 k8s_gateway_ip_edge = "K8S_GATEWAY_IP_EDGE"
 
-# Keys aren't templated, so the zone is spelled out (the doctor check below
-# asserts it matches vars.k8s_dns_zone). An unknown cluster falls back to main.
-[bootstrap.files."/etc/resolver/example.test"]
+# The zone is never committed and keys are not templated, so the file is not
+# named after it: resolver(5) takes the zone from `domain` instead. An unknown
+# cluster falls back to main.
+[bootstrap.files."/etc/resolver/k8s-gateway"]
 template = true
 owner = "root"
 group = "wheel"
 mode = "0644"
 content = '''
-{%- if vars.k8s_dns_cluster == "edge" %}nameserver {{ secret(name="k8s_gateway_ip_edge") }}
+domain {{ secret(name="k8s_dns_zone") }}
+{% if vars.k8s_dns_cluster == "edge" %}nameserver {{ secret(name="k8s_gateway_ip_edge") }}
 {% else %}nameserver {{ secret(name="k8s_gateway_ip_main") }}
 {% endif -%}
+'''
+
+# Until 2026-11 the file was named after the zone. Left beside the new one it
+# would keep answering from its own nameserver after a switch. The zone is read
+# back from the file this run wrote. Drop once the MacBook has applied this.
+[bootstrap.hooks.final]
+description = "Remove the resolver file that was named after the zone"
+run = '''
+zone="$(awk '$1 == "domain" { print $2 }' /etc/resolver/k8s-gateway 2>/dev/null || true)"
+if [ -n "$zone" ] && [ -f "/etc/resolver/$zone" ]; then sudo rm -f "/etc/resolver/$zone"; fi
 '''
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
@@ -57,12 +67,15 @@ run = "mise run dns:use main"
 description = "Resolve the internal zone via the edge cluster's k8s-gateway"
 run = "mise run dns:use edge"
 
+# The zone is whatever the installed file says: no secret needed to look.
 [tasks."dns:status"]
 description = "Show which cluster resolves the internal zone"
 run = '''
-zone="{{ vars.k8s_dns_zone }}"
+f=/etc/resolver/k8s-gateway
+zone="$(awk '$1 == "domain" { print $2 }' "$f" 2>/dev/null || true)"
 echo "selected: {{ vars.k8s_dns_cluster }}"
-echo "resolver: $(cat "/etc/resolver/$zone" 2>/dev/null || echo '<not installed>')"
+echo "resolver: $(awk '$1 == "nameserver" { print $2 }' "$f" 2>/dev/null | grep . || echo '<not installed>')"
+[ -n "$zone" ] || exit 0
 echo "lookup:   k8s-gateway.network.$zone ->$(dscacheutil -q host -a name "k8s-gateway.network.$zone" | awk '/^ip_address:/ { printf " %s", $2 }')"
 '''
 
@@ -71,16 +84,17 @@ echo "lookup:   k8s-gateway.network.$zone ->$(dscacheutil -q host -a name "k8s-g
 # 0 even on a diff, hence the match on the resolver's own row.
 [doctor.checks.k8s-dns]
 description = "/etc/resolver matches the selected k8s-gateway ({{ vars.k8s_dns_cluster }})"
-hint = "run `mise run dns:main` or `mise run dns:edge`"
+hint = "run `mise run dns:main` or `mise run dns:edge`; a leftover file named after the zone goes with `mise run apply`"
 run = '''
-zone="{{ vars.k8s_dns_zone }}"
+f=/etc/resolver/k8s-gateway
+zone="$(awk '$1 == "domain" { print $2 }' "$f" 2>/dev/null || true)"
+[ -n "$zone" ] && grep -q '^nameserver ' "$f" ||
+	{ echo "$f is missing, or has no domain or no nameserver"; exit 1; }
+[ ! -e "/etc/resolver/$zone" ] ||
+	{ echo "/etc/resolver/$zone also claims the zone and would outlive a switch"; exit 1; }
 cd "{{ vars.repo }}" || exit 1
-grep -qF "[bootstrap.files.\"/etc/resolver/$zone\"]" "{{ config_root }}/mise.personal.toml" ||
-	{ echo "the [bootstrap.files] key does not match vars.k8s_dns_zone ($zone)"; exit 1; }
-grep -q '^nameserver ' "/etc/resolver/$zone" 2>/dev/null ||
-	{ echo "/etc/resolver/$zone is missing or has no nameserver"; exit 1; }
 DOTFILES_NO_LOGIN=1 ./scripts/pass-preflight 2>/dev/null || { echo "(no Proton Pass session; selection not compared)"; exit 0; }
 fnox --if-missing error exec -c fnox.toml -- mise bootstrap files status 2>/dev/null |
-	grep -qE "^unchanged +file:/etc/resolver/$zone " ||
-	{ echo "/etc/resolver/$zone differs from the {{ vars.k8s_dns_cluster }} selection"; exit 1; }
+	grep -qE "^unchanged +file:$f " ||
+	{ echo "$f differs from the {{ vars.k8s_dns_cluster }} selection"; exit 1; }
 '''

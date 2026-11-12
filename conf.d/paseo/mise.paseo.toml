@@ -4,10 +4,15 @@
 # Untrusted repo configs fail every shim run there.
 trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
 
+# One Proton Pass session per data scope (home-ops sets PASEO_DATA_SCOPE): the
+# session directory, the login task and the agent's stated reason share the name.
+[vars]
+pass_session = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
+
 [env]
 LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`
-PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
-PROTON_PASS_AGENT_REASON = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }} fnox"
+PROTON_PASS_SESSION_DIR = "{{ env.HOME }}/.local/state/pass-cli/{{ vars.pass_session }}"
+PROTON_PASS_AGENT_REASON = "{{ vars.pass_session }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 
 [tools]
@@ -28,7 +33,12 @@ starship = "latest"
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
-
+# Skills that only make sense where Paseo runs, beside the shared ones conf.d/ai
+# links into the same two folders (one entry per skill: that target is taken).
+"~/.claude/skills/orchestrate" = { source = "skills/orchestrate", mode = "symlink-each" }
+"~/.claude/skills/paseo-workspace-hygiene" = { source = "skills/paseo-workspace-hygiene", mode = "symlink-each" }
+"~/.agents/skills/orchestrate" = { source = "skills/orchestrate", mode = "symlink-each" }
+"~/.agents/skills/paseo-workspace-hygiene" = { source = "skills/paseo-workspace-hygiene", mode = "symlink-each" }
 
 [tasks.bootstrap]
 run = [
@@ -39,4 +49,4 @@ run = [
 extends = "proton-login"
 description = "Authenticate this pod's scoped Proton Pass session"
 hide = true
-env.PROTON_PASS_LOGIN_SESSION = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
+env.PROTON_PASS_LOGIN_SESSION = "{{ vars.pass_session }}"

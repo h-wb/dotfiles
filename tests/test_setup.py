@@ -10,12 +10,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MISE = Path(os.environ.get("MISE_TEST_BIN") or shutil.which("mise")).resolve()
-LAYERS = {
-    "personal": ["workstation", "personal"],
-    "neko": ["workstation", "neko"],
-    "cachyos": ["workstation", "cachyos"],
-    "paseo": ["paseo"],
-}
+# Each machine class and the layers it loads: miserc.toml is the only list.
+LAYERS = tomllib.loads((ROOT / "miserc.toml").read_text())["env_sets"]
 
 
 class SetupTests(unittest.TestCase):
@@ -181,6 +177,60 @@ esac
         self.assertFalse((self.home / "mise.calls").exists())
         self.assertIn("bootstrap --dry-run --upgrade", (self.home / "fnox.calls").read_text())
 
+    RESOLVER = "/etc/resolver/k8s-gateway"
+    DNS_SECRETS = {"SECRET_DOMAIN": "example.test",
+                   "K8S_GATEWAY_IP_MAIN": "10.1.1.1", "K8S_GATEWAY_IP_EDGE": "10.9.9.9"}
+
+    def sandbox_resolver(self):
+        # The resolver is root-owned: point its entry into the sandbox, then
+        # make sure no declared file is left that an apply would write for real.
+        self.select("personal")
+        out = self.home / "resolver"
+        config = self.repo / "conf.d/macos-k8s-dns/mise.personal.toml"
+        text = config.read_text()
+        self.assertEqual(text.count(f'[bootstrap.files."{self.RESOLVER}"]'), 1)
+        config.write_text(text.replace(f'[bootstrap.files."{self.RESOLVER}"]', f'[bootstrap.files."{out}"]')
+                          .replace('owner = "root"\n', "").replace('group = "wheel"\n', ""))
+        status = self.mise("bootstrap", "files", "status", "--json", env={**self.env, **self.DNS_SECRETS})
+        self.assertEqual([entry["id"]["name"] for entry in json.loads(status.stdout)], [str(out)])
+        return out
+
+    def test_k8s_dns_resolver_takes_zone_and_nameserver_from_secrets(self):
+        # The zone is never committed: the file carries it as `domain`, and is
+        # not named after it.
+        config = tomllib.loads((ROOT / "conf.d/macos-k8s-dns/mise.personal.toml").read_text())
+        self.assertEqual(list(config["bootstrap"]["files"]), [self.RESOLVER])
+        self.assertEqual(config["bootstrap"]["secrets"]["k8s_dns_zone"], "SECRET_DOMAIN")
+        out = self.sandbox_resolver()
+
+        def apply(ok=True, **env):
+            return self.mise("bootstrap", "files", "apply", "--yes", ok=ok,
+                             env={**self.env, **self.DNS_SECRETS, **env})
+
+        def want(address):
+            return f"domain example.test\nnameserver {address}\n"
+
+        # An unknown cluster falls back to main.
+        for cluster, address in (("main", "10.1.1.1"), ("edge", "10.9.9.9"), ("typo", "10.1.1.1")):
+            with self.subTest(cluster=cluster):
+                apply(k8s_dns_cluster=cluster)
+                self.assertEqual(out.read_text(), want(address))
+        # The per-machine answer `dns:use` saves.
+        self.mise("vars", "k8s_dns_cluster=edge")
+        apply()
+        self.assertEqual(out.read_text(), want("10.9.9.9"))
+        self.mise("vars", "unset", "k8s_dns_cluster")
+        apply()
+        self.assertEqual(out.read_text(), want("10.1.1.1"))
+        # A missing secret aborts and leaves the file alone. The address of the
+        # cluster that is not selected is not needed.
+        for missing in ("SECRET_DOMAIN", "K8S_GATEWAY_IP_MAIN"):
+            with self.subTest(missing=missing):
+                self.assertNotEqual(apply(ok=False, **{missing: ""}).returncode, 0)
+                self.assertEqual(out.read_text(), want("10.1.1.1"))
+        apply(K8S_GATEWAY_IP_EDGE="")
+        self.assertEqual(out.read_text(), want("10.1.1.1"))
+
     def test_paseo_leaves_paseo_config_alone(self):
         # Only home-ops' overlay (paseo-overlay layer) merges into it.
         target = self.home / ".paseo/config.json"
@@ -299,14 +349,18 @@ esac
         self.assertEqual("", head[0], path)
         return dict(line.split(": ", 1) for line in head[1].splitlines())
 
-    def test_ai_skills_are_named_after_their_folder_and_say_when_to_use_them(self):
-        skills = sorted(p.parent.name for p in (ROOT / "conf.d/ai/skills").glob("*/SKILL.md"))
-        self.assertIn("tool-gateway", skills)
-        self.assertEqual(skills, sorted(p.name for p in (ROOT / "conf.d/ai/skills").iterdir()))
-        for name in skills:
-            meta = self.skill_meta(ROOT / "conf.d/ai/skills" / name / "SKILL.md")
-            self.assertEqual(name, meta["name"])
-            self.assertGreater(len(meta["description"]), 40, name)
+    def test_skills_are_named_after_their_folder_and_say_when_to_use_them(self):
+        # Shared skills in conf.d/ai, the ones only a Paseo pod can use in conf.d/paseo.
+        expected = {"conf.d/ai/skills": ["tool-gateway"],
+                    "conf.d/paseo/skills": ["orchestrate", "paseo-workspace-hygiene"]}
+        for folder, names in expected.items():
+            skills = sorted(p.parent.name for p in (ROOT / folder).glob("*/SKILL.md"))
+            self.assertEqual(skills, names)
+            self.assertEqual(skills, sorted(p.name for p in (ROOT / folder).iterdir()))
+            for name in skills:
+                meta = self.skill_meta(ROOT / folder / name / "SKILL.md")
+                self.assertEqual(name, meta["name"])
+                self.assertGreater(len(meta["description"]), 40, name)
 
     def test_ai_skills_reach_every_agent_folder(self):
         for layers in (["paseo"], ["workstation"]):
@@ -318,6 +372,26 @@ esac
                     source = self.repo / "conf.d/ai/skills/tool-gateway/SKILL.md"
                     self.assertEqual(source.resolve(), skill.resolve())
                     self.assertEqual("tool-gateway", self.skill_meta(skill)["name"])
+
+    def test_paseo_skills_reach_the_pods_only(self):
+        # Two link trees share ~/.claude/skills and ~/.agents/skills on a pod:
+        # the shared skills (conf.d/ai) and the pod's own (conf.d/paseo).
+        names = ("orchestrate", "paseo-workspace-hygiene")
+        (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
+        self.apply_ai()
+        for folder in self.SKILL_DIRS:
+            for name in names:
+                self.assertFalse((self.home / folder / name).exists(), name)
+            self.assertTrue((self.home / folder / "tool-gateway/SKILL.md").is_symlink())
+        self.select("paseo")
+        self.apply_ai()
+        for folder in self.SKILL_DIRS:
+            for name in names:
+                skill = self.home / folder / name / "SKILL.md"
+                source = self.repo / "conf.d/paseo/skills" / name / "SKILL.md"
+                self.assertEqual(source.resolve(), skill.resolve())
+                self.assertEqual(name, self.skill_meta(skill)["name"])
+            self.assertTrue((self.home / folder / "tool-gateway/SKILL.md").is_symlink())
 
     def test_ai_skills_leave_other_skills_in_the_folder_alone(self):
         # Paseo installs and refreshes its own skills there; Claude keeps `synced`.
@@ -437,7 +511,7 @@ esac
     def test_ai_fnox_config_holds_only_the_agents_secrets(self):
         agents = tomllib.loads((self.repo / "conf.d/ai/fnox.toml").read_text())
         self.assertNotIn("secrets", agents)  # only per-scope profiles
-        self.assertEqual(set(agents["providers"]), {"automation"})
+        self.assertEqual(set(agents["providers"]), {"protonpass"})
         profiles = {name: {k for k, v in p["secrets"].items() if v.get("env", True)}
                     for name, p in agents["profiles"].items()}
         self.assertEqual(profiles, {"general": {"MCP_API_KEY", "MEMINI_API_KEY"},
@@ -549,6 +623,20 @@ env.PROTON_PASS_LOGIN_SESSION = "obsidian-workspace"
         session = self.home / ".local/state/pass-cli/obsidian-workspace"
         self.assertEqual((session / "authenticated").read_text(), "repo-dummy-token")
         self.assertFalse((self.home / ".local/state/pass-cli/paseo-general").exists())
+
+    def test_paseo_login_and_session_dir_share_the_scope_name(self):
+        # The pod's bootstrap logs in to the session its tools then read.
+        self.mock_proton()
+        for scope in ("general", "private"):
+            with self.subTest(scope=scope):
+                env = {**self.env, "PASEO_DATA_SCOPE": scope, "PROTON_PASS_TOKEN": "dummy-token"}
+                result = self.mise("run", "--skip-tools", "paseo:pass-login", ok=False, env=env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                session = self.home / f".local/state/pass-cli/paseo-{scope}"
+                self.assertEqual((session / "authenticated").read_text(), "dummy-token")
+                out = json.loads(self.mise("env", "--json", env=env).stdout)
+                self.assertEqual(out["PROTON_PASS_SESSION_DIR"], str(session))
+                self.assertEqual(out["PROTON_PASS_AGENT_REASON"], f"paseo-{scope} fnox")
 
     def test_proton_login_holds_one_lock_per_machine(self):
         # Two agents logging in at once would clear and rebuild a session under

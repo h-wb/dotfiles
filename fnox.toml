@@ -13,7 +13,8 @@ K8S_GATEWAY_IP_MAIN = { provider = "protonpass", value = "pass://Machines/kubern
 K8S_GATEWAY_IP_EDGE = { provider = "protonpass", value = "pass://Machines/kubernetes-gateway/ip address edge" }
 
 # The cluster's domain (home-ops' SECRET_DOMAIN), never committed: conf.d/ai
-# renders the agents' gateway and memini URLs from it.
+# renders the agents' gateway and memini URLs from it, conf.d/macos-k8s-dns the
+# resolver's zone.
 SECRET_DOMAIN = { provider = "protonpass", value = "pass://Machines/kubernetes-gateway/domain" }
 
 # One kubeconfig per cluster, as custom fields on one item.

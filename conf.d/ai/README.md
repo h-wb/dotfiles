@@ -12,6 +12,7 @@ mise.paseo.toml        paseo pods: in-cluster URLs, OpenCode
 fnox.toml              the only secrets the agents may read (MCP_API_KEY)
 config/                the agents' config templates, rendered by the files above
 skills/                the shared skills, linked into every agent's skills folder
+                       (the ones only a Paseo pod can use are in conf.d/paseo/skills/)
 ```
 
 ## Scopes
@@ -61,9 +62,11 @@ there, and Claude keeps `synced`.
 
 Only general habits belong here; nothing private, no domain, no secrets.
 A procedure for one repo lives in that repo (`.agents/skills/`), and the
-assistant's routines live in home-ops beside the assistant. To add a skill,
-add its folder and run `mise run apply`; a removed skill leaves a dangling link
-to delete by hand.
+assistant's routines live in home-ops beside the assistant. A skill that only
+makes sense where Paseo runs (`orchestrate`, `paseo-workspace-hygiene`) lives
+in `conf.d/paseo/skills/`, which links it into the same two folders on the
+pods and nowhere else. To add a skill, add its folder and run `mise run
+apply`; the next apply also removes the link of a skill you delete or move.
 
 ## Domain
 

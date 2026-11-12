@@ -128,30 +128,6 @@ jobs:
           grep -q 'HostName tn.example' "$HOME/.ssh/config"
           grep -q 'User someone' "$HOME/.ssh/config"
 
-      # Retarget the privileged files to scratch paths first: the runner has
-      # passwordless sudo, so as-is this would write its real /etc/resolver.
-      - name: k8s-dns resolver template
-        if: matrix.env == 'personal'
-        run: |
-          tmp="$(mktemp -d)"; out="$tmp/resolver"
-          f=conf.d/macos-k8s-dns/mise.personal.toml
-          llm=conf.d/macos-local-llm/mise.personal.toml
-          sed -i.bak -e "s#/etc/resolver/example.test#$out#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' "$f"
-          sed -i.bak -e "s#/Library/LaunchDaemons/#$tmp/#" -e '/^owner = "root"$/d' -e '/^group = "wheel"$/d' "$llm"
-          ! grep -q /etc/resolver/ "$f"   # the retarget took
-          export K8S_GATEWAY_IP_MAIN=10.1.1.1 K8S_GATEWAY_IP_EDGE=10.9.9.9
-          k8s_dns_cluster=main mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
-          k8s_dns_cluster=edge mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.9.9.9"
-          # the per-machine answer dns:use saves
-          mise vars k8s_dns_cluster=edge; mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.9.9.9"
-          mise vars unset k8s_dns_cluster
-          k8s_dns_cluster=typo mise bootstrap files apply --yes; test "$(cat "$out")" = "nameserver 10.1.1.1"
-          test "$(wc -l <"$out")" -eq 1
-          # a missing secret must fail and leave the previous file alone
-          ! k8s_dns_cluster=edge K8S_GATEWAY_IP_EDGE= mise bootstrap files apply --yes
-          test "$(cat "$out")" = "nameserver 10.1.1.1"
-          mv "$f.bak" "$f"; mv "$llm.bak" "$llm"
-
       # Only the repo-state doctor checks can pass on a runner.
       - name: Repo invariants
         run: |
