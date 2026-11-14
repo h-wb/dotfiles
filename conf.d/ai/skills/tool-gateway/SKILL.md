@@ -22,6 +22,30 @@ real tool sits behind them.
 If nothing fits, search again with the server name alone ("grafana") before
 concluding the tool does not exist.
 
+## Skip the search for these
+
+Each search returns full schemas, a few thousand tokens. These names are
+stable; call them directly and search only when one is refused.
+
+| Tool | Arguments |
+| --- | --- |
+| `kubectl_kubectl_generic` | `command` (no `kubectl` prefix). Read verbs only: get, describe, logs, events, top, explain. No exec. |
+| `kubectl_kubectl_logs` | `pod_name` (or `deployment/x`), `namespace`, `tail`, `since`, `container` |
+| `flux_reconcile_flux_resource` | `kind`, `name`, `namespace`, `with_source` |
+| `grafana_list_datasources` | none. Gives the uids the next two need; they are not `prometheus` or `loki`. |
+| `grafana_query_prometheus` | `datasourceUid`, `expr`, `queryType` (`instant`), `startTime`, `endTime` (`now`) |
+| `grafana_query_loki_logs` | `datasourceUid`, `logql`, `startRfc3339`, `endRfc3339`, `limit`, `format` (`compact`). The store is VictoriaLogs: LogsQL, fields like `kubernetes.pod_name`. |
+| `n8n_search_workflow_executions` | `workflowId`, `status` (list), `limit` |
+| `n8n_get_workflow_execution` | `workflowId`, `executionId`, `includeData`, `nodeNames` |
+
+## Keep results small
+
+A result cannot be filtered after it arrives. Ask for less: `tail` and `since`
+on logs, a `jsonpath` or field selector on `get`, `limit` on searches,
+`nodeNames` on executions, `format: compact` on log queries.
+
+With a shell and a token, `gh` and `git` are cheaper than the GitHub tools.
+
 ## Reads and writes
 
 - Lookups are free: list, get, search, describe.
