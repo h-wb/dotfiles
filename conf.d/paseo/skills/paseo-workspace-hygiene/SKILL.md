@@ -14,7 +14,8 @@ on a repo:
    spawn an agent for a repo task, use the repo's project but give the agent
    a NEW workspace with its own worktree (`paseo workspace create --project
    <project-id> --isolation worktree --mode branch-off --new-branch <branch>
-   --base origin/master`) and pass that as `workspaceId`. Never reuse
+   --base origin/<default-branch>`; `main` in home-ops, `master` in dotfiles)
+   and pass that as `workspaceId`. Never reuse
    (attach to) another agent's existing workspace, and never use a scratch
    `/workspace` for repo work.
 2. **Work in the worktree, never the bare checkout.** All edits happen in
@@ -37,6 +38,6 @@ Example:
 # one project per repo, one NEW workspace per agent — never attach to
 # another agent's workspace
 paseo workspace create --project prj_<repo> --isolation worktree \
-  --mode branch-off --new-branch feat/x --base origin/master
+  --mode branch-off --new-branch feat/x --base origin/<default-branch>
 create_agent(prompt="...", workspaceId="wks_<your own new workspace id>")
 ```

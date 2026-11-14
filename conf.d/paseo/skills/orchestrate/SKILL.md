@@ -59,7 +59,8 @@ profile whose note fits: Explore, Build, Review.
    spec at `<path>`. Report concrete defects only, most severe first. Make no
    edits." Do not add your reasoning.
 6. **Decide.** Read `git diff --stat` and the hunks the review names. Fix a
-   small defect yourself.
+   small defect yourself. A worker's report is a claim: before a
+   decision rests on one line of it, check that line with one command.
 7. **Finish.** Commit, then push and open the pull request as the repo and
    `paseo-workspace-hygiene` say. Report what changed, the check's result, and
    what was skipped and why.
@@ -68,6 +69,13 @@ profile whose note fits: Explore, Build, Review.
 
 Send the same worker the failing output once, with `send_agent_prompt`. If it
 fails again, finish the work yourself or ask the user. Never a third round.
+
+## When a worker hits a limit
+
+A usage or rate limit is not a failed attempt and does not use up the retry.
+If the profile's note names a fallback, start the same prompt there once and
+tell the user which limit was hit. No fallback named: finish the work yourself
+or stop and say so.
 
 ## Keep prompts small
 
