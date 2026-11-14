@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""land — push bot-tintin's workflow patch from a PR comment as yourself.
+
+The Paseo GitHub identity (bot-tintin) has no Workflows permission: GitHub
+rejects every commit it pushes that touches .github/workflows/ (merge commits
+included). The bot therefore posts such changes as one PR comment — first
+line `<!-- bot-tintin:land v1 -->`, a one-line explanation, then the patch in
+a four-backtick diff fence — and the owner lands the newest one with
+`land <pr>` from a workstation or neko.
+
+Usage:
+  land <pr> [--repo OWNER/NAME]  validate, show and (after asking) apply and
+                                 push the newest bot comment on <pr>
+  land --validate <file>         offline check of a comment body: print the
+                                 patch, or exit non-zero with the reason
+
+The land mode refuses to run on a Paseo pod (/etc/paseo exists).
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+MARKER = "<!-- bot-tintin:land v1 -->"
+FENCE_OPEN = "````diff"
+FENCE_CLOSE = "````"
+WORKFLOWS_PREFIX = ".github/workflows/"
+ALLOWED_MODES = {"100644", "100755"}
+MODE_RE = re.compile(r"^(?:old|new) mode (\d+)$|^(?:new|deleted) file mode (\d+)$")
+
+
+class LandError(Exception):
+    pass
+
+
+def extract_patch(body):
+    """The patch between the first ````diff line and the next ```` line."""
+    lines = body.splitlines()
+    if not lines or lines[0] != MARKER:
+        raise LandError(f"first line is not exactly {MARKER!r}")
+    try:
+        start = lines.index(FENCE_OPEN)
+    except ValueError:
+        raise LandError(f"no line that is exactly {FENCE_OPEN!r}") from None
+    try:
+        end = lines.index(FENCE_CLOSE, start + 1)
+    except ValueError:
+        raise LandError(f"no closing line that is exactly {FENCE_CLOSE!r}") from None
+    patch = "\n".join(lines[start + 1:end])
+    if not patch.strip():
+        raise LandError("empty patch between the fences")
+    return patch
+
+
+def check_path(path, allow_devnull=False):
+    """One path from a diff header; None for an allowed /dev/null."""
+    if path == "/dev/null":
+        if allow_devnull:
+            return None
+        raise LandError("/dev/null is only allowed on ---/+++ lines")
+    if '"' in path:
+        raise LandError(f"quoted/escaped path not allowed: {path!r}")
+    if path.startswith("/"):
+        raise LandError(f"absolute path not allowed: {path!r}")
+    if "\\" in path:
+        raise LandError(f"backslash in path not allowed: {path!r}")
+    if any(part == ".." for part in path.split("/")):
+        raise LandError(f"'..' component in path not allowed: {path!r}")
+    if not path.startswith(WORKFLOWS_PREFIX):
+        raise LandError(f"path outside {WORKFLOWS_PREFIX}: {path!r}")
+    return path
+
+
+def strip_ab_prefix(token):
+    if token.startswith("a/") or token.startswith("b/"):
+        return token[2:]
+    return token
+
+
+def validate_patch(patch):
+    """Every path stays inside .github/workflows/; returns the sorted paths.
+
+    Header lines (---/+++/rename/copy/mode) are only read between a
+    `diff --git` line and that file's first `@@` hunk header, so a removed
+    hunk line like `--- foo` is not mistaken for a file header.
+    """
+    if not patch.strip():
+        raise LandError("empty patch")
+    if "GIT binary patch" in patch:
+        raise LandError("binary patch (GIT binary patch) not allowed")
+    paths = set()
+    in_headers = False
+    for line in patch.splitlines():
+        if line.startswith("diff --git "):
+            in_headers = True
+            rest = line[len("diff --git "):]
+            if " b/" not in rest:
+                raise LandError(f"cannot parse diff --git line: {line!r}")
+            a, b = rest.split(" b/", 1)
+            for token in (strip_ab_prefix(a), b):
+                path = check_path(token)
+                if path:
+                    paths.add(path)
+        elif line.startswith("@@"):
+            in_headers = False
+        elif not in_headers:
+            continue
+        elif line.startswith("--- "):
+            path = check_path(strip_ab_prefix(line[4:]), allow_devnull=True)
+            if path:
+                paths.add(path)
+        elif line.startswith("+++ "):
+            path = check_path(strip_ab_prefix(line[4:]), allow_devnull=True)
+            if path:
+                paths.add(path)
+        elif line.startswith("rename from "):
+            paths.add(check_path(line[len("rename from "):]))
+        elif line.startswith("rename to "):
+            paths.add(check_path(line[len("rename to "):]))
+        elif line.startswith("copy from "):
+            paths.add(check_path(line[len("copy from "):]))
+        elif line.startswith("copy to "):
+            paths.add(check_path(line[len("copy to "):]))
+        elif line.startswith("Binary files "):
+            raise LandError("binary patch (Binary files line) not allowed")
+        else:
+            match = MODE_RE.match(line)
+            if match:
+                mode = match.group(1) or match.group(2)
+                if mode not in ALLOWED_MODES:
+                    raise LandError(
+                        f"file mode {mode} not allowed (only 100644/100755)")
+    if not paths:
+        raise LandError("no file paths found in the patch")
+    return sorted(paths)
+
+
+def run(cmd, **kwargs):
+    return subprocess.run(cmd, text=True, capture_output=True, **kwargs)
+
+
+def gh(*args, check=True):
+    result = run(["gh", *args])
+    if check and result.returncode != 0:
+        raise LandError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
+    return result
+
+
+def land(pr, repo):
+    if repo is None:
+        result = gh("repo", "view", "--json", "nameWithOwner", "--jq",
+                    ".nameWithOwner", check=False)
+        if result.returncode != 0 or not result.stdout.strip():
+            raise LandError("no --repo given and the current directory is not a gh repository")
+        repo = result.stdout.strip()
+
+    view = json.loads(gh("pr", "view", pr, "--repo", repo, "--json",
+                         "state,isCrossRepository,headRefName,headRefOid").stdout)
+    if view["state"] != "OPEN":
+        raise LandError(f"PR {pr} in {repo} is {view['state']}, not OPEN")
+    if view.get("isCrossRepository"):
+        raise LandError(f"PR {pr} in {repo} is cross-repository; refusing")
+    branch, head_oid = view["headRefName"], view["headRefOid"]
+
+    comments = json.loads(
+        gh("api", "--paginate", f"repos/{repo}/issues/{pr}/comments").stdout)
+    candidates = [c for c in comments
+                  if c.get("user", {}).get("login") == "bot-tintin[bot]"
+                  and (c.get("body") or "").splitlines()[:1] == [MARKER]]
+    if not candidates:
+        raise LandError(
+            f"no bot-tintin[bot] comment whose first line is {MARKER!r} on PR {pr} in {repo}")
+    patch = extract_patch(candidates[-1]["body"])  # the newest
+    paths = validate_patch(patch)
+
+    # Fresh clone; never cd into it (its mise.toml/direnv must not load).
+    tmp = tempfile.mkdtemp(prefix="land-")
+    try:
+        clone = os.path.join(tmp, "clone")
+        result = run(["git", "clone", "--branch", branch, "--single-branch",
+                      f"https://github.com/{repo}.git", clone,
+                      "-c", "core.hooksPath=/dev/null"])
+        if result.returncode != 0:
+            raise LandError(f"clone of {repo}:{branch} failed: {result.stderr.strip()}")
+        head = run(["git", "-C", clone, "rev-parse", "HEAD"]).stdout.strip()
+        if head != head_oid:
+            raise LandError(
+                f"branch {branch} moved (clone HEAD {head} != PR head {head_oid}); rerun land")
+
+        # Cross-check the paths git itself sees in the patch.
+        numstat = run(["git", "-C", clone, "apply", "--numstat"], input=patch)
+        if numstat.returncode != 0:
+            raise LandError(f"git apply --numstat failed: {numstat.stderr.strip()}")
+        numstat_paths = set()
+        for row in numstat.stdout.splitlines():
+            fields = row.split("\t")
+            if len(fields) < 3:
+                raise LandError(f"unparsable --numstat row: {row!r}")
+            if fields[2] == "-":
+                raise LandError("binary patch (numstat '-') not allowed")
+            numstat_paths.add(check_path(fields[2]))
+        # numstat lists only the destination path for renames/copies, so it
+        # can be a subset of the header paths, never more.
+        extra = numstat_paths - set(paths)
+        if extra:
+            raise LandError(
+                f"git apply --numstat reports paths not in the patch headers: {sorted(extra)}")
+
+        check = run(["git", "-C", clone, "apply", "--check"], input=patch)
+        if check.returncode != 0:
+            raise LandError(f"git apply --check failed: {check.stderr.strip()}")
+
+        stat = run(["git", "-C", clone, "apply", "--stat"], input=patch)
+        login = gh("api", "user", "--jq", ".login").stdout.strip()
+        print(stat.stdout, end="")
+        print(patch)
+        print(f"Push to {repo}:{branch} as {login}? [y/N] ",
+              end="", file=sys.stderr, flush=True)
+        with open("/dev/tty") as tty:
+            answer = tty.readline().strip().lower()
+        if answer not in ("y", "yes"):
+            raise LandError("aborted; nothing pushed")
+
+        result = run(["git", "-C", clone, "apply"], input=patch)
+        if result.returncode != 0:
+            raise LandError(f"git apply failed: {result.stderr.strip()}")
+        result = run(["git", "-C", clone, "add", "--", *paths])
+        if result.returncode != 0:
+            raise LandError(f"git add failed: {result.stderr.strip()}")
+        # The owner's own git identity comes from the machine's global config.
+        result = run(["git", "-C", clone, "commit", "-m",
+                      f"ci: apply workflow changes from bot-tintin (#{pr})"])
+        if result.returncode != 0:
+            raise LandError(f"git commit failed: {result.stderr.strip()}")
+        result = run(["git", "-C", clone, "push", "origin", f"HEAD:{branch}"])
+        if result.returncode != 0:
+            raise LandError(f"git push failed: {result.stderr.strip()}")
+        print(f"land: pushed {branch} to {repo}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def main(argv):
+    if len(argv) >= 3 and argv[1] == "--validate":
+        try:
+            with open(argv[2], encoding="utf-8") as handle:
+                body = handle.read()
+        except OSError as error:
+            raise LandError(f"cannot read {argv[2]}: {error}") from None
+        patch = extract_patch(body)
+        validate_patch(patch)
+        print(patch)
+        return 0
+
+    pr = None
+    repo = None
+    args = argv[1:]
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--repo":
+            index += 1
+            if index >= len(args):
+                raise LandError("--repo needs an OWNER/NAME value")
+            repo = args[index]
+        elif arg.startswith("--repo="):
+            repo = arg[len("--repo="):]
+        elif pr is None and not arg.startswith("-"):
+            pr = arg
+        else:
+            raise LandError(f"unexpected argument {arg!r}")
+        index += 1
+    if pr is None:
+        raise LandError("usage: land <pr> [--repo OWNER/NAME] | land --validate <file>")
+    if os.path.exists("/etc/paseo"):
+        raise LandError(
+            "land runs on the owner's machines (workstation/neko), not on a Paseo pod (/etc/paseo exists)")
+    land(pr, repo)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv))
+    except LandError as error:
+        print(f"land: {error}", file=sys.stderr)
+        sys.exit(1)
+    except FileNotFoundError as error:
+        # e.g. gh/git missing from PATH.
+        print(f"land: {error.filename or 'file'} not found", file=sys.stderr)
+        sys.exit(1)
+    except OSError as error:
+        # e.g. no /dev/tty to ask on.
+        print(f"land: {error}", file=sys.stderr)
+        sys.exit(1)

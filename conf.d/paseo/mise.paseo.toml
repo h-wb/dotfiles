@@ -40,6 +40,9 @@ starship = "latest"
 "~/.claude/skills/paseo-workspace-hygiene" = { source = "skills/paseo-workspace-hygiene", mode = "symlink-each" }
 "~/.agents/skills/orchestrate" = { source = "skills/orchestrate", mode = "symlink-each" }
 "~/.agents/skills/paseo-workspace-hygiene" = { source = "skills/paseo-workspace-hygiene", mode = "symlink-each" }
+# The gh wrapper that picks the bot-tintin token when home-ops mounts it.
+# symlink-each: leaves mise's own binary in ~/.local/bin alone.
+"~/.local/bin" = { source = "bin", mode = "symlink-each" }
 
 [tasks.bootstrap]
 run = [

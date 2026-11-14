@@ -1,10 +1,12 @@
 import gzip
+import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
@@ -853,6 +855,148 @@ compadd() { print -r -- completed; }
 _mise
 ''')
         self.assertIn("completed", result.stdout)
+
+    LAND = ROOT / "scripts" / "land"
+    MARKER = "<!-- bot-tintin:land v1 -->"
+    GOOD_PATCH = (
+        "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n"
+        "--- a/.github/workflows/ci.yml\n"
+        "+++ b/.github/workflows/ci.yml\n"
+        "@@ -1 +1,2 @@\n"
+        "-old\n"
+        "+new\n")
+
+    def comment_body(self, patch, marker=MARKER, fence="````"):
+        return f"{marker}\nOne line explaining the change.\n{fence}diff\n{patch}{fence}\n"
+
+    def land_validate(self, body, ok=True):
+        comment = self.home / "comment.md"
+        comment.write_text(body)
+        return self.run_cmd(sys.executable, str(self.LAND), "--validate", str(comment), ok=ok)
+
+    def test_land_validate_accepts_good_comments_and_rejects_bad_ones(self):
+        good = (self.GOOD_PATCH,
+                "diff --git a/.github/workflows/new.yml b/.github/workflows/new.yml\n"
+                "new file mode 100755\n"
+                "--- /dev/null\n"
+                "+++ b/.github/workflows/new.yml\n"
+                "@@ -0,0 +1 @@\n"
+                "+x\n",
+                # A removed hunk line `--- foo` is not a file header.
+                "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n"
+                "--- a/.github/workflows/ci.yml\n"
+                "+++ b/.github/workflows/ci.yml\n"
+                "@@ -1,3 +1,3 @@\n"
+                " keep\n"
+                "--- foo\n"
+                "+bar\n",
+                # A rename inside .github/workflows/.
+                "diff --git a/.github/workflows/old.yml b/.github/workflows/new.yml\n"
+                "similarity index 100%\n"
+                "rename from .github/workflows/old.yml\n"
+                "rename to .github/workflows/new.yml\n")
+        for patch in good:
+            with self.subTest(patch=patch.splitlines()[0]):
+                result = self.land_validate(self.comment_body(patch))
+                self.assertIn("diff --git a/.github/workflows/", result.stdout)
+        bad = [
+            ("path outside .github/workflows/", self.comment_body(
+                "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n"
+                "@@ -1 +1 @@\n-a\n+b\n")),
+            ("'..' component", self.comment_body(
+                "diff --git a/.github/workflows/../x b/.github/workflows/../x\n"
+                "--- a/.github/workflows/../x\n+++ b/.github/workflows/../x\n"
+                "@@ -1 +1 @@\n-a\n+b\n")),
+            ("rename out of the dir", self.comment_body(
+                "diff --git a/.github/workflows/x.yml b/README.md\n"
+                "rename from .github/workflows/x.yml\nrename to README.md\n")),
+            ("binary patch", self.comment_body(
+                "diff --git a/.github/workflows/blob b/.github/workflows/blob\n"
+                "GIT binary patch\n")),
+            ("symlink mode", self.comment_body(
+                "diff --git a/.github/workflows/link b/.github/workflows/link\n"
+                "new file mode 120000\n")),
+            ("missing marker", self.comment_body(self.GOOD_PATCH, marker="no marker")),
+            ("3-backtick fence", self.comment_body(self.GOOD_PATCH, fence="```")),
+        ]
+        for name, body in bad:
+            with self.subTest(case=name):
+                result = self.land_validate(body, ok=False)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertTrue(result.stderr.startswith("land:"), result.stderr)
+
+    def test_land_is_not_on_the_paseo_layer_and_paseo_links_its_bin(self):
+        # `land` pushes as the owner, so its task lives in the workstation
+        # layer, which Paseo pods never load (mirrors
+        # test_paseo_skills_reach_the_pods_only).
+        def task_names():
+            return {line.split()[0] for line in
+                    self.mise("tasks", "--no-header").stdout.splitlines() if line.strip()}
+        self.select("workstation")
+        self.assertIn("land", task_names())
+        self.select("paseo")
+        self.assertNotIn("land", task_names())
+        # conf.d/paseo links its bin/ into ~/.local/bin, symlink-each.
+        dotfiles = tomllib.loads((ROOT / "conf.d/paseo/mise.paseo.toml").read_text())["dotfiles"]
+        self.assertEqual(dotfiles["~/.local/bin"], {"source": "bin", "mode": "symlink-each"})
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        gh = self.home / ".local/bin" / "gh"
+        self.assertEqual(gh.resolve(), (self.repo / "conf.d/paseo/bin/gh").resolve())
+        # symlink-each leaves mise's own binary in ~/.local/bin alone.
+        self.assertEqual((self.home / ".local/bin/mise").resolve(), MISE)
+
+    def test_paseo_gh_wrapper_uses_the_bot_token_file_when_present(self):
+        wrapper = self.repo / "conf.d/paseo/bin/gh"
+        # A fake real gh later on PATH: answers the bot id lookup, otherwise
+        # prints only a hash of GH_TOKEN, never the value.
+        fakebin = self.home / "fakebin"
+        fakebin.mkdir()
+        (fakebin / "gh").write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = api ] && [ \"$2\" = 'users/bot-tintin[bot]' ]; then echo 12345; exit 0; fi\n"
+            "printf '%s' \"${GH_TOKEN:-}\" | sha256sum | cut -d' ' -f1\n")
+        (fakebin / "gh").chmod(0o755)
+        token_file = self.home / "bot-token"
+        token_file.write_text("bot-token-value\n")
+        env = {**self.env,
+               "PATH": f"{self.bin}:{fakebin}:/usr/bin:/bin:/usr/sbin:/sbin",
+               "GH_TOKEN": "owner-token-value",
+               "GH_TOKEN_FILE": str(token_file)}
+
+        def digest(value):
+            return hashlib.sha256(value.encode()).hexdigest()
+
+        result = self.run_cmd(str(wrapper), "auth", "status", env=env)
+        self.assertEqual(result.stdout.strip(), digest("bot-token-value"))
+        self.assertNotIn("bot-token-value", result.stdout + result.stderr)
+        include = self.home / ".config/git/bot-tintin.inc"
+        text = include.read_text()
+        self.assertIn("name = bot-tintin[bot]", text)
+        self.assertIn("email = 12345+bot-tintin[bot]@users.noreply.github.com", text)
+        self.assertNotIn("bot-token-value", text)
+
+        # No bot file (missing, empty, a directory): the original GH_TOKEN
+        # goes through untouched and the include is removed.
+        for case in ("missing", "empty", "directory"):
+            with self.subTest(token_file=case):
+                if token_file.is_dir():
+                    token_file.rmdir()
+                elif token_file.exists():
+                    token_file.unlink()
+                if case == "empty":
+                    token_file.write_text("")
+                elif case == "directory":
+                    token_file.mkdir()
+                result = self.run_cmd(str(wrapper), "auth", "status", env=env)
+                self.assertEqual(result.stdout.strip(), digest("owner-token-value"))
+                self.assertNotIn("owner-token-value", result.stdout + result.stderr)
+                self.assertFalse(include.exists())
+
+        # No real gh anywhere on PATH: fail clearly.
+        result = self.run_cmd(str(wrapper), "auth", "status", ok=False,
+                              env={**env, "PATH": f"{self.bin}:/usr/bin:/bin"})
+        self.assertEqual(result.returncode, 127)
+        self.assertIn("no real gh", result.stderr)
 
 
 if __name__ == "__main__":

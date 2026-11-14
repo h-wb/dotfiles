@@ -41,3 +41,26 @@ paseo workspace create --project prj_<repo> --isolation worktree \
   --mode branch-off --new-branch feat/x --base origin/<default-branch>
 create_agent(prompt="...", workspaceId="wks_<your own new workspace id>")
 ```
+
+## Workflow files
+
+The Paseo GitHub identity (bot-tintin) cannot push changes under
+`.github/workflows/`. Leave those files out of every pushed commit, and update
+a branch by rebasing — never by merging the base branch in (a merge commit
+that brings in workflow changes is rejected too).
+
+Post the change as one PR comment in exactly this format, produced with
+`git diff <base>... -- .github/workflows/` (or equivalent) against the PR
+head, via `gh pr comment <pr> --body-file`:
+
+`````text
+<!-- bot-tintin:land v1 -->
+One line explaining the change.
+````diff
+...the patch...
+````
+`````
+
+One comment per update; `land` uses the newest. Then tell the user to run
+`land <pr>` from their own terminal (code-server needs mise/gh first;
+workstation or neko work today).

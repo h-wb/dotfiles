@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# gh wrapper on Paseo pods: conf.d/paseo links this into ~/.local/bin
+# (symlink-each), which is ahead of the mise gh shim on the daemon's PATH, so
+# agents, the daemon and git's `!gh auth git-credential` helper all go through
+# it. When home-ops mounts the bot-tintin GitHub App installation token
+# ($GH_TOKEN_FILE), use that token and commit as the bot; without the file,
+# behave exactly as before (GH_TOKEN from the pod env). The token is read fresh
+# on every call and only ever exported, never printed.
+set -u
+
+self="$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s\n' "${BASH_SOURCE[0]}")"
+home="${HOME:-}"
+local_bin=""
+[ -n "$home" ] && local_bin="$(readlink -f -- "$home/.local/bin" 2>/dev/null || printf '%s\n' "$home/.local/bin")"
+
+# The real gh: the first gh on PATH that is not this script, skipping
+# ~/.local/bin (this wrapper's own home).
+real_gh=""
+if [ -n "${PATH:-}" ]; then
+	IFS=:
+	for dir in $PATH; do
+		[ -n "$dir" ] || dir=.
+		candidate="$dir/gh"
+		[ -f "$candidate" ] && [ -x "$candidate" ] || continue
+		resolved="$(readlink -f -- "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+		[ "$resolved" = "$self" ] && continue
+		if [ -n "$local_bin" ]; then
+			dir_resolved="$(readlink -f -- "$dir" 2>/dev/null || printf '%s\n' "$dir")"
+			[ "$dir_resolved" = "$local_bin" ] && continue
+		fi
+		real_gh="$candidate"
+		break
+	done
+	unset IFS
+fi
+
+include=""
+[ -n "$home" ] && include="$home/.config/git/bot-tintin.inc"
+
+# The bot token only counts when the path is a readable, non-empty regular
+# file and the read succeeds; anything else leaves GH_TOKEN untouched and is
+# treated as "no bot token" below.
+token=""
+if [ -n "${GH_TOKEN_FILE:-}" ] && [ -f "$GH_TOKEN_FILE" ] && [ -r "$GH_TOKEN_FILE" ] && [ -s "$GH_TOKEN_FILE" ]; then
+	token="$(cat "$GH_TOKEN_FILE")" || token=""
+fi
+
+if [ -n "$token" ]; then
+	GH_TOKEN="$token"
+	export GH_TOKEN
+	if [ -n "$include" ] && [ ! -f "$include" ] && [ -n "$real_gh" ]; then
+		# The bot's numeric id, for its noreply email. Call the real gh
+		# directly so this wrapper does not recurse; a failed lookup writes
+		# nothing and never blocks the gh call.
+		id="$("$real_gh" api 'users/bot-tintin[bot]' --jq .id 2>/dev/null)" || id=""
+		if [ -n "$id" ]; then
+			mkdir -p "$(dirname "$include")"
+			tmp="$(mktemp "${include}.XXXXXX")"
+			printf '[user]\n\tname = bot-tintin[bot]\n\temail = %s+bot-tintin[bot]@users.noreply.github.com\n' "$id" > "$tmp"
+			mv "$tmp" "$include"
+		fi
+	fi
+else
+	# No bot token: leave GH_TOKEN as is and drop the bot identity include.
+	[ -n "$include" ] && rm -f "$include"
+fi
+
+if [ -z "$real_gh" ]; then
+	echo "gh (paseo wrapper): no real gh found on PATH past ${local_bin:-~/.local/bin}" >&2
+	exit 127
+fi
+exec "$real_gh" "$@"
