@@ -1,5 +1,5 @@
 [user]
-	name = h-wb
+	name = {{ vars.git_name }}
 	email = {{ vars.git_email }}
 [alias]
 	a = add
@@ -47,14 +47,10 @@
 [credential "https://github.com"]
 	helper = {{ env.HOME }}/.local/bin/git-credential-fnox
 {% elif '/etc/paseo' is exists %}
-# paseo: the token comes from the bot-tintin app file when the gh wrapper in
-# ~/.local/bin exports it (GH_TOKEN_FILE), else GH_TOKEN from the pod's secret.
+# paseo: on the general pod gh reads the bot-tintin token from the read-only
+# hosts.yml home-ops mounts at $GH_CONFIG_DIR (no personal-token fallback).
 [credential "https://github.com"]
 	helper = !gh auth git-credential
-# Last [user] wins, so this include sits after the one at the top of the
-# rendered file; git ignores a missing include path.
-[include]
-	path = {{ env.HOME }}/.config/git/bot-tintin.inc
 # ~/.dotfiles is an emptyDir, and its mount point belongs to root.
 [safe]
 	directory = {{ env.HOME }}/.dotfiles

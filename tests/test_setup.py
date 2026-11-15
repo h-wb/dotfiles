@@ -1,5 +1,4 @@
 import gzip
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -925,7 +924,7 @@ _mise
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertTrue(result.stderr.startswith("land:"), result.stderr)
 
-    def test_land_is_not_on_the_paseo_layer_and_paseo_links_its_bin(self):
+    def test_land_is_not_on_the_paseo_layer(self):
         # `land` pushes as the owner, so its task lives in the workstation
         # layer, which Paseo pods never load (mirrors
         # test_paseo_skills_reach_the_pods_only).
@@ -936,67 +935,32 @@ _mise
         self.assertIn("land", task_names())
         self.select("paseo")
         self.assertNotIn("land", task_names())
-        # conf.d/paseo links its bin/ into ~/.local/bin, symlink-each.
-        dotfiles = tomllib.loads((ROOT / "conf.d/paseo/mise.paseo.toml").read_text())["dotfiles"]
-        self.assertEqual(dotfiles["~/.local/bin"], {"source": "bin", "mode": "symlink-each"})
-        self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        gh = self.home / ".local/bin" / "gh"
-        self.assertEqual(gh.resolve(), (self.repo / "conf.d/paseo/bin/gh").resolve())
-        # symlink-each leaves mise's own binary in ~/.local/bin alone.
-        self.assertEqual((self.home / ".local/bin/mise").resolve(), MISE)
 
-    def test_paseo_gh_wrapper_uses_the_bot_token_file_when_present(self):
-        wrapper = self.repo / "conf.d/paseo/bin/gh"
-        # A fake real gh later on PATH: answers the bot id lookup, otherwise
-        # prints only a hash of GH_TOKEN, never the value.
-        fakebin = self.home / "fakebin"
-        fakebin.mkdir()
-        (fakebin / "gh").write_text(
-            "#!/bin/sh\n"
-            "if [ \"$1\" = api ] && [ \"$2\" = 'users/bot-tintin[bot]' ]; then echo 12345; exit 0; fi\n"
-            "printf '%s' \"${GH_TOKEN:-}\" | sha256sum | cut -d' ' -f1\n")
-        (fakebin / "gh").chmod(0o755)
-        token_file = self.home / "bot-token"
-        token_file.write_text("bot-token-value\n")
-        env = {**self.env,
-               "PATH": f"{self.bin}:{fakebin}:/usr/bin:/bin:/usr/sbin:/sbin",
-               "GH_TOKEN": "owner-token-value",
-               "GH_TOKEN_FILE": str(token_file)}
-
-        def digest(value):
-            return hashlib.sha256(value.encode()).hexdigest()
-
-        result = self.run_cmd(str(wrapper), "auth", "status", env=env)
-        self.assertEqual(result.stdout.strip(), digest("bot-token-value"))
-        self.assertNotIn("bot-token-value", result.stdout + result.stderr)
-        include = self.home / ".config/git/bot-tintin.inc"
-        text = include.read_text()
-        self.assertIn("name = bot-tintin[bot]", text)
-        self.assertIn("email = 12345+bot-tintin[bot]@users.noreply.github.com", text)
-        self.assertNotIn("bot-token-value", text)
-
-        # No bot file (missing, empty, a directory): the original GH_TOKEN
-        # goes through untouched and the include is removed.
-        for case in ("missing", "empty", "directory"):
-            with self.subTest(token_file=case):
-                if token_file.is_dir():
-                    token_file.rmdir()
-                elif token_file.exists():
-                    token_file.unlink()
-                if case == "empty":
-                    token_file.write_text("")
-                elif case == "directory":
-                    token_file.mkdir()
-                result = self.run_cmd(str(wrapper), "auth", "status", env=env)
-                self.assertEqual(result.stdout.strip(), digest("owner-token-value"))
-                self.assertNotIn("owner-token-value", result.stdout + result.stderr)
-                self.assertFalse(include.exists())
-
-        # No real gh anywhere on PATH: fail clearly.
-        result = self.run_cmd(str(wrapper), "auth", "status", ok=False,
-                              env={**env, "PATH": f"{self.bin}:/usr/bin:/bin"})
-        self.assertEqual(result.returncode, 127)
-        self.assertIn("no real gh", result.stderr)
+    def test_paseo_general_pod_commits_as_the_bot(self):
+        # The general pod's rendered git identity is the bot (static, from the
+        # paseo layer's [vars]); the private pod shares the class but keeps the
+        # owner's identity, and so does an unset PASEO_DATA_SCOPE.
+        self.select("paseo")
+        for scope, name, email in (("general", "bot-tintin[bot]",
+                                    "356770504+bot-tintin[bot]@users.noreply.github.com"),
+                                   ("private", "h-wb", "owner@example.test"),
+                                   (None, "h-wb", "owner@example.test")):
+            with self.subTest(scope=scope):
+                env = {**self.env, "GIT_EMAIL": "owner@example.test"}
+                if scope is None:
+                    env.pop("PASEO_DATA_SCOPE", None)
+                else:
+                    env["PASEO_DATA_SCOPE"] = scope
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", env=env)
+                lines = (self.home / ".config/git/config").read_text().splitlines()
+                section = []
+                for line in lines[lines.index("[user]") + 1:]:
+                    if line.startswith("["):
+                        break
+                    section.append(line)
+                user = "\n".join(section)
+                self.assertIn(f"name = {name}", user)
+                self.assertIn(f"email = {email}", user)
 
 
 if __name__ == "__main__":

@@ -44,10 +44,13 @@ create_agent(prompt="...", workspaceId="wks_<your own new workspace id>")
 
 ## Workflow files
 
-The Paseo GitHub identity (bot-tintin) cannot push changes under
-`.github/workflows/`. Leave those files out of every pushed commit, and update
-a branch by rebasing — never by merging the base branch in (a merge commit
-that brings in workflow changes is rejected too).
+On the general Paseo pod, gh and git act as bot-tintin: home-ops mounts a
+read-only gh config dir (a `hosts.yml` with the bot's installation token) and
+sets `GH_CONFIG_DIR` to it — there is no fallback to the owner's token. That
+identity cannot push changes under `.github/workflows/`. Leave those files out
+of every pushed commit, and update a branch by rebasing — never by merging the
+base branch in (a merge commit that brings in workflow changes is rejected
+too).
 
 Post the change as one PR comment in exactly this format, produced with
 `git diff <base>... -- .github/workflows/` (or equivalent) against the PR
