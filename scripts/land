@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 
 MARKER = "<!-- bot-tintin:land v1 -->"
 FENCE_OPEN = "````diff"
@@ -31,15 +32,40 @@ FENCE_CLOSE = "````"
 WORKFLOWS_PREFIX = ".github/workflows/"
 ALLOWED_MODES = {"100644", "100755"}
 MODE_RE = re.compile(r"^(?:old|new) mode (\d+)$|^(?:new|deleted) file mode (\d+)$")
+HUNK_RE = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@")
+# Lines git accepts between `diff --git` and the first hunk (or the next file).
+HEADER_PREFIXES = ("--- ", "+++ ", "rename from ", "rename to ", "copy from ",
+                   "copy to ", "old mode ", "new mode ", "new file mode ",
+                   "deleted file mode ", "index ", "similarity index ",
+                   "dissimilarity index ")
+GH_CREDENTIAL = ["-c", "credential.helper=",
+                 "-c", "credential.helper=!gh auth git-credential"]
+NO_HOOKS = ["-c", "core.hooksPath=/dev/null"]
 
 
 class LandError(Exception):
     pass
 
 
+def check_text(text, what):
+    """Only printable text, tab and newline: nothing that can redraw the
+    terminal, reorder what is shown, or split a line where git does not."""
+    for offset, char in enumerate(text):
+        if char in "\t\n ":
+            continue
+        # C*: controls (ESC, CR, VT, FF, NEL), bidi/format, surrogates,
+        # private use, unassigned. Z*: odd spaces and U+2028/U+2029.
+        # CRLF is rejected, not normalised: that would silently change a
+        # CRLF file's content.
+        if unicodedata.category(char)[0] in "CZ":
+            name = unicodedata.name(char, "control character")
+            raise LandError(
+                f"{what} contains U+{ord(char):04X} {name} at offset {offset}; refusing")
+
+
 def extract_patch(body):
     """The patch between the first ````diff line and the next ```` line."""
-    lines = body.splitlines()
+    lines = body.split("\n")
     if not lines or lines[0] != MARKER:
         raise LandError(f"first line is not exactly {MARKER!r}")
     try:
@@ -50,9 +76,10 @@ def extract_patch(body):
         end = lines.index(FENCE_CLOSE, start + 1)
     except ValueError:
         raise LandError(f"no closing line that is exactly {FENCE_CLOSE!r}") from None
-    patch = "\n".join(lines[start + 1:end])
+    patch = "".join(line + "\n" for line in lines[start + 1:end])
     if not patch.strip():
         raise LandError("empty patch between the fences")
+    check_text(patch, "patch")
     return patch
 
 
@@ -84,19 +111,40 @@ def strip_ab_prefix(token):
 def validate_patch(patch):
     """Every path stays inside .github/workflows/; returns the sorted paths.
 
-    Header lines (---/+++/rename/copy/mode) are only read between a
-    `diff --git` line and that file's first `@@` hunk header, so a removed
-    hunk line like `--- foo` is not mistaken for a file header.
+    Hunk bodies are consumed by their @@ line counts, as git does, so a
+    removed line like `--- foo` is not a header; every other line must be a
+    `diff --git` line, a known header inside its block, or a hunk header.
     """
     if not patch.strip():
         raise LandError("empty patch")
     if "GIT binary patch" in patch:
         raise LandError("binary patch (GIT binary patch) not allowed")
     paths = set()
+    in_file = False  # seen a diff --git line
     in_headers = False
-    for line in patch.splitlines():
+    old = new = 0  # lines left in the current hunk
+    lines = patch.split("\n")
+    if lines[-1] == "":
+        lines.pop()
+    for line in lines:
+        if old or new:
+            tag = line[:1]
+            if tag in (" ", "") and old and new:
+                old, new = old - 1, new - 1
+                continue
+            if tag == "-" and old:
+                old -= 1
+                continue
+            if tag == "+" and new:
+                new -= 1
+                continue
+            if tag == "\\":
+                continue
+            old = new = 0  # git ends the hunk here; check the line below
+        elif line.startswith("\\ "):
+            continue  # "\ No newline at end of file" after a hunk's last line
         if line.startswith("diff --git "):
-            in_headers = True
+            in_file = in_headers = True
             rest = line[len("diff --git "):]
             if " b/" not in rest:
                 raise LandError(f"cannot parse diff --git line: {line!r}")
@@ -106,9 +154,18 @@ def validate_patch(patch):
                 if path:
                     paths.add(path)
         elif line.startswith("@@"):
+            match = HUNK_RE.match(line)
+            if not in_file or not match:
+                raise LandError(f"hunk header outside a diff --git section: {line!r}")
             in_headers = False
+            old = int(match.group(1) or 1)
+            new = int(match.group(2) or 1)
         elif not in_headers:
-            continue
+            raise LandError(f"line outside a diff --git header or hunk: {line!r}")
+        elif line.startswith("Binary files "):
+            raise LandError("binary patch (Binary files line) not allowed")
+        elif not line.startswith(HEADER_PREFIXES):
+            raise LandError(f"unknown diff header line: {line!r}")
         elif line.startswith("--- "):
             path = check_path(strip_ab_prefix(line[4:]), allow_devnull=True)
             if path:
@@ -125,8 +182,6 @@ def validate_patch(patch):
             paths.add(check_path(line[len("copy from "):]))
         elif line.startswith("copy to "):
             paths.add(check_path(line[len("copy to "):]))
-        elif line.startswith("Binary files "):
-            raise LandError("binary patch (Binary files line) not allowed")
         else:
             match = MODE_RE.match(line)
             if match:
@@ -150,6 +205,71 @@ def gh(*args, check=True):
     return result
 
 
+def git(clone, *args, **kwargs):
+    # Hooks off on every call, not just in the clone's config.
+    return run(["git", *NO_HOOKS, "-C", clone, *args], **kwargs)
+
+
+def clone_branch(url, branch, clone):
+    """Clone without a checkout and fill only the index: no working tree
+    means the branch's .gitattributes selects no filter, ident or eol."""
+    result = run(["git", *NO_HOOKS, "clone", *NO_HOOKS, "--no-checkout",
+                  "--single-branch", f"--branch={branch}", url, clone])
+    if result.returncode != 0:
+        raise LandError(f"clone of {url}:{branch} failed: {result.stderr.strip()}")
+    result = git(clone, "read-tree", "HEAD")
+    if result.returncode != 0:
+        raise LandError(f"git read-tree failed: {result.stderr.strip()}")
+    return git(clone, "rev-parse", "HEAD").stdout.strip()
+
+
+def check_in_clone(clone, patch, paths):
+    """Cross-check the paths git itself sees, then dry-run; returns --stat."""
+    numstat = git(clone, "apply", "--cached", "--numstat", input=patch)
+    if numstat.returncode != 0:
+        raise LandError(f"git apply --numstat failed: {numstat.stderr.strip()}")
+    numstat_paths = set()
+    for row in numstat.stdout.splitlines():
+        fields = row.split("\t")
+        if len(fields) < 3:
+            raise LandError(f"unparsable --numstat row: {row!r}")
+        if fields[2] == "-":
+            raise LandError("binary patch (numstat '-') not allowed")
+        numstat_paths.add(check_path(fields[2]))
+    # numstat lists only the destination path for renames/copies, so it
+    # can be a subset of the header paths, never more.
+    extra = numstat_paths - set(paths)
+    if extra:
+        raise LandError(
+            f"git apply --numstat reports paths not in the patch headers: {sorted(extra)}")
+    check = git(clone, "apply", "--cached", "--check", "--whitespace=nowarn", input=patch)
+    if check.returncode != 0:
+        raise LandError(f"git apply --check failed: {check.stderr.strip()}")
+    return git(clone, "apply", "--cached", "--stat", input=patch).stdout
+
+
+def commit_patch(clone, patch, pr):
+    result = git(clone, "apply", "--cached", "--whitespace=nowarn", input=patch)
+    if result.returncode != 0:
+        raise LandError(f"git apply failed: {result.stderr.strip()}")
+    # The owner's own git identity comes from the machine's global config.
+    result = git(clone, "commit", "--no-verify", "-m",
+                 f"ci: apply workflow changes from bot-tintin (#{pr})")
+    if result.returncode != 0:
+        raise LandError(f"git commit failed: {result.stderr.strip()}")
+
+
+def push(clone, repo, branch):
+    # An insteadOf rewrite (e.g. to ssh) would bypass gh's credential.
+    expected = f"https://github.com/{repo}.git"
+    url = git(clone, "remote", "get-url", "--push", "origin").stdout.strip()
+    if url != expected:
+        raise LandError(f"push URL is {url!r}, not {expected!r} (url.insteadOf?); refusing")
+    result = git(clone, *GH_CREDENTIAL, "push", "origin", f"HEAD:refs/heads/{branch}")
+    if result.returncode != 0:
+        raise LandError(f"git push failed: {result.stderr.strip()}")
+
+
 def land(pr, repo):
     if repo is None:
         result = gh("repo", "view", "--json", "nameWithOwner", "--jq",
@@ -165,12 +285,18 @@ def land(pr, repo):
     if view.get("isCrossRepository"):
         raise LandError(f"PR {pr} in {repo} is cross-repository; refusing")
     branch, head_oid = view["headRefName"], view["headRefOid"]
+    check_text(branch, "head branch name")
+    default = gh("repo", "view", repo, "--json", "defaultBranchRef",
+                 "--jq", ".defaultBranchRef.name").stdout.strip()
+    if not default or branch == default:
+        raise LandError(
+            f"PR {pr} head is {branch!r}, the default branch of {repo} ({default!r}); refusing")
 
     comments = json.loads(
         gh("api", "--paginate", f"repos/{repo}/issues/{pr}/comments").stdout)
     candidates = [c for c in comments
                   if c.get("user", {}).get("login") == "bot-tintin[bot]"
-                  and (c.get("body") or "").splitlines()[:1] == [MARKER]]
+                  and (c.get("body") or "").split("\n", 1)[0] == MARKER]
     if not candidates:
         raise LandError(
             f"no bot-tintin[bot] comment whose first line is {MARKER!r} on PR {pr} in {repo}")
@@ -181,43 +307,15 @@ def land(pr, repo):
     tmp = tempfile.mkdtemp(prefix="land-")
     try:
         clone = os.path.join(tmp, "clone")
-        result = run(["git", "clone", "--branch", branch, "--single-branch",
-                      f"https://github.com/{repo}.git", clone,
-                      "-c", "core.hooksPath=/dev/null"])
-        if result.returncode != 0:
-            raise LandError(f"clone of {repo}:{branch} failed: {result.stderr.strip()}")
-        head = run(["git", "-C", clone, "rev-parse", "HEAD"]).stdout.strip()
+        head = clone_branch(f"https://github.com/{repo}.git", branch, clone)
         if head != head_oid:
             raise LandError(
                 f"branch {branch} moved (clone HEAD {head} != PR head {head_oid}); rerun land")
+        stat = check_in_clone(clone, patch, paths)
 
-        # Cross-check the paths git itself sees in the patch.
-        numstat = run(["git", "-C", clone, "apply", "--numstat"], input=patch)
-        if numstat.returncode != 0:
-            raise LandError(f"git apply --numstat failed: {numstat.stderr.strip()}")
-        numstat_paths = set()
-        for row in numstat.stdout.splitlines():
-            fields = row.split("\t")
-            if len(fields) < 3:
-                raise LandError(f"unparsable --numstat row: {row!r}")
-            if fields[2] == "-":
-                raise LandError("binary patch (numstat '-') not allowed")
-            numstat_paths.add(check_path(fields[2]))
-        # numstat lists only the destination path for renames/copies, so it
-        # can be a subset of the header paths, never more.
-        extra = numstat_paths - set(paths)
-        if extra:
-            raise LandError(
-                f"git apply --numstat reports paths not in the patch headers: {sorted(extra)}")
-
-        check = run(["git", "-C", clone, "apply", "--check"], input=patch)
-        if check.returncode != 0:
-            raise LandError(f"git apply --check failed: {check.stderr.strip()}")
-
-        stat = run(["git", "-C", clone, "apply", "--stat"], input=patch)
         login = gh("api", "user", "--jq", ".login").stdout.strip()
-        print(stat.stdout, end="")
-        print(patch)
+        print(stat, end="")
+        print(patch, end="")
         print(f"Push to {repo}:{branch} as {login}? [y/N] ",
               end="", file=sys.stderr, flush=True)
         with open("/dev/tty") as tty:
@@ -225,20 +323,8 @@ def land(pr, repo):
         if answer not in ("y", "yes"):
             raise LandError("aborted; nothing pushed")
 
-        result = run(["git", "-C", clone, "apply"], input=patch)
-        if result.returncode != 0:
-            raise LandError(f"git apply failed: {result.stderr.strip()}")
-        result = run(["git", "-C", clone, "add", "--", *paths])
-        if result.returncode != 0:
-            raise LandError(f"git add failed: {result.stderr.strip()}")
-        # The owner's own git identity comes from the machine's global config.
-        result = run(["git", "-C", clone, "commit", "-m",
-                      f"ci: apply workflow changes from bot-tintin (#{pr})"])
-        if result.returncode != 0:
-            raise LandError(f"git commit failed: {result.stderr.strip()}")
-        result = run(["git", "-C", clone, "push", "origin", f"HEAD:{branch}"])
-        if result.returncode != 0:
-            raise LandError(f"git push failed: {result.stderr.strip()}")
+        commit_patch(clone, patch, pr)
+        push(clone, repo, branch)
         print(f"land: pushed {branch} to {repo}")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -247,13 +333,14 @@ def land(pr, repo):
 def main(argv):
     if len(argv) >= 3 and argv[1] == "--validate":
         try:
-            with open(argv[2], encoding="utf-8") as handle:
+            # newline="": no universal-newline translation hiding a CR.
+            with open(argv[2], encoding="utf-8", newline="") as handle:
                 body = handle.read()
         except OSError as error:
             raise LandError(f"cannot read {argv[2]}: {error}") from None
         patch = extract_patch(body)
         validate_patch(patch)
-        print(patch)
+        print(patch, end="")
         return 0
 
     pr = None
