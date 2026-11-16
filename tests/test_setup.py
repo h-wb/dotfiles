@@ -100,8 +100,8 @@ esac
                 configs = self.mise("config").stdout
                 for other in LAYERS:
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
-                for layer in ("workstation",):
-                    self.assertEqual(f".{layer}.toml" in configs, layer in layers)
+                for layer in ("workstation", "pod", "zsh"):
+                    self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
                     self.mise("tasks", "info", line.split()[0])
@@ -950,6 +950,51 @@ exit 22
                 self.assertEqual(config.count("helper ="), 1, config)
                 self.assertEqual("[safe]" in config, machine == "paseo")
 
+    def test_pod_bootstrap_options(self):
+        # neko's differences, as options: pull and re-run, a hold file, its own log.
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
+        ident = ["-c", "user.name=t", "-c", "user.email=t@example.test"]
+        git("init", "-q", "-b", "master")
+        git("add", ".")
+        git(*ident, "commit", "-q", "-m", "base")
+        origin = self.home / "origin.git"
+        self.run_cmd("git", "clone", "-q", "--bare", str(self.repo), str(origin))
+        git("remote", "add", "origin", str(origin))
+        git("fetch", "-q", "origin")
+        git("branch", "-q", "--set-upstream-to=origin/master")
+        other = self.home / "other"
+        self.run_cmd("git", "clone", "-q", str(origin), str(other))
+        (other / "marker").write_text("new\n")
+        git("add", ".", cwd=other)
+        git(*ident, "commit", "-q", "-m", "next", cwd=other)
+        git("push", "-q", "origin", "master", cwd=other)
+        env = {**self.env}
+        env.pop("MISE_CONFIG_DIR")
+        script = str(self.repo / "scripts/pod-bootstrap")
+        state = self.home / ".local/state"
+
+        hold = self.home / ".neko-hold"
+        hold.touch()
+        result = self.run_cmd("sh", script, "--pull", "--hold", str(hold), "--log", "neko-bootstrap", env=env)
+        self.assertTrue(result.stdout.startswith("pod-bootstrap: ok hold "), result.stdout)
+        self.assertFalse((self.home / "mise.calls").exists())
+        self.assertFalse((self.repo / "marker").exists())
+        hold.unlink()
+
+        result = self.run_cmd("sh", script, "--pull", "--hold", str(hold), "--log", "neko-bootstrap",
+                              "--timeout", "900", env=env)
+        log = (state / "neko-bootstrap.log").read_text()
+        self.assertIn("dotfiles updated", log)
+        self.assertTrue((self.repo / "marker").exists())
+        self.assertEqual(log.count("[info] mode:"), 1)
+        self.assertTrue((state / "neko-bootstrap.status").read_text().startswith("ok fresh "))
+        self.assertFalse((state / "pod-bootstrap.status").exists())
+
+        result = self.run_cmd("sh", script, "--bogus", ok=False, env=env)
+        self.assertEqual(result.returncode, 2)
+
     def test_pod_bootstrap_without_checkout(self):
         self.fake_mise()
         shutil.rmtree(self.repo / "scripts")
@@ -966,21 +1011,21 @@ exit 22
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
         state = self.home / ".local/state"
         state.mkdir(parents=True, exist_ok=True)
-        self.assertEqual(self.doctor()["code-server-bootstrap"], "fail")
+        self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
         for line, want in (("ok secrets 2026-11-16", "pass"), ("ok fresh 2026-11-16", "fail"),
                            ("ok protect 2026-11-16", "fail"), ("error secrets 2026-11-16", "fail")):
             with self.subTest(status=line):
                 (state / "pod-bootstrap.status").write_text(line + "\n")
-                self.assertEqual(self.doctor()["code-server-bootstrap"], want)
+                self.assertEqual(self.doctor()["pod-bootstrap"], want)
         settings = self.home / ".local/share/code-server/Machine/settings.json"
         self.assertEqual(json.loads(settings.read_text())["terminal.integrated.defaultProfile.linux"], "zsh")
         self.assertEqual((self.home / ".zshrc").resolve(),
-                         (self.repo / "conf.d/macos/zsh/zshrc").resolve())
+                         (self.repo / "conf.d/zsh/zshrc").resolve())
 
     def test_zsh_noninteractive_path(self):
         if not shutil.which("zsh"):
             self.skipTest("zsh is not installed")
-        (self.home / ".zshenv").symlink_to(self.repo / "conf.d/macos/zsh/zshenv")
+        (self.home / ".zshenv").symlink_to(self.repo / "conf.d/zsh/zshenv")
         result = self.run_cmd("zsh", "-c", "command -v mise; print -r -- $PATH",
                              env={**self.env, "PATH": "/usr/bin:/bin"})
         self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
@@ -990,7 +1035,7 @@ exit 22
         if not shutil.which("zsh"):
             self.skipTest("zsh is not installed")
         result = self.run_cmd("zsh", "-f", "-c", '''
-fpath=("$HOME/.dotfiles/conf.d/macos/zsh/config/completions" $fpath)
+fpath=("$HOME/.dotfiles/conf.d/zsh/config/completions" $fpath)
 autoload -Uz _mise
 BUFFER='mise ta'
 CURSOR=${#BUFFER}

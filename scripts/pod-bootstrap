@@ -1,21 +1,47 @@
 #!/bin/sh
-# Provision a pod whose only persistent state is $HOME (code-server). Its init
-# container runs this by path at every start: nothing the bootstrap applies
-# can remove it, so a rolled pod comes back provisioned. It applies the
-# checkout already on the volume and never pulls: this runs unattended with
-# the owner's token, so a new commit only arrives when he pulls it himself
-# (`git -C ~/.dotfiles pull`, then `mise run apply`). Same modes as
-# neko-bootstrap. Exit 0 only on success; the status line is in $STATUS.
+# Provision a workstation pod (layer `pod`) whose only persistent state is
+# $HOME. home-ops' dotfiles Component runs this by path at every start, so
+# nothing the bootstrap applies can remove it and a rolled pod comes back
+# provisioned. Picks a mode, then runs `mise bootstrap` (at most twice):
+#   secrets  live Proton Pass session (the pod's token logs in without a TTY)
+#   fresh    no session and no secret-derived content to lose
+#   protect  no session and secrets on disk: skip dotfiles, or they render empty
+#
+# Options (defaults are code-server's):
+#   --pull         fast-forward ~/.dotfiles first and re-run from the new
+#                  commit. Off: the run has the owner's token, so a commit only
+#                  arrives when he pulls it (`git -C ~/.dotfiles pull`, then
+#                  `mise run apply`).
+#   --hold FILE    do nothing while FILE exists (parks a pod mid-surgery)
+#   --log NAME     log to ~/.local/state/NAME.log, status in NAME.status
+#                  (default pod-bootstrap)
+#   --timeout SEC  limit for each `mise bootstrap` run (default 1500)
+# Only the status line goes to stdout: a pod's own log is readable by the
+# agents' cluster tools, and a failing tool may print what it was rendering.
+# Exit 0 only on success.
 set -u
+
+PULL= HOLD= NAME=pod-bootstrap TIMEOUT=1500
+parse() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--pull) PULL=1 ;;
+		--hold) HOLD="$2"; shift ;;
+		--log) NAME="$2"; shift ;;
+		--timeout) TIMEOUT="$2"; shift ;;
+		*) echo "pod-bootstrap: unknown option $1" >&2; exit 2 ;;
+		esac
+		shift
+	done
+}
+parse "$@"
 
 DOTFILES="${HOME}/.dotfiles"
 STATE="${HOME}/.local/state"
-LOG="${STATE}/pod-bootstrap.log"
-STATUS="${STATE}/pod-bootstrap.status"
+LOG="${STATE}/${NAME}.log"
+STATUS="${STATE}/${NAME}.status"
 
-# Outer run: everything goes to the log on the PVC, only the status line to
-# stdout. The init container's log is readable cluster-wide (the agents'
-# kubectl tools, Loki), and a failing tool may print what it was rendering.
+# Outer run: everything to the log on the PVC, the status line to stdout.
 if [ -z "${POD_BOOTSTRAP_INNER:-}" ]; then
 	mkdir -p "$STATE"
 	rm -f "$STATUS"
@@ -35,7 +61,16 @@ export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 [ -d "${DOTFILES}/.git" ] || fail "no ${DOTFILES} checkout"
 cd "$DOTFILES" || fail "cannot enter ${DOTFILES}"
 . "${DOTFILES}/scripts/provision.sh"
+
+# A file in $HOME, so a pod parked mid-surgery comes back parked.
+if [ -n "$HOLD" ] && [ -e "$HOLD" ]; then
+	echo "[hold] ${HOLD} present — skipping. Remove it and run this again to resume."
+	MODE=hold
+	status ok
+	exit 0
+fi
 ensure_mise || fail "mise is not usable"
+[ -z "$PULL" ] || pull_dotfiles sh "$0" "$@"
 
 # The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
 export MISE_CONFIG_DIR="$DOTFILES"
@@ -46,9 +81,6 @@ eval "$("$MISE" env --shell bash 2>/dev/null)" || true
 # also what logs the default session in.
 PAT="${PASS_CLI_PAT:-${PROTON_PASS_TOKEN:-}}"
 
-#   secrets  live Proton Pass session (the token logs in without a TTY)
-#   fresh    no session and no secret-derived content to lose
-#   protect  no session and secrets on disk: skip dotfiles, or they render empty
 pick_mode() {
 	FNOX="$("$MISE" which fnox 2>/dev/null || true)"
 	if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
@@ -71,8 +103,7 @@ run_bootstrap() {
 	fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
 	protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty --locked ;;
 	esac
-	# Two runs at most: together under the init container's own limit.
-	timeout 1500 "$@"
+	timeout "$TIMEOUT" "$@"
 }
 
 pick_mode

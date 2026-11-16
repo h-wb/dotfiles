@@ -34,7 +34,9 @@ miserc.toml              picks this machine's class and layers
 conf.d/                  one folder per machine, and the features
   ai/                    every machine: the agents' MCP servers and shared skills
   proton-pass/           every machine: the named-session login task other repos extend
-  macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
+  pod/                   layer: a workstation in a k8s pod (neko, code-server)
+  zsh/                   layer: zsh + z4h + p10k (the Macs, code-server)
+  macos/                 the Macs: apps, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
   macos-defaults/        `defaults write`, declaratively
   macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
   macos-zen-history/     Zen history snapshots → Nextcloud (MacBook)
@@ -43,10 +45,10 @@ conf.d/                  one folder per machine, and the features
   neko-obsidian/         Obsidian + Local REST API (n8n), kept running there
   cachyos/               the CachyOS gaming desktop
   paseo/                 the coding-agent pods, and the skills only they use
-  code-server/           the owner's code-server pod
+  code-server/           the owner's code-server pod: only its editor settings
 home/                    sources for the two root configs (git, ssh, kube)
 fnox.toml                Proton Pass secret references (no values); the agents' own in conf.d/ai/
-scripts/                 first-install helpers and the Proton Pass preflight
+scripts/                 first-install helpers, the Proton Pass preflight, pod-bootstrap
 tests/                   regressions, run in throwaway homes
 ```
 
@@ -60,9 +62,17 @@ says where it loads:
 Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds
 `mise.macos.toml` for any Mac and `mise.personal.toml` for the MacBook.
 
-`miserc.toml` detects the class and adds its layers: `personal`, `neko` and
-`cachyos` also load `workstation`. An untracked `miserc.local.toml` pins a
-class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on
+`miserc.toml` detects the class and `[env_sets]` adds its layers:
+
+| class | layers |
+| --- | --- |
+| `personal` | `workstation`, `zsh` |
+| `neko` | `workstation`, `pod` |
+| `cachyos` | `workstation` |
+| `code-server` | `workstation`, `pod`, `zsh` |
+| `paseo` | none |
+
+An untracked `miserc.local.toml` pins a class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on
 their own.
 
 ## Set up a machine

@@ -4,8 +4,9 @@ Dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi is
 long gone). Secrets come from **fnox** backed by **Proton Pass**. Five machine
 classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s pod
 (`neko`), a CachyOS KDE gaming desktop (`cachyos`), a headless coding-agent
-pod (`paseo`) and the owner's browser editor in a k8s pod (`code-server`). What several classes share lives in a **layer** (`workstation`),
-not in each class. Read the section for a machine before touching anything it
+pod (`paseo`) and the owner's browser editor in a k8s pod (`code-server`).
+What several classes share lives in a **layer** (`workstation`, `pod`,
+`zsh`), not in each class: a machine is its layers plus what only it has. Read the section for a machine before touching anything it
 loads.
 
 **On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
@@ -51,7 +52,15 @@ ignored:
 | env                   | machines                | holds                                                                                                               |
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `workstation` (layer) | personal, neko, cachyos, code-server | credentialed CLIs (aws, bws, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
+| `pod` (layer, `conf.d/pod`) | neko, code-server | a workstation in a k8s pod: the keyring-less key provider, the repo a fresh volume needs |
+| `zsh` (layer, `conf.d/zsh`) | personal, code-server | the shell: zsh + z4h + p10k, `ez` |
 | the class             | one machine             | everything else                                                                                                     |
+
+Layers other than `workstation` come only from `[env_sets]`, which also
+expands a class `miserc.toml` detected (verified with 2026.11.8), so a new
+layer needs no detection line. `pod` is not the old one dropped in #15: that
+one held leftovers (tmux for a gone sshd, LANG, a clone) for the Paseo pods
+too; this one holds only what a workstation pod is, and Paseo never loads it.
 
 So `config.toml` is only what _every_ machine wants, the paseo agent host
 included; a layer never has to be taken back out by a class. An unrecognised
@@ -79,7 +88,8 @@ job and how `mise -E neko` selects a machine.
   `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`, `code-server/`. A
   feature only that machine has is `<machine>-<feature>/`: `macos-defaults/`,
   `macos-k8s-dns/`, `macos-zen-history/`, `neko-anki/`, `neko-obsidian/`. A folder with no machine in its name loads on several:
-  `ai/`, `proton-pass/`. So the root holds only the shared layers, and
+  `ai/`, `proton-pass/`, and the layers `pod/`, `zsh/`. So the root holds only
+  `config.toml` and `config.workstation.toml`, and
   `test_conf_d_folder_names_say_where_they_load` holds the names to this. Give
   a feature its own folder when it has its own files, tasks or doctor checks;
   otherwise it is a section of its machine's file.
@@ -373,7 +383,7 @@ in `conf.d/ai/README.md`; what is easy to break:
 
 ## The MacBook (`personal`) and every Mac (`macos`)
 
-- `conf.d/macos/mise.macos.toml`: Rosetta + `/etc/paths` hook, casks, zsh, the
+- `conf.d/macos/mise.macos.toml`: Rosetta + `/etc/paths` hook, casks, the
   Proton Pass ssh-agent LaunchAgent (`SSH_AUTH_SOCK` is set here only, so Linux
   needs no override), wireguard, BTT. `mise.personal.toml` beside it:
   MacBook-only packages.
@@ -450,7 +460,7 @@ one-line wrappers) and `dns:status`.
   no-ops from `kubectl exec`.
 - **pass-cli**: the default backend keeps its key in the kernel keyring, which
   this pod's seccomp blocks (`keyctl` EPERM even as root; gnome-keyring does not
-  help — different store). `PROTON_PASS_KEY_PROVIDER=fs` keeps it on the PVC;
+  help — different store). `PROTON_PASS_KEY_PROVIDER=fs` (layer `pod`) keeps it on the PVC;
   a session-start run logs in from `PASS_CLI_PAT`. Never reach for
   `seccompProfile: Unconfined`.
 - **GUI apps**: not brew (installs outside the PVC; Linux casks are font-only),
@@ -525,49 +535,39 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 
 ## The code-server pod (`conf.d/code-server/`)
 
-The owner's own environment in the cluster: `ghcr.io/coder/code-server` in
-k8s, Debian, user `coder`, opened in his browser behind the Kanidm login. It
-is where he works as himself (`gh auth login`, `land <pr>`), so it loads the
-`workstation` layer like the Mac, and shares nothing with the Paseo pods.
+The owner's own environment in the cluster: `ghcr.io/coder/code-server`,
+Debian, user `coder`, in his browser behind the Kanidm login, where he works
+as himself (`gh auth login`, `land <pr>`). Class `code-server` = `workstation`
++ `pod` + `zsh`; its folder holds only what is about this image: the editor's
+terminal profile, and the `pod-bootstrap` doctor check until neko uses it too.
 
-- **Only `/home/coder` is on a PVC.** zsh, git and curl come with the image;
-  sudo works but anything apt installs is gone after a roll, so nothing here
-  depends on it. The init container's `/etc` is not even the app's.
-- **Provisioning** is home-ops' `bootstrap` init container, on the app's
-  image: it clones `~/.dotfiles` when the script is missing (a cut-off clone
-  is moved aside), then runs `scripts/pod-bootstrap` **by path** — never a
-  link the bootstrap manages, so a rolled pod always comes back provisioned
-  (the neko incident of 2026-11-12). Don't move that script without changing
-  home-ops in the same breath. It installs mise with `provision.sh`, picks
-  neko's `secrets`/`fresh`/`protect` mode and bootstraps; a first run that
-  installs fnox while a working token waits goes straight on to `secrets`.
-- **It never pulls.** It runs unattended with the owner's token, so it
-  applies the checkout already on the volume; only an empty volume gets a
-  fresh clone of `master`. Updating is the Mac's way: `git -C ~/.dotfiles
-  pull`, read what came in, `mise run apply`. Keep `master` protected (pull
-  request and the owner's review) all the same: the first clone takes it.
-  The pod starts whatever the result: doctor `code-server-bootstrap` reads
-  `~/.local/state/pod-bootstrap.status`, the log is next to it. Only the
-  status line goes to stdout: the init container's log is readable by the
-  agents' cluster tools.
-- `~/.dotfiles` is a normal writable checkout here, like on the Mac (not the
-  Paseo pods' read-only `emptyDir`).
-- **Proton Pass**: one token, home-ops' `code-server` BWS item, arrives as
-  `PROTON_PASS_TOKEN` (repos' `pass:login`); pod-bootstrap logs the default
-  session in with it too. Its grants are the owner's workstation's, never
-  the Paseo pod's token. `PROTON_PASS_KEY_PROVIDER=fs`
-  as on neko.
-- **Shell**: the Mac's zsh files from `conf.d/macos/zsh`, by absolute path
-  (one copy). The image's login shell is bash, so the editor's terminal is
-  pointed at zsh in the *Machine* `settings.json` instead of `chsh`; the
-  User one is the settings UI's and stays out of the repo.
-- **GitHub**: git uses `gh auth git-credential`, `gh` by its shim path because
-  the editor's own git has no mise on PATH; the token is the owner's own
-  `gh auth login`. Nothing here reads `GH_TOKEN`.
-- **Credentials live on the PVC and in its kopiur backups** (daily, to the
-  NAS, weeks of retention): rotate rather than rely on deletion.
-- kubectl and k9s come from `config.toml`, the kubeconfigs from the
-  `workstation` layer; home-ops mounts no kubeconfig and copies no CLIs.
+- **Provisioning** is home-ops' `dotfiles` Component: at every start it clones
+  `~/.dotfiles` when `scripts/pod-bootstrap` is missing (a cut-off clone is
+  moved aside), then runs that script **by path** — never a link the bootstrap
+  manages, so a rolled pod comes back provisioned (the neko incident of
+  2026-11-12). Don't move the script without changing home-ops with it.
+- **`scripts/pod-bootstrap`** is the one implementation for workstation pods:
+  mise from `provision.sh`, neko's `secrets`/`fresh`/`protect` modes, a second
+  run when a fresh volume's token works, a status file for doctor
+  `pod-bootstrap`, only the status line on stdout (pod logs are readable by the
+  agents' cluster tools). neko's differences are options (`--pull`, `--hold`,
+  `--log`, `--timeout`); neko itself still runs `neko-bootstrap`.
+- **It never pulls on code-server.** It runs unattended with the owner's token,
+  so it applies the checkout on the volume; only an empty volume clones
+  `master`. Updating is the Mac's way: `git -C ~/.dotfiles pull`, read it,
+  `mise run apply`. Keep `master` protected (pull request plus the owner's
+  review): the first clone and every pull take it.
+- **Proton Pass**: one token, BWS `code-server`, as `PROTON_PASS_TOKEN` (repos'
+  `pass:login`); pod-bootstrap logs the default session in with it. Never the
+  Paseo pod's token.
+- **Shell**: layer `zsh`. The image's login shell is bash and `/etc` does not
+  survive a roll, so the terminal is pointed at zsh in the *Machine*
+  `settings.json`; the User one is the settings UI's.
+- **GitHub**: git uses `gh auth git-credential`, `gh` by its shim path (the
+  editor's own git has no mise on PATH), after the owner's own `gh auth
+  login`. The credential branch in `home/git/config.tmpl` follows the class.
+- **Credentials live on the PVC and in its kopiur backups**: rotate rather than
+  rely on deletion.
 
 ## The CachyOS desktop (`conf.d/cachyos/`)
 

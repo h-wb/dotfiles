@@ -1,35 +1,16 @@
-# The owner's code-server pod (class `code-server`): ghcr.io/coder/code-server in
-# k8s, Debian, user `coder`, the browser editor his workstation. Only /home/coder
-# is on a PVC; zsh and git come with the image. Provisioning is home-ops' init
-# container running scripts/pod-bootstrap by path at every pod start. Everything
-# else it gets is the `workstation` layer and config.toml, like the Mac.
-
-[env]
-# seccomp blocks the kernel keyring pass-cli uses by default; `fs` keeps the key on the PVC.
-PROTON_PASS_KEY_PROVIDER = "fs"
-
-[shell_alias]
-ez = "exec zsh"
+# The owner's code-server pod (class `code-server` = workstation + pod + zsh):
+# ghcr.io/coder/code-server, user `coder`. Only what is about this image is
+# here; home-ops' dotfiles Component runs scripts/pod-bootstrap at every start.
 
 [dotfiles]
-# The Mac's zsh, by absolute path so there is one copy. Move conf.d/macos/zsh to
-# a shared folder if a third machine wants it.
-"~/.zshrc"      = { source = "~/.dotfiles/conf.d/macos/zsh/zshrc", mode = "symlink" }
-"~/.zshenv"     = { source = "~/.dotfiles/conf.d/macos/zsh/zshenv", mode = "symlink" }
-"~/.p10k.zsh"   = { source = "~/.dotfiles/conf.d/macos/zsh/p10k.zsh", mode = "symlink" }
-"~/.config/zsh" = { source = "~/.dotfiles/conf.d/macos/zsh/config", mode = "symlink" }
 # The image's login shell is bash, and /etc does not survive a pod roll: the
-# terminal picks zsh here instead. Machine scope, not User: the settings UI
-# writes User/settings.json, which stays the owner's.
+# editor's terminal picks zsh here instead. Machine scope, not User: the
+# settings UI writes User/settings.json, which stays the owner's.
 "~/.local/share/code-server/Machine/settings.json" = { source = "settings.json", mode = "symlink" }
 
-# Open it once from the editor (code-server reopens the last folder). No ref,
-# so a clean checkout stays on whatever branch it is on.
-[bootstrap.repos]
-"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
-
-# The init container always lets the pod start, so a failed run only shows here.
-[doctor.checks.code-server-bootstrap]
+# Here until neko also runs pod-bootstrap; then it moves to the pod layer.
+# The pod always starts, so a failed run only shows here.
+[doctor.checks.pod-bootstrap]
 description = "the last pod start provisioned this pod with secrets"
 hint = "see ~/.local/state/pod-bootstrap.log; rerun with ~/.dotfiles/scripts/pod-bootstrap"
 run = '''
