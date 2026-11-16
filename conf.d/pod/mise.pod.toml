@@ -1,0 +1,12 @@
+# Layer `pod`: a workstation in a k8s pod (neko, code-server). Only $HOME is
+# on a volume, so it is provisioned at every start and may start empty; the
+# pod's seccomp blocks the kernel keyring. Not the Paseo pods: they are not
+# workstations and hold none of this.
+
+[env]
+# pass-cli keeps its key in the kernel keyring by default; `fs` keeps it on the PVC.
+PROTON_PASS_KEY_PROVIDER = "fs"
+
+# A fresh volume starts without the repo every pod works on.
+[bootstrap.repos]
+"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }

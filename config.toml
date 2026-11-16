@@ -76,7 +76,7 @@ run = '''
   [ "$(cd "$HOME/.config/mise" && pwd -P)" = "$(cd {{ vars.repo | quote }} && pwd -P)" ] \
 	|| { echo "~/.config/mise is not a symlink to the dotfiles checkout"; exit 1; }
 configs="$(mise config)" || exit 1
-printf '%s\n' "$configs" | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo)\.toml' \
+printf '%s\n' "$configs" | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo|code-server)\.toml' \
 	|| { echo "no machine class active — miserc.toml did not recognise this machine"; exit 1; }
 '''
 

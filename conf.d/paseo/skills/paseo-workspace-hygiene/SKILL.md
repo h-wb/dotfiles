@@ -65,5 +65,4 @@ One line explaining the change.
 `````
 
 One comment per update; `land` uses the newest. Then tell the user to run
-`land <pr>` from their own terminal (code-server needs mise/gh first;
-workstation or neko work today).
+`land <pr>` from their own terminal (code-server, their Mac or neko).

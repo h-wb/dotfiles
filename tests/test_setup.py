@@ -81,7 +81,10 @@ config)
   *'"paseo"'*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
   *) echo "$HOME/.dotfiles/config.workstation.toml" ;;
   esac ;;
-which) exit 1 ;;
+which)
+  [ "$2" = fnox ] && [ -n "${TEST_FNOX:-}" ] && [ -e "$HOME/fnox-installed" ] || exit 1
+  echo "$TEST_FNOX" ;;
+bootstrap) [ -z "${TEST_FNOX:-}" ] || touch "$HOME/fnox-installed" ;;
 exec)
   export PROTON_PASS_KEY_PROVIDER=fs
   while [ "$1" != -- ]; do shift; done
@@ -97,15 +100,16 @@ esac
                 configs = self.mise("config").stdout
                 for other in LAYERS:
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
-                for layer in ("workstation",):
-                    self.assertEqual(f".{layer}.toml" in configs, layer in layers)
+                for layer in ("workstation", "pod", "fish"):
+                    self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
                     self.mise("tasks", "info", line.split()[0])
 
     # The envs each machine's own folders may use; `personal` is the MacBook.
     MACHINE_ENVS = {"macos": {"macos", "personal"}, "neko": {"neko"},
-                    "cachyos": {"cachyos"}, "paseo": {"paseo", "paseo-overlay"}}
+                    "cachyos": {"cachyos"}, "paseo": {"paseo", "paseo-overlay"},
+                    "code-server": {"code-server"}}
 
     def test_conf_d_folder_names_say_where_they_load(self):
         # A folder that loads on one machine is named after it (`neko`,
@@ -833,6 +837,213 @@ exit 22
         (self.home / ".neko-hold").touch()
         self.run_cmd("sh", str(self.repo / "conf.d/neko/bin/neko-bootstrap"))
         self.assertFalse((self.home / "mise.calls").exists())
+
+    def pod_bootstrap(self, ok=True, fnox_installed=False, **extra):
+        (self.repo / ".git").mkdir(exist_ok=True)
+        for name in ("mise.calls", "fnox.calls", "fnox-installed", "pass-cli.calls"):
+            (self.home / name).unlink(missing_ok=True)
+        if fnox_installed:
+            (self.home / "fnox-installed").touch()
+        env = {**self.env, **extra}
+        env.pop("MISE_CONFIG_DIR")
+        result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), ok=ok, env=env)
+        status = (self.home / ".local/state/pod-bootstrap.status").read_text().split()
+        calls = (self.home / "mise.calls").read_text()
+        return result, status[:2], calls
+
+    def test_pod_bootstrap_modes(self):
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        self.fake("fnox", 'printf "%s\\n" "$*" >> "$HOME/fnox.calls"\n'
+                  'while [ "$1" != -- ]; do shift; done; shift; exec "$@"')
+        fnox = str(self.bin / "fnox")
+        kube = self.home / ".kube"
+        kube.mkdir()
+
+        with self.subTest("fresh PVC, no token"):
+            result, status, calls = self.pod_bootstrap()
+            self.assertEqual(status, ["ok", "fresh"])
+            self.assertIn("bootstrap --yes --force-dotfiles --skip-dirty --locked", calls)
+            # Only the status line reaches the init container's log.
+            self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+            self.assertTrue(result.stdout.startswith("pod-bootstrap: ok fresh "), result.stdout)
+            self.assertIn("[info] mode: fresh",
+                          (self.home / ".local/state/pod-bootstrap.log").read_text())
+
+        self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
+        with self.subTest("fresh PVC, token rejected: one run"):
+            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
+            self.assertEqual(status, ["ok", "fresh"])
+            self.assertEqual(calls.count("bootstrap --yes"), 1)
+            self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
+
+        # The first run installs fnox; the token is used in the same pod start.
+        self.fake("pass-cli", '[ "$1" = login ] && [ "$2" = --pat ]')
+        with self.subTest("fresh PVC, token waiting"):
+            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
+            self.assertEqual(status, ["ok", "secrets"])
+            self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)
+            self.assertIn("--if-missing error exec", (self.home / "fnox.calls").read_text())
+
+        (kube / "main.yaml").write_text("fixture credentials\n")
+        with self.subTest("secrets on disk, fnox installed, token rejected"):
+            self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
+            _, status, calls = self.pod_bootstrap(fnox_installed=True, TEST_FNOX=fnox,
+                                                  PROTON_PASS_TOKEN="fixture-pat")
+            self.assertEqual(status, ["ok", "protect"])
+            self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
+            self.assertIn("--skip dotfiles", calls)
+            self.assertNotIn("--force-dotfiles", calls)
+            self.assertFalse((self.home / "fnox.calls").exists())
+
+        with self.subTest("bootstrap fails"):
+            self.fake("timeout", "exit 3")
+            result, status, _ = self.pod_bootstrap(ok=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(status, ["error", "protect"])
+
+    def test_pod_bootstrap_never_pulls(self):
+        # It runs with the owner's token: a commit pushed upstream must not run
+        # until he pulls it himself.
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
+        ident = ["-c", "user.name=t", "-c", "user.email=t@example.test"]
+        git("init", "-q", "-b", "master")
+        git("add", ".")
+        git(*ident, "commit", "-q", "-m", "base")
+        origin = self.home / "origin.git"
+        self.run_cmd("git", "clone", "-q", "--bare", str(self.repo), str(origin))
+        git("remote", "add", "origin", str(origin))
+        git("fetch", "-q", "origin")
+        git("branch", "-q", "--set-upstream-to=origin/master")
+        other = self.home / "other"
+        self.run_cmd("git", "clone", "-q", str(origin), str(other))
+        (other / "scripts/pod-bootstrap").write_text('#!/bin/sh\ntouch "$HOME/upstream-ran"\n')
+        git("add", ".", cwd=other)
+        git(*ident, "commit", "-q", "-m", "upstream", cwd=other)
+        git("push", "-q", "origin", "master", cwd=other)
+        before = git("rev-parse", "HEAD").stdout
+        env = {**self.env}
+        env.pop("MISE_CONFIG_DIR")
+        self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), env=env)
+        self.assertEqual(git("rev-parse", "HEAD").stdout, before)
+        self.assertEqual(git("rev-parse", "origin/master").stdout, before)  # not even fetched
+        self.assertFalse((self.home / "upstream-ran").exists())
+        self.assertEqual((self.home / "mise.calls").read_text().count("bootstrap --yes"), 1)
+
+    def test_git_credential_follows_the_class(self):
+        # The class decides, as miserc.toml picks it, so a pinned class renders
+        # its own branch on any machine.
+        expect = {
+            "neko": "helper = %s/.local/bin/git-credential-fnox" % self.home,
+            "paseo": "helper = !gh auth git-credential",
+            "code-server": "helper = !%s/.local/share/mise/shims/gh auth git-credential" % self.home,
+            "cachyos": "helper = store",
+        }
+        for machine, helper in expect.items():
+            with self.subTest(machine=machine):
+                self.select(machine)
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+                config = (self.home / ".config/git/config").read_text()
+                self.assertIn(helper, config)
+                self.assertEqual(config.count("helper ="), 1, config)
+                self.assertEqual("[safe]" in config, machine == "paseo")
+
+    def test_pod_bootstrap_options(self):
+        # neko's differences, as options: pull and re-run, a hold file, its own log.
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
+        ident = ["-c", "user.name=t", "-c", "user.email=t@example.test"]
+        git("init", "-q", "-b", "master")
+        git("add", ".")
+        git(*ident, "commit", "-q", "-m", "base")
+        origin = self.home / "origin.git"
+        self.run_cmd("git", "clone", "-q", "--bare", str(self.repo), str(origin))
+        git("remote", "add", "origin", str(origin))
+        git("fetch", "-q", "origin")
+        git("branch", "-q", "--set-upstream-to=origin/master")
+        other = self.home / "other"
+        self.run_cmd("git", "clone", "-q", str(origin), str(other))
+        (other / "marker").write_text("new\n")
+        git("add", ".", cwd=other)
+        git(*ident, "commit", "-q", "-m", "next", cwd=other)
+        git("push", "-q", "origin", "master", cwd=other)
+        env = {**self.env}
+        env.pop("MISE_CONFIG_DIR")
+        script = str(self.repo / "scripts/pod-bootstrap")
+        state = self.home / ".local/state"
+
+        hold = self.home / ".neko-hold"
+        hold.touch()
+        result = self.run_cmd("sh", script, "--pull", "--hold", str(hold), "--log", "neko-bootstrap", env=env)
+        self.assertTrue(result.stdout.startswith("pod-bootstrap: ok hold "), result.stdout)
+        self.assertFalse((self.home / "mise.calls").exists())
+        self.assertFalse((self.repo / "marker").exists())
+        hold.unlink()
+
+        result = self.run_cmd("sh", script, "--pull", "--hold", str(hold), "--log", "neko-bootstrap",
+                              "--timeout", "900", env=env)
+        log = (state / "neko-bootstrap.log").read_text()
+        self.assertIn("dotfiles updated", log)
+        self.assertTrue((self.repo / "marker").exists())
+        self.assertEqual(log.count("[info] mode:"), 1)
+        self.assertTrue((state / "neko-bootstrap.status").read_text().startswith("ok fresh "))
+        self.assertFalse((state / "pod-bootstrap.status").exists())
+
+        result = self.run_cmd("sh", script, "--bogus", ok=False, env=env)
+        self.assertEqual(result.returncode, 2)
+
+    def test_pod_bootstrap_without_checkout(self):
+        self.fake_mise()
+        shutil.rmtree(self.repo / "scripts")
+        script = self.home / "pod-bootstrap"
+        shutil.copy(ROOT / "scripts/pod-bootstrap", script)
+        result = self.run_cmd("sh", str(script), ok=False)
+        self.assertNotEqual(result.returncode, 0)
+        status = (self.home / ".local/state/pod-bootstrap.status").read_text()
+        self.assertTrue(status.startswith("error none "), status)
+        self.assertFalse((self.home / "mise.calls").exists())
+
+    def test_code_server_doctor_reports_the_last_pod_start(self):
+        self.select("code-server")
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        state = self.home / ".local/state"
+        state.mkdir(parents=True, exist_ok=True)
+        self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
+        for line, want in (("ok secrets 2026-11-16", "pass"), ("ok fresh 2026-11-16", "fail"),
+                           ("ok protect 2026-11-16", "fail"), ("error secrets 2026-11-16", "fail")):
+            with self.subTest(status=line):
+                (state / "pod-bootstrap.status").write_text(line + "\n")
+                self.assertEqual(self.doctor()["pod-bootstrap"], want)
+        settings = json.loads((self.home / ".local/share/code-server/Machine/settings.json").read_text())
+        profile = settings["terminal.integrated.defaultProfile.linux"]
+        self.assertEqual(settings["terminal.integrated.profiles.linux"][profile]["path"],
+                         str(self.home / ".local/share/mise/shims/fish"))
+        self.assertEqual((self.home / ".config/fish/config.fish").resolve(),
+                         (self.repo / "conf.d/fish/config.fish").resolve())
+        self.assertEqual((self.home / ".config/starship.toml").resolve(),
+                         (self.repo / "conf.d/fish/starship.toml").resolve())
+        self.assertFalse((self.home / ".zshrc").exists())
+
+    def test_fish_config_loads(self):
+        # The fish layer's config.fish, in both branches: scripts get mise's shims,
+        # an interactive shell activates mise (starship only once installed).
+        if not shutil.which("fish"):
+            self.skipTest("fish is not installed")
+        config = self.home / ".config/fish/config.fish"
+        config.parent.mkdir(parents=True)
+        config.symlink_to(self.repo / "conf.d/fish/config.fish")
+        # fish_add_path skips a directory that does not exist yet.
+        (self.home / ".local/share/mise/shims").mkdir(parents=True)
+        env = {**self.env, "PATH": f"{Path(shutil.which('fish')).parent}:/usr/bin:/bin"}
+        result = self.run_cmd("fish", "-c", "command -v mise; string join : $PATH", env=env)
+        self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
+        self.assertIn(str(self.home / ".local/share/mise/shims"), result.stdout)
+        self.assertEqual(result.stderr, "")
+        result = self.run_cmd("fish", "-i", "-c", "functions -q __mise_env_eval; and echo activated", env=env)
+        self.assertIn("activated", result.stdout)
 
     def test_zsh_noninteractive_path(self):
         if not shutil.which("zsh"):

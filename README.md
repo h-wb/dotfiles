@@ -20,6 +20,7 @@ firewall, tools and dotfiles. Secrets are injected by
 | `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | `/etc/neko` |
 | `cachyos` | CachyOS KDE gaming desktop | `/etc/pacman.d/cachyos-mirrorlist` |
 | `paseo` | headless coding-agent pods | `/etc/paseo` |
+| `code-server` | the owner's browser editor in a k8s pod | `/usr/lib/code-server` |
 
 ## Layout
 
@@ -28,11 +29,13 @@ firewall, tools and dotfiles. Secrets are injected by
 
 ```
 config.toml              every machine: tools, env, vars, shell aliases, doctor checks
-config.workstation.toml  personal, neko, cachyos: credentialed CLIs, kubeconfigs, the apply tasks
+config.workstation.toml  personal, neko, cachyos, code-server: credentialed CLIs, kubeconfigs, the apply tasks
 miserc.toml              picks this machine's class and layers
 conf.d/                  one folder per machine, and the features
   ai/                    every machine: the agents' MCP servers and shared skills
   proton-pass/           every machine: the named-session login task other repos extend
+  pod/                   layer: a workstation in a k8s pod (neko, code-server)
+  fish/                  layer: config.fish and the starship prompt (code-server; neko and cachyos later)
   macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
   macos-defaults/        `defaults write`, declaratively
   macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
@@ -42,9 +45,10 @@ conf.d/                  one folder per machine, and the features
   neko-obsidian/         Obsidian + Local REST API (n8n), kept running there
   cachyos/               the CachyOS gaming desktop
   paseo/                 the coding-agent pods, and the skills only they use
+  code-server/           the owner's code-server pod: the fish binary and its editor settings
 home/                    sources for the two root configs (git, ssh, kube)
 fnox.toml                Proton Pass secret references (no values); the agents' own in conf.d/ai/
-scripts/                 first-install helpers and the Proton Pass preflight
+scripts/                 first-install helpers, the Proton Pass preflight, pod-bootstrap
 tests/                   regressions, run in throwaway homes
 ```
 
@@ -58,9 +62,17 @@ says where it loads:
 Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds
 `mise.macos.toml` for any Mac and `mise.personal.toml` for the MacBook.
 
-`miserc.toml` detects the class and adds its layers: `personal`, `neko` and
-`cachyos` also load `workstation`. An untracked `miserc.local.toml` pins a
-class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on
+`miserc.toml` detects the class and `[env_sets]` adds its layers:
+
+| class | layers |
+| --- | --- |
+| `personal` | `workstation` |
+| `neko` | `workstation`, `pod` |
+| `cachyos` | `workstation` |
+| `code-server` | `workstation`, `pod`, `fish` |
+| `paseo` | none |
+
+An untracked `miserc.local.toml` pins a class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on
 their own.
 
 ## Set up a machine
@@ -71,7 +83,7 @@ sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/m
 
 On a Mac, sign in to iCloud and the App Store first. The installer installs
 mise, clones to `~/.dotfiles` and runs `mise bootstrap`, under fnox on a
-workstation and directly on a Paseo pod. `DOTFILES_ENV=personal|neko|cachyos|paseo`
+workstation and directly on a Paseo pod. `DOTFILES_ENV=personal|neko|cachyos|paseo|code-server`
 overrides the detected class; the installer saves it in `miserc.local.toml`.
 
 ## Everyday use

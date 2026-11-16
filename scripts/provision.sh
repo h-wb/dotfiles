@@ -1,4 +1,4 @@
-# Shared by install.sh and neko-bootstrap.
+# Shared by install.sh, neko-bootstrap and pod-bootstrap.
 # Sourced, POSIX sh. Sets MISE.
 
 # Install mise if missing, and self-update below config.toml's hard min_version:

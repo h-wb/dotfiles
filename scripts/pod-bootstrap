@@ -1,0 +1,123 @@
+#!/bin/sh
+# Provision a workstation pod (layer `pod`) whose only persistent state is
+# $HOME. home-ops' dotfiles Component runs this by path at every start, so
+# nothing the bootstrap applies can remove it and a rolled pod comes back
+# provisioned. Picks a mode, then runs `mise bootstrap` (at most twice):
+#   secrets  live Proton Pass session (the pod's token logs in without a TTY)
+#   fresh    no session and no secret-derived content to lose
+#   protect  no session and secrets on disk: skip dotfiles, or they render empty
+#
+# Options (defaults are code-server's):
+#   --pull         fast-forward ~/.dotfiles first and re-run from the new
+#                  commit. Off: the run has the owner's token, so a commit only
+#                  arrives when he pulls it (`git -C ~/.dotfiles pull`, then
+#                  `mise run apply`).
+#   --hold FILE    do nothing while FILE exists (parks a pod mid-surgery)
+#   --log NAME     log to ~/.local/state/NAME.log, status in NAME.status
+#                  (default pod-bootstrap)
+#   --timeout SEC  limit for each `mise bootstrap` run (default 1500)
+# Only the status line goes to stdout: a pod's own log is readable by the
+# agents' cluster tools, and a failing tool may print what it was rendering.
+# Exit 0 only on success.
+set -u
+
+PULL= HOLD= NAME=pod-bootstrap TIMEOUT=1500
+parse() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--pull) PULL=1 ;;
+		--hold) HOLD="$2"; shift ;;
+		--log) NAME="$2"; shift ;;
+		--timeout) TIMEOUT="$2"; shift ;;
+		*) echo "pod-bootstrap: unknown option $1" >&2; exit 2 ;;
+		esac
+		shift
+	done
+}
+parse "$@"
+
+DOTFILES="${HOME}/.dotfiles"
+STATE="${HOME}/.local/state"
+LOG="${STATE}/${NAME}.log"
+STATUS="${STATE}/${NAME}.status"
+
+# Outer run: everything to the log on the PVC, the status line to stdout.
+if [ -z "${POD_BOOTSTRAP_INNER:-}" ]; then
+	mkdir -p "$STATE"
+	rm -f "$STATUS"
+	POD_BOOTSTRAP_INNER=1 sh "$0" "$@" >>"$LOG" 2>&1
+	echo "pod-bootstrap: $(cat "$STATUS" 2>/dev/null || echo 'error none (no status)'); log: $LOG"
+	grep -q '^ok ' "$STATUS" 2>/dev/null
+	exit
+fi
+
+MODE=none
+status() { echo "$1 ${MODE} $(date -Is)" >"$STATUS"; }
+fail() { echo "[error] $*"; status error; exit 1; }
+
+echo "=== $(date -Is) pod start ==="
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
+
+[ -d "${DOTFILES}/.git" ] || fail "no ${DOTFILES} checkout"
+cd "$DOTFILES" || fail "cannot enter ${DOTFILES}"
+. "${DOTFILES}/scripts/provision.sh"
+
+# A file in $HOME, so a pod parked mid-surgery comes back parked.
+if [ -n "$HOLD" ] && [ -e "$HOLD" ]; then
+	echo "[hold] ${HOLD} present — skipping. Remove it and run this again to resume."
+	MODE=hold
+	status ok
+	exit 0
+fi
+ensure_mise || fail "mise is not usable"
+[ -z "$PULL" ] || pull_dotfiles sh "$0" "$@"
+
+# The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
+export MISE_CONFIG_DIR="$DOTFILES"
+# The class's [env] (PROTON_PASS_KEY_PROVIDER above all) before pass-preflight.
+eval "$("$MISE" env --shell bash 2>/dev/null)" || true
+
+# The pod's one token (PROTON_PASS_TOKEN, what repos' `pass:login` reads) is
+# also what logs the default session in.
+PAT="${PASS_CLI_PAT:-${PROTON_PASS_TOKEN:-}}"
+
+pick_mode() {
+	FNOX="$("$MISE" which fnox 2>/dev/null || true)"
+	if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
+		PASS_CLI_PAT="$PAT" DOTFILES_NO_LOGIN=1 "${DOTFILES}/scripts/pass-preflight"; then
+		MODE=secrets
+	elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
+		[ ! -s "${HOME}/.kube/main.yaml" ] && [ ! -s "${HOME}/.kube/edge.yaml" ]; then
+		MODE=fresh
+	else
+		MODE=protect
+	fi
+}
+
+# --skip-dirty: one repo with uncommitted work would fail the whole run.
+# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/.
+run_bootstrap() {
+	echo "[info] mode: ${MODE}"
+	case "$MODE" in
+	secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
+	fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
+	protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty --locked ;;
+	esac
+	timeout "$TIMEOUT" "$@"
+}
+
+pick_mode
+run_bootstrap || fail "bootstrap failed in mode ${MODE}"
+# The first run installs fnox: with a token that works, apply the secrets now
+# rather than at the next pod start.
+if [ "$MODE" = fresh ] && [ -n "$PAT" ]; then
+	pick_mode
+	[ "$MODE" != secrets ] || run_bootstrap || fail "bootstrap failed in mode ${MODE}"
+fi
+
+case "$MODE" in
+secrets) echo "[ok] bootstrap applied with secrets" ;;
+fresh) echo "[ok] bootstrap applied without secrets (no PROTON_PASS_TOKEN, or it was rejected)" ;;
+protect) echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies" ;;
+esac
+status ok

@@ -42,11 +42,12 @@
 	wd = diff --patience --word-diff
 [init]
 	defaultBranch = main
-{% if '/etc/neko' is exists %}
+{#- By class, as miserc.toml picks it (and miserc.local.toml pins it). #}
+{% if 'neko' in mise_env %}
 # neko: token from Proton Pass on demand (conf.d/neko/bin/git-credential-fnox).
 [credential "https://github.com"]
 	helper = {{ env.HOME }}/.local/bin/git-credential-fnox
-{% elif '/etc/paseo' is exists %}
+{% elif 'paseo' in mise_env %}
 # paseo: on the general pod gh reads the bot-tintin token from the read-only
 # hosts.yml home-ops mounts at $GH_CONFIG_DIR (no personal-token fallback).
 [credential "https://github.com"]
@@ -54,6 +55,11 @@
 # ~/.dotfiles is an emptyDir, and its mount point belongs to root.
 [safe]
 	directory = {{ env.HOME }}/.dotfiles
+{% elif 'code-server' in mise_env %}
+# code-server: the owner's own `gh auth login`. By path: the editor's own git
+# runs without the shell's PATH, so `gh` alone is not found there.
+[credential "https://github.com"]
+	helper = !{{ env.HOME }}/.local/share/mise/shims/gh auth git-credential
 {% elif os() == "linux" %}
 [credential]
 	helper = store
