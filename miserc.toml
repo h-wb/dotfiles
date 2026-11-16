@@ -8,7 +8,7 @@ auto_env = true
 # entry is ignored. CI / unknown machines: env = [...] in miserc.local.toml.
 env = [
   "{% if '/etc/paseo' is not exists %}workstation{% endif %}",
-  "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif os() == 'macos' %}personal{% endif %}",
+  "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif '/usr/lib/code-server' is exists %}code-server{% elif os() == 'macos' %}personal{% endif %}",
   "{% if '/etc/paseo/config/paseo.json' is exists %}paseo-overlay{% endif %}",
 ]
 
@@ -21,3 +21,4 @@ personal = ["workstation", "personal"]
 neko = ["workstation", "neko"]
 cachyos = ["workstation", "cachyos"]
 paseo = ["paseo"]
+code-server = ["workstation", "code-server"]

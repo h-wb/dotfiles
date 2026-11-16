@@ -1,10 +1,10 @@
 # CLAUDE.md — working in this repo
 
 Dotfiles + full machine provisioning, managed **entirely by mise** (chezmoi is
-long gone). Secrets come from **fnox** backed by **Proton Pass**. Four machine
+long gone). Secrets come from **fnox** backed by **Proton Pass**. Five machine
 classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s pod
-(`neko`), a CachyOS KDE gaming desktop (`cachyos`) and a headless coding-agent
-pod (`paseo`). What several classes share lives in a **layer** (`workstation`),
+(`neko`), a CachyOS KDE gaming desktop (`cachyos`), a headless coding-agent
+pod (`paseo`) and the owner's browser editor in a k8s pod (`code-server`). What several classes share lives in a **layer** (`workstation`),
 not in each class. Read the section for a machine before touching anything it
 loads.
 
@@ -43,13 +43,14 @@ the mise audit.
 The **machine class and its layers are picked in `miserc.toml`**: miserc
 templates see only the OS (no `read_file`/`exec`), but `is exists` path tests
 work — `/etc/neko` (neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS),
-`/etc/paseo` (the paseo pod mounts it), else `os() == "macos"` → personal. `env`
+`/etc/paseo` (the paseo pod mounts it), `/usr/lib/code-server` (the
+code-server image), else `os() == "macos"` → personal. `env`
 is a list, applied in order (later wins), and an entry that templates to empty is
 ignored:
 
 | env                   | machines                | holds                                                                                                               |
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `workstation` (layer) | personal, neko, cachyos | credentialed CLIs (aws, bws, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
+| `workstation` (layer) | personal, neko, cachyos, code-server | credentialed CLIs (aws, bws, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
 | the class             | one machine             | everything else                                                                                                     |
 
 So `config.toml` is only what _every_ machine wants, the paseo agent host
@@ -75,7 +76,7 @@ job and how `mise -E neko` selects a machine.
   and its tasks **run in the folder** (2026.9.15).
 - **A folder's name says where it loads.** Every machine is one folder named
   like its environment: `macos/` (`mise.macos.toml` for any Mac,
-  `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`. A
+  `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`, `code-server/`. A
   feature only that machine has is `<machine>-<feature>/`: `macos-defaults/`,
   `macos-k8s-dns/`, `macos-zen-history/`, `neko-anki/`, `neko-obsidian/`. A folder with no machine in its name loads on several:
   `ai/`, `proton-pass/`. So the root holds only the shared layers, and
@@ -308,7 +309,8 @@ mise writes one lockfile per config _file_, and with the repo as config dir
 they all land in the repo: `mise.lock` (config.toml **and** env-less folder
 fragments), `mise.macos.lock`, `mise.workstation.lock`,
 `mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`
-(env-scoped files, folder ones included). Lockfile format
+(env-scoped files, folder ones included; `code-server` has no tools of its
+own, so no lockfile). Lockfile format
 is v3 (`mise lock --upgrade`).
 
 - **Scope each env lockfile to the platforms that class runs on.** Locking
@@ -520,6 +522,52 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 - No sshd: terminals come from Paseo's web UI, admin shells from `kubectl exec`.
 - Scope separation is enforced by home-ops (per-scope pods and credentials).
   See home-ops `agents/README.md`.
+
+## The code-server pod (`conf.d/code-server/`)
+
+The owner's own environment in the cluster: `ghcr.io/coder/code-server` in
+k8s, Debian, user `coder`, opened in his browser behind the Kanidm login. It
+is where he works as himself (`gh auth login`, `land <pr>`), so it loads the
+`workstation` layer like the Mac, and shares nothing with the Paseo pods.
+
+- **Only `/home/coder` is on a PVC.** zsh, git and curl come with the image;
+  sudo works but anything apt installs is gone after a roll, so nothing here
+  depends on it. The init container's `/etc` is not even the app's.
+- **Provisioning** is home-ops' `bootstrap` init container, on the app's
+  image: it clones `~/.dotfiles` when missing, then runs
+  `scripts/pod-bootstrap` **by path** — never a link the bootstrap manages,
+  so a rolled pod always comes back provisioned (the neko incident of
+  2026-11-12). Don't move that script without changing home-ops in the same
+  breath. It installs mise with `provision.sh`, fast-forwards the checkout,
+  picks neko's `secrets`/`fresh`/`protect` mode and bootstraps; a first run
+  that installs fnox while `PASS_CLI_PAT` waits goes straight on to `secrets`.
+  The pod starts whatever the result: doctor `code-server-bootstrap` reads
+  `~/.local/state/pod-bootstrap.status`, the log is next to it. Only the
+  status line goes to stdout: the init container's log is readable by the
+  agents' cluster tools.
+- **It runs `master` unattended, with the owner's credentials**, at every pod
+  start. `master` must stay protected (pull request and the owner's review;
+  `bot-tintin` cannot push to it directly), or an agent's commit runs here as
+  him.
+- `~/.dotfiles` is a normal writable checkout here, like on the Mac (not the
+  Paseo pods' read-only `emptyDir`): `pull_dotfiles` only fast-forwards and
+  warns on local commits.
+- **Proton Pass**: one token, home-ops' `code-server` BWS item, arrives as both
+  `PASS_CLI_PAT` (the default session: `apply`, pod-bootstrap) and
+  `PROTON_PASS_TOKEN` (repos' `pass:login`). Its grants are the owner's
+  workstation's, never the Paseo pod's token. `PROTON_PASS_KEY_PROVIDER=fs`
+  as on neko.
+- **Shell**: the Mac's zsh files from `conf.d/macos/zsh`, by absolute path
+  (one copy). The image's login shell is bash, so the editor's terminal is
+  pointed at zsh in the *Machine* `settings.json` instead of `chsh`; the
+  User one is the settings UI's and stays out of the repo.
+- **GitHub**: git uses `gh auth git-credential`, `gh` by its shim path because
+  the editor's own git has no mise on PATH; the token is the owner's own
+  `gh auth login`. Nothing here reads `GH_TOKEN`.
+- **Credentials live on the PVC and in its kopiur backups** (daily, to the
+  NAS, weeks of retention): rotate rather than rely on deletion.
+- kubectl and k9s come from `config.toml`, the kubeconfigs from the
+  `workstation` layer; home-ops mounts no kubeconfig and copies no CLIs.
 
 ## The CachyOS desktop (`conf.d/cachyos/`)
 

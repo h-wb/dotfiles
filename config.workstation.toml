@@ -1,6 +1,6 @@
-# Layer `workstation`: machines a person works at (personal, neko, cachyos), not the
-# paseo agent host. Credentialed CLIs, fnox-backed provisioning and kubeconfigs:
-# everything that assumes a Proton Pass session.
+# Layer `workstation`: machines a person works at (personal, neko, cachyos,
+# code-server), not the paseo agent host. Credentialed CLIs, fnox-backed
+# provisioning and kubeconfigs: everything that assumes a Proton Pass session.
 
 [vars]
 kubeconfig_main = "{{ get_env(name='KUBECONFIG_MAIN', default='') }}"

@@ -81,7 +81,10 @@ config)
   *'"paseo"'*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
   *) echo "$HOME/.dotfiles/config.workstation.toml" ;;
   esac ;;
-which) exit 1 ;;
+which)
+  [ "$2" = fnox ] && [ -n "${TEST_FNOX:-}" ] && [ -e "$HOME/fnox-installed" ] || exit 1
+  echo "$TEST_FNOX" ;;
+bootstrap) [ -z "${TEST_FNOX:-}" ] || touch "$HOME/fnox-installed" ;;
 exec)
   export PROTON_PASS_KEY_PROVIDER=fs
   while [ "$1" != -- ]; do shift; done
@@ -105,7 +108,8 @@ esac
 
     # The envs each machine's own folders may use; `personal` is the MacBook.
     MACHINE_ENVS = {"macos": {"macos", "personal"}, "neko": {"neko"},
-                    "cachyos": {"cachyos"}, "paseo": {"paseo", "paseo-overlay"}}
+                    "cachyos": {"cachyos"}, "paseo": {"paseo", "paseo-overlay"},
+                    "code-server": {"code-server"}}
 
     def test_conf_d_folder_names_say_where_they_load(self):
         # A folder that loads on one machine is named after it (`neko`,
@@ -833,6 +837,124 @@ exit 22
         (self.home / ".neko-hold").touch()
         self.run_cmd("sh", str(self.repo / "conf.d/neko/bin/neko-bootstrap"))
         self.assertFalse((self.home / "mise.calls").exists())
+
+    def pod_bootstrap(self, ok=True, fnox_installed=False, **extra):
+        (self.repo / ".git").mkdir(exist_ok=True)
+        for name in ("mise.calls", "fnox.calls", "fnox-installed", "pass-cli.calls"):
+            (self.home / name).unlink(missing_ok=True)
+        if fnox_installed:
+            (self.home / "fnox-installed").touch()
+        env = {**self.env, "DOTFILES_PULLED": "1", **extra}
+        env.pop("MISE_CONFIG_DIR")
+        result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), ok=ok, env=env)
+        status = (self.home / ".local/state/pod-bootstrap.status").read_text().split()
+        calls = (self.home / "mise.calls").read_text()
+        return result, status[:2], calls
+
+    def test_pod_bootstrap_modes(self):
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        self.fake("fnox", 'printf "%s\\n" "$*" >> "$HOME/fnox.calls"\n'
+                  'while [ "$1" != -- ]; do shift; done; shift; exec "$@"')
+        fnox = str(self.bin / "fnox")
+        kube = self.home / ".kube"
+        kube.mkdir()
+
+        with self.subTest("fresh PVC, no token"):
+            result, status, calls = self.pod_bootstrap()
+            self.assertEqual(status, ["ok", "fresh"])
+            self.assertIn("bootstrap --yes --force-dotfiles --skip-dirty --locked", calls)
+            # Only the status line reaches the init container's log.
+            self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+            self.assertTrue(result.stdout.startswith("pod-bootstrap: ok fresh "), result.stdout)
+            self.assertIn("[info] mode: fresh",
+                          (self.home / ".local/state/pod-bootstrap.log").read_text())
+
+        self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
+        with self.subTest("fresh PVC, token rejected: one run"):
+            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PASS_CLI_PAT="fixture-pat")
+            self.assertEqual(status, ["ok", "fresh"])
+            self.assertEqual(calls.count("bootstrap --yes"), 1)
+            self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
+
+        # The first run installs fnox; the token is used in the same pod start.
+        self.fake("pass-cli", '[ "$1" = login ] && [ "$2" = --pat ]')
+        with self.subTest("fresh PVC, token waiting"):
+            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PASS_CLI_PAT="fixture-pat")
+            self.assertEqual(status, ["ok", "secrets"])
+            self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)
+            self.assertIn("--if-missing error exec", (self.home / "fnox.calls").read_text())
+
+        (kube / "main.yaml").write_text("fixture credentials\n")
+        with self.subTest("secrets on disk, fnox installed, token rejected"):
+            self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
+            _, status, calls = self.pod_bootstrap(fnox_installed=True, TEST_FNOX=fnox,
+                                                  PASS_CLI_PAT="fixture-pat")
+            self.assertEqual(status, ["ok", "protect"])
+            self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
+            self.assertIn("--skip dotfiles", calls)
+            self.assertNotIn("--force-dotfiles", calls)
+            self.assertFalse((self.home / "fnox.calls").exists())
+
+        with self.subTest("bootstrap fails"):
+            self.fake("timeout", "exit 3")
+            result, status, _ = self.pod_bootstrap(ok=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(status, ["error", "protect"])
+
+    def test_pod_bootstrap_reexecs_after_pull(self):
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
+        ident = ["-c", "user.name=t", "-c", "user.email=t@example.test"]
+        git("init", "-q", "-b", "master")
+        git("add", ".")
+        git(*ident, "commit", "-q", "-m", "base")
+        origin = self.home / "origin.git"
+        self.run_cmd("git", "clone", "-q", "--bare", str(self.repo), str(origin))
+        git("remote", "add", "origin", str(origin))
+        git("fetch", "-q", "origin")
+        git("branch", "-q", "--set-upstream-to=origin/master")
+        other = self.home / "other"
+        self.run_cmd("git", "clone", "-q", str(origin), str(other))
+        (other / "conf.d/code-server/marker").write_text("new\n")
+        git("add", ".", cwd=other)
+        git(*ident, "commit", "-q", "-m", "next", cwd=other)
+        git("push", "-q", "origin", "master", cwd=other)
+        env = {**self.env}
+        env.pop("MISE_CONFIG_DIR")
+        result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), env=env)
+        self.assertIn("dotfiles updated", (self.home / ".local/state/pod-bootstrap.log").read_text())
+        self.assertTrue((self.repo / "conf.d/code-server/marker").exists())
+        self.assertEqual((self.home / ".local/state/pod-bootstrap.log").read_text().count("[info] mode:"), 1)
+        self.assertEqual((self.home / "mise.calls").read_text().count("bootstrap --yes"), 1)
+
+    def test_pod_bootstrap_without_checkout(self):
+        self.fake_mise()
+        shutil.rmtree(self.repo / "scripts")
+        script = self.home / "pod-bootstrap"
+        shutil.copy(ROOT / "scripts/pod-bootstrap", script)
+        result = self.run_cmd("sh", str(script), ok=False)
+        self.assertNotEqual(result.returncode, 0)
+        status = (self.home / ".local/state/pod-bootstrap.status").read_text()
+        self.assertTrue(status.startswith("error none "), status)
+        self.assertFalse((self.home / "mise.calls").exists())
+
+    def test_code_server_doctor_reports_the_last_pod_start(self):
+        self.select("code-server")
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        state = self.home / ".local/state"
+        state.mkdir(parents=True, exist_ok=True)
+        self.assertEqual(self.doctor()["code-server-bootstrap"], "fail")
+        for line, want in (("ok secrets 2026-11-16", "pass"), ("ok fresh 2026-11-16", "fail"),
+                           ("ok protect 2026-11-16", "fail"), ("error secrets 2026-11-16", "fail")):
+            with self.subTest(status=line):
+                (state / "pod-bootstrap.status").write_text(line + "\n")
+                self.assertEqual(self.doctor()["code-server-bootstrap"], want)
+        settings = self.home / ".local/share/code-server/Machine/settings.json"
+        self.assertEqual(json.loads(settings.read_text())["terminal.integrated.defaultProfile.linux"], "zsh")
+        self.assertEqual((self.home / ".zshrc").resolve(),
+                         (self.repo / "conf.d/macos/zsh/zshrc").resolve())
 
     def test_zsh_noninteractive_path(self):
         if not shutil.which("zsh"):

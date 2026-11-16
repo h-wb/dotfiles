@@ -8,7 +8,7 @@ DOTFILES_DIR="${HOME}/.dotfiles" # fixed: config.toml links ~/.config/mise here
 export PATH="${HOME}/.local/bin:${PATH}"
 
 case "${DOTFILES_ENV:-}" in
-"" | personal | neko | cachyos | paseo) ;;
+"" | personal | neko | cachyos | paseo | code-server) ;;
 *) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;
 esac
 

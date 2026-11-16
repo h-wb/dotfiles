@@ -1,0 +1,85 @@
+#!/bin/sh
+# Provision a pod whose only persistent state is $HOME (code-server). Its init
+# container runs this by path at every start: nothing the bootstrap applies
+# can remove it, so a rolled pod comes back provisioned. Same modes as
+# neko-bootstrap. Exit 0 only on success; the status line is in $STATUS.
+set -u
+
+DOTFILES="${HOME}/.dotfiles"
+STATE="${HOME}/.local/state"
+LOG="${STATE}/pod-bootstrap.log"
+STATUS="${STATE}/pod-bootstrap.status"
+
+# Outer run: everything goes to the log on the PVC, only the status line to
+# stdout. The init container's log is readable cluster-wide (the agents'
+# kubectl tools, Loki), and a failing tool may print what it was rendering.
+if [ -z "${POD_BOOTSTRAP_INNER:-}" ]; then
+	mkdir -p "$STATE"
+	rm -f "$STATUS"
+	POD_BOOTSTRAP_INNER=1 sh "$0" "$@" >>"$LOG" 2>&1
+	echo "pod-bootstrap: $(cat "$STATUS" 2>/dev/null || echo 'error none (no status)'); log: $LOG"
+	grep -q '^ok ' "$STATUS" 2>/dev/null
+	exit
+fi
+
+MODE=none
+status() { echo "$1 ${MODE} $(date -Is)" >"$STATUS"; }
+fail() { echo "[error] $*"; status error; exit 1; }
+
+echo "=== $(date -Is) pod start ==="
+export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
+
+[ -d "${DOTFILES}/.git" ] || fail "no ${DOTFILES} checkout"
+cd "$DOTFILES" || fail "cannot enter ${DOTFILES}"
+. "${DOTFILES}/scripts/provision.sh"
+ensure_mise || fail "mise is not usable"
+pull_dotfiles sh "$0" "$@"
+
+# The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
+export MISE_CONFIG_DIR="$DOTFILES"
+# The class's [env] (PROTON_PASS_KEY_PROVIDER above all) before pass-preflight.
+eval "$("$MISE" env --shell bash 2>/dev/null)" || true
+
+#   secrets  live Proton Pass session (PASS_CLI_PAT logs in without a TTY)
+#   fresh    no session and no secret-derived content to lose
+#   protect  no session and secrets on disk: skip dotfiles, or they render empty
+pick_mode() {
+	FNOX="$("$MISE" which fnox 2>/dev/null || true)"
+	if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
+		DOTFILES_NO_LOGIN=1 "${DOTFILES}/scripts/pass-preflight"; then
+		MODE=secrets
+	elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
+		[ ! -s "${HOME}/.kube/main.yaml" ] && [ ! -s "${HOME}/.kube/edge.yaml" ]; then
+		MODE=fresh
+	else
+		MODE=protect
+	fi
+}
+
+# --skip-dirty: one repo with uncommitted work would fail the whole run.
+# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/.
+run_bootstrap() {
+	echo "[info] mode: ${MODE}"
+	case "$MODE" in
+	secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
+	fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
+	protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty --locked ;;
+	esac
+	timeout 1800 "$@"
+}
+
+pick_mode
+run_bootstrap || fail "bootstrap failed in mode ${MODE}"
+# The first run installs fnox: with a token that works, apply the secrets now
+# rather than at the next pod start.
+if [ "$MODE" = fresh ] && [ -n "${PASS_CLI_PAT:-}" ]; then
+	pick_mode
+	[ "$MODE" != secrets ] || run_bootstrap || fail "bootstrap failed in mode ${MODE}"
+fi
+
+case "$MODE" in
+secrets) echo "[ok] bootstrap applied with secrets" ;;
+fresh) echo "[ok] bootstrap applied without secrets (no PASS_CLI_PAT, or it was rejected)" ;;
+protect) echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies" ;;
+esac
+status ok
