@@ -35,8 +35,8 @@ conf.d/                  one folder per machine, and the features
   ai/                    every machine: the agents' MCP servers and shared skills
   proton-pass/           every machine: the named-session login task other repos extend
   pod/                   layer: a workstation in a k8s pod (neko, code-server)
-  zsh/                   layer: zsh + z4h + p10k (the Macs, code-server)
-  macos/                 the Macs: apps, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
+  fish/                  layer: config.fish and the starship prompt (code-server; neko and cachyos later)
+  macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
   macos-defaults/        `defaults write`, declaratively
   macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
   macos-zen-history/     Zen history snapshots → Nextcloud (MacBook)
@@ -45,7 +45,7 @@ conf.d/                  one folder per machine, and the features
   neko-obsidian/         Obsidian + Local REST API (n8n), kept running there
   cachyos/               the CachyOS gaming desktop
   paseo/                 the coding-agent pods, and the skills only they use
-  code-server/           the owner's code-server pod: only its editor settings
+  code-server/           the owner's code-server pod: the fish binary and its editor settings
 home/                    sources for the two root configs (git, ssh, kube)
 fnox.toml                Proton Pass secret references (no values); the agents' own in conf.d/ai/
 scripts/                 first-install helpers, the Proton Pass preflight, pod-bootstrap
@@ -66,10 +66,10 @@ Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds
 
 | class | layers |
 | --- | --- |
-| `personal` | `workstation`, `zsh` |
+| `personal` | `workstation` |
 | `neko` | `workstation`, `pod` |
 | `cachyos` | `workstation` |
-| `code-server` | `workstation`, `pod`, `zsh` |
+| `code-server` | `workstation`, `pod`, `fish` |
 | `paseo` | none |
 
 An untracked `miserc.local.toml` pins a class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on

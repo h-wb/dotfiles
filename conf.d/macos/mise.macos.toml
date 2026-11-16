@@ -1,5 +1,5 @@
 # Every Mac (auto_env platform `macos`), whatever the machine class: apps, the
-# ssh agent, WireGuard and BetterTouchTool. The shell is the `zsh` layer. Preferences are their own
+# shell, the ssh agent, WireGuard and BetterTouchTool. Preferences are their own
 # folder (conf.d/macos-defaults); what only the MacBook wants is mise.personal.toml.
 
 [tools]
@@ -10,6 +10,7 @@ SSH_AUTH_SOCK = "{{ env.HOME }}/.ssh/proton-pass-agent.sock"
 
 [shell_alias]
 library = "cd {{ env.HOME }}/Library"
+ez = "exec zsh"
 
 [vars]
 wg0_home_conf = "{{ get_env(name='WG0_HOME_CONF', default='') }}"
@@ -51,6 +52,11 @@ fi
 apps = ["/Applications/Raycast.app", "/Applications/BetterTouchTool.app"]
 
 [dotfiles]
+# zsh + z4h + p10k. Aliases are mise [shell_alias].
+"~/.zshrc"      = { source = "zsh/zshrc", mode = "symlink" }
+"~/.zshenv"     = { source = "zsh/zshenv", mode = "symlink" }
+"~/.p10k.zsh"   = { source = "zsh/p10k.zsh", mode = "symlink" }
+"~/.config/zsh" = { source = "zsh/config", mode = "symlink" }   # exports.zsh + completions/
 # Renders empty without vars.wg0_home_conf (fnox).
 "~/.config/wireguard/wg0.home.conf" = { source = "wireguard/wg0.home.conf.tmpl", mode = "template", permissions = "0600" }
 "~/Library/Application Support/BetterTouchTool/Default.bttpreset" = { source = "bettertouchtool/Default.bttpreset", mode = "symlink" }

@@ -1,0 +1,14 @@
+# Layer `fish`: the shell of the machines that use fish, and its starship
+# prompt. Only code-server loads it so far; neko and cachyos keep their own
+# config.fish until they move here, with their own lines in conf.d/<machine>.fish.
+# The fish binary is not here: each machine gets it its own way.
+
+[tools]
+starship = "latest"
+
+[shell_alias]
+ef = "exec fish"
+
+[dotfiles]
+"~/.config/fish/config.fish" = { source = "config.fish", mode = "symlink" }
+"~/.config/starship.toml"    = { source = "starship.toml", mode = "symlink" }

@@ -100,7 +100,7 @@ esac
                 configs = self.mise("config").stdout
                 for other in LAYERS:
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
-                for layer in ("workstation", "pod", "zsh"):
+                for layer in ("workstation", "pod", "fish"):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
@@ -1017,15 +1017,38 @@ exit 22
             with self.subTest(status=line):
                 (state / "pod-bootstrap.status").write_text(line + "\n")
                 self.assertEqual(self.doctor()["pod-bootstrap"], want)
-        settings = self.home / ".local/share/code-server/Machine/settings.json"
-        self.assertEqual(json.loads(settings.read_text())["terminal.integrated.defaultProfile.linux"], "zsh")
-        self.assertEqual((self.home / ".zshrc").resolve(),
-                         (self.repo / "conf.d/zsh/zshrc").resolve())
+        settings = json.loads((self.home / ".local/share/code-server/Machine/settings.json").read_text())
+        profile = settings["terminal.integrated.defaultProfile.linux"]
+        self.assertEqual(settings["terminal.integrated.profiles.linux"][profile]["path"],
+                         str(self.home / ".local/share/mise/shims/fish"))
+        self.assertEqual((self.home / ".config/fish/config.fish").resolve(),
+                         (self.repo / "conf.d/fish/config.fish").resolve())
+        self.assertEqual((self.home / ".config/starship.toml").resolve(),
+                         (self.repo / "conf.d/fish/starship.toml").resolve())
+        self.assertFalse((self.home / ".zshrc").exists())
+
+    def test_fish_config_loads(self):
+        # The fish layer's config.fish, in both branches: scripts get mise's shims,
+        # an interactive shell activates mise (starship only once installed).
+        if not shutil.which("fish"):
+            self.skipTest("fish is not installed")
+        config = self.home / ".config/fish/config.fish"
+        config.parent.mkdir(parents=True)
+        config.symlink_to(self.repo / "conf.d/fish/config.fish")
+        # fish_add_path skips a directory that does not exist yet.
+        (self.home / ".local/share/mise/shims").mkdir(parents=True)
+        env = {**self.env, "PATH": f"{Path(shutil.which('fish')).parent}:/usr/bin:/bin"}
+        result = self.run_cmd("fish", "-c", "command -v mise; string join : $PATH", env=env)
+        self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
+        self.assertIn(str(self.home / ".local/share/mise/shims"), result.stdout)
+        self.assertEqual(result.stderr, "")
+        result = self.run_cmd("fish", "-i", "-c", "functions -q __mise_env_eval; and echo activated", env=env)
+        self.assertIn("activated", result.stdout)
 
     def test_zsh_noninteractive_path(self):
         if not shutil.which("zsh"):
             self.skipTest("zsh is not installed")
-        (self.home / ".zshenv").symlink_to(self.repo / "conf.d/zsh/zshenv")
+        (self.home / ".zshenv").symlink_to(self.repo / "conf.d/macos/zsh/zshenv")
         result = self.run_cmd("zsh", "-c", "command -v mise; print -r -- $PATH",
                              env={**self.env, "PATH": "/usr/bin:/bin"})
         self.assertEqual(result.stdout.splitlines()[0], str(self.bin / "mise"))
@@ -1035,7 +1058,7 @@ exit 22
         if not shutil.which("zsh"):
             self.skipTest("zsh is not installed")
         result = self.run_cmd("zsh", "-f", "-c", '''
-fpath=("$HOME/.dotfiles/conf.d/zsh/config/completions" $fpath)
+fpath=("$HOME/.dotfiles/conf.d/macos/zsh/config/completions" $fpath)
 autoload -Uz _mise
 BUFFER='mise ta'
 CURSOR=${#BUFFER}

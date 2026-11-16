@@ -17,8 +17,8 @@ env = [
 # stack. paseo-overlay stays /etc-detected and belongs to no set; a machine that
 # is none of these lists its layers literally.
 [env_sets]
-personal = ["workstation", "zsh", "personal"]
+personal = ["workstation", "personal"]
 neko = ["workstation", "pod", "neko"]
 cachyos = ["workstation", "cachyos"]
 paseo = ["paseo"]
-code-server = ["workstation", "pod", "zsh", "code-server"]
+code-server = ["workstation", "pod", "fish", "code-server"]

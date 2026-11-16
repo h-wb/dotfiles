@@ -6,7 +6,7 @@ classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s po
 (`neko`), a CachyOS KDE gaming desktop (`cachyos`), a headless coding-agent
 pod (`paseo`) and the owner's browser editor in a k8s pod (`code-server`).
 What several classes share lives in a **layer** (`workstation`, `pod`,
-`zsh`), not in each class: a machine is its layers plus what only it has. Read the section for a machine before touching anything it
+`fish`), not in each class: a machine is its layers plus what only it has. Read the section for a machine before touching anything it
 loads.
 
 **On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
@@ -53,7 +53,7 @@ ignored:
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `workstation` (layer) | personal, neko, cachyos, code-server | credentialed CLIs (aws, bws, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
 | `pod` (layer, `conf.d/pod`) | neko, code-server | a workstation in a k8s pod: the keyring-less key provider, the repo a fresh volume needs |
-| `zsh` (layer, `conf.d/zsh`) | personal, code-server | the shell: zsh + z4h + p10k, `ez` |
+| `fish` (layer, `conf.d/fish`) | code-server (neko and cachyos later) | the shell's config: one `config.fish` (a machine's own lines go in `conf.d/<machine>.fish`), starship and its prompt, `ef`; not the fish binary |
 | the class             | one machine             | everything else                                                                                                     |
 
 Layers other than `workstation` come only from `[env_sets]`, which also
@@ -88,7 +88,7 @@ job and how `mise -E neko` selects a machine.
   `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`, `code-server/`. A
   feature only that machine has is `<machine>-<feature>/`: `macos-defaults/`,
   `macos-k8s-dns/`, `macos-zen-history/`, `neko-anki/`, `neko-obsidian/`. A folder with no machine in its name loads on several:
-  `ai/`, `proton-pass/`, and the layers `pod/`, `zsh/`. So the root holds only
+  `ai/`, `proton-pass/`, and the layers `pod/`, `fish/`. So the root holds only
   `config.toml` and `config.workstation.toml`, and
   `test_conf_d_folder_names_say_where_they_load` holds the names to this. Give
   a feature its own folder when it has its own files, tasks or doctor checks;
@@ -319,8 +319,8 @@ mise writes one lockfile per config _file_, and with the repo as config dir
 they all land in the repo: `mise.lock` (config.toml **and** env-less folder
 fragments), `mise.macos.lock`, `mise.workstation.lock`,
 `mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`
-(env-scoped files, folder ones included; `code-server` has no tools of its
-own, so no lockfile). Lockfile format
+(env-scoped files, folder ones included), plus `mise.fish.lock` and
+`mise.code-server.lock` (linux-x64 + arm64). Lockfile format
 is v3 (`mise lock --upgrade`).
 
 - **Scope each env lockfile to the platforms that class runs on.** Locking
@@ -383,7 +383,7 @@ in `conf.d/ai/README.md`; what is easy to break:
 
 ## The MacBook (`personal`) and every Mac (`macos`)
 
-- `conf.d/macos/mise.macos.toml`: Rosetta + `/etc/paths` hook, casks, the
+- `conf.d/macos/mise.macos.toml`: Rosetta + `/etc/paths` hook, casks, zsh, the
   Proton Pass ssh-agent LaunchAgent (`SSH_AUTH_SOCK` is set here only, so Linux
   needs no override), wireguard, BTT. `mise.personal.toml` beside it:
   MacBook-only packages.
@@ -538,8 +538,9 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 The owner's own environment in the cluster: `ghcr.io/coder/code-server`,
 Debian, user `coder`, in his browser behind the Kanidm login, where he works
 as himself (`gh auth login`, `land <pr>`). Class `code-server` = `workstation`
-+ `pod` + `zsh`; its folder holds only what is about this image: the editor's
-terminal profile, and the `pod-bootstrap` doctor check until neko uses it too.
++ `pod` + `fish`; its folder holds only what is about this image: the fish
+binary, the editor's terminal profile, and the `pod-bootstrap` doctor check
+until neko uses it too.
 
 - **Provisioning** is home-ops' `dotfiles` Component: at every start it clones
   `~/.dotfiles` when `scripts/pod-bootstrap` is missing (a cut-off clone is
@@ -560,8 +561,10 @@ terminal profile, and the `pod-bootstrap` doctor check until neko uses it too.
 - **Proton Pass**: one token, BWS `code-server`, as `PROTON_PASS_TOKEN` (repos'
   `pass:login`); pod-bootstrap logs the default session in with it. Never the
   Paseo pod's token.
-- **Shell**: layer `zsh`. The image's login shell is bash and `/etc` does not
-  survive a roll, so the terminal is pointed at zsh in the *Machine*
+- **Shell**: fish, layer `fish`; the binary is fish's own static build
+  (`github:fish-shell/fish-shell`, pinned and locked) in the home volume, as
+  the image has none. The image's login shell is bash and `/etc` does not
+  survive a roll, so the terminal is pointed at fish's mise shim in the *Machine*
   `settings.json`; the User one is the settings UI's.
 - **GitHub**: git uses `gh auth git-credential`, `gh` by its shim path (the
   editor's own git has no mise on PATH), after the owner's own `gh auth
