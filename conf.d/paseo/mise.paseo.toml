@@ -8,6 +8,11 @@ trusted_config_paths = ["~/Repositories", "~/.paseo/worktrees"]
 # session directory, the login task and the agent's stated reason share the name.
 [vars]
 pass_session = "paseo-{{ get_env(name='PASEO_DATA_SCOPE', default='general') }}"
+# The general pod commits as the bot (static identity, no runtime lookup). The
+# private pod shares this class but keeps the owner's identity, so the default
+# is deliberately not "general".
+git_name = "{% if get_env(name='PASEO_DATA_SCOPE', default='') == 'general' %}bot-tintin[bot]{% else %}h-wb{% endif %}"
+git_email = "{% if get_env(name='PASEO_DATA_SCOPE', default='') == 'general' %}356770504+bot-tintin[bot]@users.noreply.github.com{% else %}{{ get_env(name='GIT_EMAIL', default='') }}{% endif %}"
 
 [env]
 LANG = "C.UTF-8" # Debian ships C.UTF-8 without `locales`

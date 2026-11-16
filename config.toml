@@ -18,6 +18,7 @@ self_update.check_duration = "7d"
 # [vars] and not [env], because mise's [env] does not feed get_env().
 [vars]
 repo             = "{{ mise_config_dir }}"
+git_name         = "h-wb"
 git_email        = "{{ get_env(name='GIT_EMAIL', default='') }}"
 ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"

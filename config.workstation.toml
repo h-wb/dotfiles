@@ -51,3 +51,15 @@ run = "mise run apply --dry-run"
 [tasks.upgrade]
 description = "Update mise, then apply with packages and tools upgraded"
 run = "mise run apply --upgrade"
+
+# Pushes as the owner, so it lives in this layer on purpose: Paseo pods never
+# load `workstation`, and scripts/land also refuses to run when /etc/paseo
+# exists.
+[tasks.land]
+description = "Apply bot-tintin's workflow patch from a PR comment and push it as yourself"
+usage = '''
+arg "<pr>" help="PR number"
+flag "--repo" help="OWNER/NAME; default: the current directory's repository"
+'''
+# No dir: the cwd is the repository `land` defaults to.
+run = 'exec "{{ vars.repo }}/scripts/land" {{ usage.pr | quote }}{% if usage.repo %} --repo {{ usage.repo | quote }}{% endif %}'

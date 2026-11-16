@@ -1,5 +1,5 @@
 [user]
-	name = h-wb
+	name = {{ vars.git_name }}
 	email = {{ vars.git_email }}
 [alias]
 	a = add
@@ -47,7 +47,8 @@
 [credential "https://github.com"]
 	helper = {{ env.HOME }}/.local/bin/git-credential-fnox
 {% elif '/etc/paseo' is exists %}
-# paseo: GH_TOKEN from the pod's secret, through gh.
+# paseo: on the general pod gh reads the bot-tintin token from the read-only
+# hosts.yml home-ops mounts at $GH_CONFIG_DIR (no personal-token fallback).
 [credential "https://github.com"]
 	helper = !gh auth git-credential
 # ~/.dotfiles is an emptyDir, and its mount point belongs to root.
