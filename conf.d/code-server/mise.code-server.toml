@@ -23,8 +23,8 @@ ez = "exec zsh"
 # writes User/settings.json, which stays the owner's.
 "~/.local/share/code-server/Machine/settings.json" = { source = "settings.json", mode = "symlink" }
 
-# The folder home-ops tells the editor to open. No ref, so a clean
-# checkout stays on whatever branch it is on.
+# Open it once from the editor (code-server reopens the last folder). No ref,
+# so a clean checkout stays on whatever branch it is on.
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
 
@@ -37,5 +37,5 @@ f="$HOME/.local/state/pod-bootstrap.status"
 [ -f "$f" ] || { echo "no $f: pod-bootstrap has not completed on this pod"; exit 1; }
 read -r result mode _ <"$f"
 [ "$result" = ok ] || { echo "the last pod-bootstrap failed (mode $mode)"; exit 1; }
-[ "$mode" = secrets ] || { echo "the last pod start ran in mode $mode: no Proton Pass session (PASS_CLI_PAT)"; exit 1; }
+[ "$mode" = secrets ] || { echo "the last pod start ran in mode $mode: no Proton Pass session (PROTON_PASS_TOKEN)"; exit 1; }
 '''

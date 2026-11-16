@@ -534,28 +534,28 @@ is where he works as himself (`gh auth login`, `land <pr>`), so it loads the
   sudo works but anything apt installs is gone after a roll, so nothing here
   depends on it. The init container's `/etc` is not even the app's.
 - **Provisioning** is home-ops' `bootstrap` init container, on the app's
-  image: it clones `~/.dotfiles` when missing, then runs
-  `scripts/pod-bootstrap` **by path** — never a link the bootstrap manages,
-  so a rolled pod always comes back provisioned (the neko incident of
-  2026-11-12). Don't move that script without changing home-ops in the same
-  breath. It installs mise with `provision.sh`, fast-forwards the checkout,
-  picks neko's `secrets`/`fresh`/`protect` mode and bootstraps; a first run
-  that installs fnox while `PASS_CLI_PAT` waits goes straight on to `secrets`.
+  image: it clones `~/.dotfiles` when the script is missing (a cut-off clone
+  is moved aside), then runs `scripts/pod-bootstrap` **by path** — never a
+  link the bootstrap manages, so a rolled pod always comes back provisioned
+  (the neko incident of 2026-11-12). Don't move that script without changing
+  home-ops in the same breath. It installs mise with `provision.sh`, picks
+  neko's `secrets`/`fresh`/`protect` mode and bootstraps; a first run that
+  installs fnox while a working token waits goes straight on to `secrets`.
+- **It never pulls.** It runs unattended with the owner's token, so it
+  applies the checkout already on the volume; only an empty volume gets a
+  fresh clone of `master`. Updating is the Mac's way: `git -C ~/.dotfiles
+  pull`, read what came in, `mise run apply`. Keep `master` protected (pull
+  request and the owner's review) all the same: the first clone takes it.
   The pod starts whatever the result: doctor `code-server-bootstrap` reads
   `~/.local/state/pod-bootstrap.status`, the log is next to it. Only the
   status line goes to stdout: the init container's log is readable by the
   agents' cluster tools.
-- **It runs `master` unattended, with the owner's credentials**, at every pod
-  start. `master` must stay protected (pull request and the owner's review;
-  `bot-tintin` cannot push to it directly), or an agent's commit runs here as
-  him.
 - `~/.dotfiles` is a normal writable checkout here, like on the Mac (not the
-  Paseo pods' read-only `emptyDir`): `pull_dotfiles` only fast-forwards and
-  warns on local commits.
-- **Proton Pass**: one token, home-ops' `code-server` BWS item, arrives as both
-  `PASS_CLI_PAT` (the default session: `apply`, pod-bootstrap) and
-  `PROTON_PASS_TOKEN` (repos' `pass:login`). Its grants are the owner's
-  workstation's, never the Paseo pod's token. `PROTON_PASS_KEY_PROVIDER=fs`
+  Paseo pods' read-only `emptyDir`).
+- **Proton Pass**: one token, home-ops' `code-server` BWS item, arrives as
+  `PROTON_PASS_TOKEN` (repos' `pass:login`); pod-bootstrap logs the default
+  session in with it too. Its grants are the owner's workstation's, never
+  the Paseo pod's token. `PROTON_PASS_KEY_PROVIDER=fs`
   as on neko.
 - **Shell**: the Mac's zsh files from `conf.d/macos/zsh`, by absolute path
   (one copy). The image's login shell is bash, so the editor's terminal is

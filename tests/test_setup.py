@@ -844,7 +844,7 @@ exit 22
             (self.home / name).unlink(missing_ok=True)
         if fnox_installed:
             (self.home / "fnox-installed").touch()
-        env = {**self.env, "DOTFILES_PULLED": "1", **extra}
+        env = {**self.env, **extra}
         env.pop("MISE_CONFIG_DIR")
         result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), ok=ok, env=env)
         status = (self.home / ".local/state/pod-bootstrap.status").read_text().split()
@@ -872,7 +872,7 @@ exit 22
 
         self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
         with self.subTest("fresh PVC, token rejected: one run"):
-            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PASS_CLI_PAT="fixture-pat")
+            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "fresh"])
             self.assertEqual(calls.count("bootstrap --yes"), 1)
             self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
@@ -880,7 +880,7 @@ exit 22
         # The first run installs fnox; the token is used in the same pod start.
         self.fake("pass-cli", '[ "$1" = login ] && [ "$2" = --pat ]')
         with self.subTest("fresh PVC, token waiting"):
-            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PASS_CLI_PAT="fixture-pat")
+            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "secrets"])
             self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)
             self.assertIn("--if-missing error exec", (self.home / "fnox.calls").read_text())
@@ -889,7 +889,7 @@ exit 22
         with self.subTest("secrets on disk, fnox installed, token rejected"):
             self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
             _, status, calls = self.pod_bootstrap(fnox_installed=True, TEST_FNOX=fnox,
-                                                  PASS_CLI_PAT="fixture-pat")
+                                                  PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "protect"])
             self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
             self.assertIn("--skip dotfiles", calls)
@@ -902,7 +902,9 @@ exit 22
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(status, ["error", "protect"])
 
-    def test_pod_bootstrap_reexecs_after_pull(self):
+    def test_pod_bootstrap_never_pulls(self):
+        # It runs with the owner's token: a commit pushed upstream must not run
+        # until he pulls it himself.
         self.fake_mise()
         self.fake("timeout", 'shift; exec "$@"')
         git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
@@ -917,17 +919,36 @@ exit 22
         git("branch", "-q", "--set-upstream-to=origin/master")
         other = self.home / "other"
         self.run_cmd("git", "clone", "-q", str(origin), str(other))
-        (other / "conf.d/code-server/marker").write_text("new\n")
+        (other / "scripts/pod-bootstrap").write_text('#!/bin/sh\ntouch "$HOME/upstream-ran"\n')
         git("add", ".", cwd=other)
-        git(*ident, "commit", "-q", "-m", "next", cwd=other)
+        git(*ident, "commit", "-q", "-m", "upstream", cwd=other)
         git("push", "-q", "origin", "master", cwd=other)
+        before = git("rev-parse", "HEAD").stdout
         env = {**self.env}
         env.pop("MISE_CONFIG_DIR")
-        result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), env=env)
-        self.assertIn("dotfiles updated", (self.home / ".local/state/pod-bootstrap.log").read_text())
-        self.assertTrue((self.repo / "conf.d/code-server/marker").exists())
-        self.assertEqual((self.home / ".local/state/pod-bootstrap.log").read_text().count("[info] mode:"), 1)
+        self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), env=env)
+        self.assertEqual(git("rev-parse", "HEAD").stdout, before)
+        self.assertEqual(git("rev-parse", "origin/master").stdout, before)  # not even fetched
+        self.assertFalse((self.home / "upstream-ran").exists())
         self.assertEqual((self.home / "mise.calls").read_text().count("bootstrap --yes"), 1)
+
+    def test_git_credential_follows_the_class(self):
+        # The class decides, as miserc.toml picks it, so a pinned class renders
+        # its own branch on any machine.
+        expect = {
+            "neko": "helper = %s/.local/bin/git-credential-fnox" % self.home,
+            "paseo": "helper = !gh auth git-credential",
+            "code-server": "helper = !%s/.local/share/mise/shims/gh auth git-credential" % self.home,
+            "cachyos": "helper = store",
+        }
+        for machine, helper in expect.items():
+            with self.subTest(machine=machine):
+                self.select(machine)
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+                config = (self.home / ".config/git/config").read_text()
+                self.assertIn(helper, config)
+                self.assertEqual(config.count("helper ="), 1, config)
+                self.assertEqual("[safe]" in config, machine == "paseo")
 
     def test_pod_bootstrap_without_checkout(self):
         self.fake_mise()
