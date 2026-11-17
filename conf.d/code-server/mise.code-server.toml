@@ -10,7 +10,9 @@ node = "24" # 26 needs libatomic.so.1, which this image lacks (as on the Paseo p
 
 [dotfiles]
 # The image's login shell is bash, and /etc does not survive a pod roll: the
-# editor's terminal starts fish (by its shim) here instead. Machine scope, not
+# editor's terminal starts fish here instead. By its install path, not the shim:
+# a shim exits 1 in any folder whose mise config errors, leaving no terminal to
+# fix it from. Machine scope, not
 # User: the settings UI writes User/settings.json, which stays the owner's.
 "~/.local/share/code-server/Machine/settings.json" = { source = "settings.json.tmpl", mode = "template" }
 
