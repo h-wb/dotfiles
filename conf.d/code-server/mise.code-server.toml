@@ -6,6 +6,7 @@
 # static build, into the home volume.
 [tools]
 "github:fish-shell/fish-shell" = "4.9.3"
+node = "24" # 26 needs libatomic.so.1, which this image lacks (as on the Paseo pods)
 
 [dotfiles]
 # The image's login shell is bash, and /etc does not survive a pod roll: the
