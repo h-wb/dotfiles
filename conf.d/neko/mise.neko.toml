@@ -1,7 +1,9 @@
-# The neko/xfce container (class `neko`): ghcr.io/m1k1o/neko/xfce in k8s, Debian
-# trixie, user `neko`, passwordless sudo, supervisord as pid 1 (no systemd).
-# Only /home/neko is on a PVC; /usr and /etc are wiped every pod roll, so apt
-# stays tiny and bin/neko-bootstrap re-runs bootstrap at every session start.
+# The neko/xfce container (set `neko` = workstation + pod + fish): ghcr.io/m1k1o/neko/xfce
+# in k8s, Debian trixie, user `neko`, passwordless sudo, supervisord as pid 1
+# (no systemd). Only /home/neko is on a PVC; /usr and /etc are wiped every pod
+# roll, so apt stays tiny. home-ops fetches the pinned commit before the
+# desktop starts and runs scripts/pod-bootstrap from an XFCE autostart entry,
+# inside the session, where neko:xfce can reach xfconfd.
 
 # ── Tools, including the GUI apps ───────────────────────────────────────────
 # Not brew, apt or flatpak: they install outside the PVC, or (flatpak) need a
@@ -10,7 +12,6 @@
 # Adding an app: a [tools] entry, a .desktop in xfce/applications/ and its
 # [dotfiles] line (Exec is the shim, stable across bumps).
 [tools]
-starship = "latest"
 "github:zen-browser/desktop" = { version = "latest", os = "linux" }   # whole archive; zen at its root
 
 [tools."http:vscode"]
@@ -25,9 +26,6 @@ linux-arm64 = { url = "https://update.code.visualstudio.com/1.136.1/linux-arm64/
 [env]
 LANG = "C.UTF-8"                     # Debian ships C.UTF-8 without `locales`
 TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
-
-[shell_alias]
-ef = "exec fish"
 
 # ── System packages (reinstalled every pod start: keep it short) ────────────
 [bootstrap.packages]
@@ -50,11 +48,8 @@ ef = "exec fish"
 
 # ── Dotfiles ────────────────────────────────────────────────────────────────
 [dotfiles]
-"~/.config/fish/config.fish" = { source = "fish/config.fish", mode = "symlink" }
-"~/.config/starship.toml"    = { source = "starship.toml", mode = "symlink" }
 # symlink-each: leaves mise's own binary in ~/.local/bin alone.
 "~/.local/bin"                               = { source = "bin", mode = "symlink-each" }
-"~/.config/autostart/mise-bootstrap.desktop" = { source = "xfce/mise-bootstrap.desktop.tmpl", mode = "template" }
 "~/.config/xfce4/terminal/terminalrc"        = { source = "xfce/terminalrc", mode = "symlink" }
 "~/.config/mimeapps.list"                    = { source = "xfce/mimeapps.list", mode = "symlink" }
 # template: .desktop files don't expand `~`.
@@ -62,9 +57,13 @@ ef = "exec fish"
 "~/.local/share/applications/zen.desktop"  = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
 # Held a token; replaced by bin/git-credential-fnox.
 "~/.git-credentials" = { mode = "absent" }
+# The bootstrap before the pinned commit: its autostart entry would still run
+# its launcher, which no checkout has any more.
+"~/.config/autostart/mise-bootstrap.desktop" = { mode = "absent" }
+"~/.local/bin/neko-bootstrap"                = { mode = "absent" }
 
 # ── Repos ───────────────────────────────────────────────────────────────────
-# neko only: on a Mac these checkouts hold real work. neko-bootstrap passes
+# neko only: on a Mac these checkouts hold real work. pod-bootstrap passes
 # --skip-dirty, or one dirty repo would stop the desktop provisioning.
 [bootstrap.repos]
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
@@ -134,22 +133,3 @@ run = 'printf %s "$GH_TOKEN" | env -u GH_TOKEN -u GITHUB_TOKEN gh auth login --w
 description = "Apply XFCE settings (xfconf) inside the neko desktop session"
 skip_if = '! command -v xfconf-query >/dev/null 2>&1 || { [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && ! xfconf-query -l >/dev/null 2>&1; }'
 run = "sh tasks/xfce.sh"
-
-# ── Doctor checks ───────────────────────────────────────────────────────────
-[doctor.checks.neko-hold]
-description = "session-start provisioning is not parked"
-hint = "rm ~/.neko-hold to resume, then run `neko-bootstrap`"
-run = '''
-[ -e "$HOME/.neko-hold" ] || exit 0
-echo "~/.neko-hold is present: neko-bootstrap exits before doing anything"
-exit 1
-'''
-
-[doctor.checks.neko-autostart]
-description = "the autostart entry that reprovisions a rolled pod exists"
-hint = "run `mise bootstrap --only dotfiles --force-dotfiles`"
-run = '''
-f="$HOME/.config/autostart/mise-bootstrap.desktop"
-[ -f "$f" ] || { echo "missing $f — a rolled pod would come back unprovisioned"; exit 1; }
-[ -x "$HOME/.local/bin/neko-bootstrap" ] || { echo "~/.local/bin/neko-bootstrap missing or not executable"; exit 1; }
-'''

@@ -1,5 +1,10 @@
 # mise audit — 2026-10-27
 
+> Since 2026-11-17 the machine's environment is declared in `miserc.local.toml`
+> by its caller, not detected in `miserc.toml`; `neko-bootstrap`,
+> `pull_dotfiles` and every pull are gone, and pods get home-ops' pinned commit
+> (CLAUDE.md). Statements below about detection or pulling are history.
+
 Reviewed the configuration, bootstrap entry points, shell setup, tasks, lockfiles,
 and CI against the released mise source and docs through **2026.10.20**.
 The installed version is **2026.10.19**. Both versions pass the local regression

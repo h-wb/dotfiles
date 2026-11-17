@@ -1,8 +1,10 @@
 .DS_Store
-# Per-machine, never committed: miserc.local.toml (machine class), config.local.toml ([vars]).
+# Per-machine, never committed: miserc.local.toml (the declared environment),
+# config.local.toml ([vars]), and a pod's .pinned-commit (home-ops writes it).
 *.local.toml
 !*.local.toml.example
 __pycache__/
 # mise writes lock sidecars to locks/ again (2026.10.23; the .mise/locks layout
 # only existed in 2026.10.20–.22). Ignore stray mise state under .mise/, if any.
 .mise/
+.pinned-commit

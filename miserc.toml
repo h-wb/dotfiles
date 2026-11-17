@@ -4,21 +4,15 @@ env_conf_d = true
 
 auto_env = true
 
-# Layers, then the class (later wins). Templates can only test paths; an empty
-# entry is ignored. CI / unknown machines: env = [...] in miserc.local.toml.
-env = [
-  "{% if '/etc/paseo' is not exists %}workstation{% endif %}",
-  "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif '/usr/lib/code-server' is exists %}code-server{% elif os() == 'macos' %}personal{% endif %}",
-  "{% if '/etc/paseo/config/paseo.json' is exists %}paseo-overlay{% endif %}",
-]
-
-# One name per class (needs mise >= 2026.11.1, like min_version): miserc.local.toml
-# pins a class, install.sh and CI write it, and `mise -E neko` selects the whole
-# stack. paseo-overlay stays /etc-detected and belongs to no set; a machine that
-# is none of these lists its layers literally.
+# The machine's environment is declared, never detected: its caller writes
+# miserc.local.toml (install.sh from DOTFILES_ENV, scripts/pod-bootstrap from
+# its argument, the Paseo pods with `mise -E … bootstrap --save-env`). It names
+# one set below and may add layers after it (`env = ["paseo", "paseo-overlay"]`).
+# Nothing declared: only config.toml and the shared folders load, and the
+# doctor's `wiring` check fails. Needs mise >= 2026.11.1, like min_version.
 [env_sets]
 personal = ["workstation", "personal"]
-neko = ["workstation", "pod", "neko"]
-cachyos = ["workstation", "cachyos"]
-paseo = ["paseo"]
-code-server = ["workstation", "pod", "fish", "code-server"]
+neko = ["workstation", "pod", "fish", "neko"]
+cachyos = ["workstation", "fish", "cachyos"]
+paseo = ["nonroot", "paseo"]
+code-server = ["workstation", "pod", "nonroot", "fish", "code-server"]

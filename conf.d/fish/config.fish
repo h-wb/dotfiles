@@ -4,10 +4,13 @@
 fish_add_path -g $HOME/.local/bin
 
 if status is-interactive
-    set -g fish_greeting
+    # A machine file sets dotfiles_native_prompt to keep its distribution's.
+    set -q dotfiles_native_prompt; or set -g fish_greeting
     # mise last, so its tool dirs win on PATH.
     mise activate fish | source
-    command -q starship; and starship init fish | source
+    if not set -q dotfiles_native_prompt; and command -q starship
+        starship init fish | source
+    end
 else
     # `mise activate` is interactive-only; scripts get shims.
     mise activate fish --shims | source

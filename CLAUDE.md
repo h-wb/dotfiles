@@ -6,11 +6,12 @@ classes share the repo — the MacBook (`personal`), an XFCE desktop in a k8s po
 (`neko`), a CachyOS KDE gaming desktop (`cachyos`), a headless coding-agent
 pod (`paseo`) and the owner's browser editor in a k8s pod (`code-server`).
 What several classes share lives in a **layer** (`workstation`, `pod`,
-`fish`), not in each class: a machine is its layers plus what only it has. Read the section for a machine before touching anything it
+`nonroot`, `fish`), not in each class: a machine is its layers plus what only it has. Read the section for a machine before touching anything it
 loads.
 
-**On a paseo pod, edit dotfiles in `~/Repositories/dotfiles`.** `~/.dotfiles`
-is the pod's live config: read-only, and cloned fresh at every start. Work in
+**On a pod (Paseo, neko, code-server), edit dotfiles in `~/Repositories/dotfiles`.**
+`~/.dotfiles` is the pod's live config: home-ops' pinned commit, replaced at
+every start, so an edit there is gone at the next one. Work in
 Paseo worktrees, not in the `~/Repositories` checkouts themselves: a clean
 checkout goes back to its base branch at every start.
 
@@ -21,7 +22,7 @@ here under its native names — no per-file symlink farm, and every relative pat
 resolves inside the repo. The link is mise's own: the first `[dotfiles]` entry
 in `config.toml` (mise's documented self-managing-config pattern; onedr0p's
 dotfiles do the same per file). A first run cannot go through a link that does
-not exist yet, so `install.sh` and `neko-bootstrap` run with
+not exist yet, so `install.sh` and `scripts/pod-bootstrap` run with
 `MISE_CONFIG_DIR=~/.dotfiles`; the bootstrap creates the link and maintains it
 like any dotfile (`mise dot status` shows drift; a real directory in the way
 needs `--force-dotfiles`). The entry's source must be the absolute
@@ -36,38 +37,41 @@ flag requires `--from` on every call — plain `mise bootstrap` and
 `apply`/`diff`/`upgrade` cannot carry it, so the `[dotfiles]` self-link stays
 the maintainer — and mise clones only *during* bootstrap, while `install.sh`
 needs the checkout before that (the min_version gate, `miserc.local.toml`,
-and deciding whether to wrap in fnox). `bootstrap --update` (≥ 2026.11.0)
-fast-forwards a linked checkout but **aborts** on local changes, where
-`pull_dotfiles` warns and continues — pods need that. Checks: the addendum in
-the mise audit.
+and deciding whether to wrap in fnox). The Paseo pods do use it, with
+`?ref=<pinned commit>` and `-E … --save-env`. Nothing here pulls: a person
+updates the Mac's or CachyOS's clone with git, and every pod gets home-ops'
+pinned commit fresh at each start (`DOTFILES_REF`, bumped by Renovate). Checks:
+the addendum in the mise audit.
 
-The **machine class and its layers are picked in `miserc.toml`**: miserc
-templates see only the OS (no `read_file`/`exec`), but `is exists` path tests
-work — `/etc/neko` (neko image), `/etc/pacman.d/cachyos-mirrorlist` (CachyOS),
-`/etc/paseo` (the paseo pod mounts it), `/usr/lib/code-server` (the
-code-server image), else `os() == "macos"` → personal. `env`
-is a list, applied in order (later wins), and an entry that templates to empty is
-ignored:
+The **machine's environment is declared, never detected.** The caller writes
+an untracked `miserc.local.toml`: `install.sh` from `DOTFILES_ENV` (the Mac,
+CachyOS; required on the first run, kept after), `scripts/pod-bootstrap` from
+its one argument (neko, code-server, from home-ops' `DOTFILES_ENV`), the Paseo
+pods with `mise -E paseo,paseo-overlay bootstrap --save-env`. It names one set
+from `miserc.toml`'s `[env_sets]`, then any layers for that machine only;
+`scripts/provision.sh`'s `declare_env` validates and writes it. An inherited
+`MISE_ENV` (an activated shell exports one) would override the file, so both
+entry points unset it. The sets, applied in order (later wins):
 
 | env                   | machines                | holds                                                                                                               |
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `workstation` (layer) | personal, neko, cachyos, code-server | credentialed CLIs (aws, bws, metabase), `apply`/`diff`/`upgrade` (fnox), kubeconfigs + `KUBECONFIG` |
-| `pod` (layer, `conf.d/pod`) | neko, code-server | a workstation in a k8s pod: the keyring-less key provider, the repo a fresh volume needs |
-| `fish` (layer, `conf.d/fish`) | code-server (neko and cachyos later) | the shell's config: one `config.fish` (a machine's own lines go in `conf.d/<machine>.fish`), starship and its prompt, `ef`; not the fish binary |
+| `pod` (layer, `conf.d/pod`) | neko, code-server | a workstation in a k8s pod: the keyring-less key provider, the repos a fresh volume needs, the `pod-bootstrap` doctor check |
+| `nonroot` (layer, `conf.d/nonroot`) | paseo, code-server | a pod on someone else's image without root: node 24 (26 needs libatomic.so.1, which neither image has) |
+| `fish` (layer, `conf.d/fish`) | neko, cachyos, code-server | the shell's config: one `config.fish` (a machine's own lines go in `conf.d/<machine>/fish/<machine>.fish`, linked into `~/.config/fish/conf.d/`), starship and its prompt, `ef`; not the fish binary |
 | the class             | one machine             | everything else                                                                                                     |
 
-Layers other than `workstation` come only from `[env_sets]`, which also
-expands a class `miserc.toml` detected (verified with 2026.11.8), so a new
-layer needs no detection line. `pod` is not the old one dropped in #15: that
+Layers come only from `[env_sets]` and the declaration, so a new layer needs
+no detection line. `pod` is not the old one dropped in #15: that
 one held leftovers (tmux for a gone sshd, LANG, a clone) for the Paseo pods
 too; this one holds only what a workstation pod is, and Paseo never loads it.
 
 So `config.toml` is only what _every_ machine wants, the paseo agent host
-included; a layer never has to be taken back out by a class. An unrecognised
-machine gets `workstation` and no class (doctor `wiring` flags it); an untracked
-`miserc.local.toml` pins it by class name (`env = ["neko"]`), which
-`[env_sets]` in `miserc.toml` expands — that is also how CI pins each matrix
-job and how `mise -E neko` selects a machine.
+included; a layer never has to be taken back out by a class. A machine that
+declares nothing gets `config.toml` and the shared folders only, and doctor
+`wiring` fails; `home/git/config.tmpl` reads `mise_env` with a default for it.
+CI declares each matrix job the same way, and `mise -E neko` selects a machine
+for one command.
 
 | file                               | loads when                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------- |
@@ -77,7 +81,7 @@ job and how `mise -E neko` selects a machine.
 | `conf.d/<folder>/mise.<env>.toml`  | that class or layer, or that platform (`macos` = any Mac, via `auto_env`)    |
 | `config.local.toml`                | always, last (untracked per-machine `[vars]`)                                |
 | `miserc.toml`                      | early init, committed: `env_conf_d`, `auto_env`                              |
-| `miserc.local.toml`                | early init, untracked, optional: pins the class (`[env_sets]` expands it)    |
+| `miserc.local.toml`                | early init, untracked: the declared environment (`[env_sets]` expands it)    |
 
 - **Folder fragments** (mise 2026.9.14): a folder in `conf.d/` reads only
   `mise.toml`, `mise.local.toml`, `mise.<env>.toml`, `mise.<env>.local.toml` —
@@ -95,10 +99,9 @@ job and how `mise -E neko` selects a machine.
   otherwise it is a section of its machine's file.
 - **Renaming a folder moves its symlink sources**: the old links dangle until
   the next dotfiles apply, which re-points them without `--force`. On the Mac
-  apply right after pulling (`~/.zshrc` is one of them); neko's session-start
-  bootstrap does it, except in `protect` mode, which skips dotfiles. Never
-  move `conf.d/neko/bin/neko-bootstrap`: the autostart re-executes it by path
-  after it has pulled.
+  apply right after pulling (`~/.zshrc` is one of them); a pod's start does
+  it, except in `protect` mode, which skips dotfiles. Never move
+  `scripts/pod-bootstrap`: home-ops' Component runs it by path.
 - **`home/`** holds sources for the two root configs only (git, ssh, kube). A
   folder fragment never reaches into `home/`.
 - **Platform environments** (`auto_env = true` in `miserc.toml`): `macos`,
@@ -109,7 +112,7 @@ job and how `mise -E neko` selects a machine.
   so a stray `-E neko` on a Mac fails clean).
 - **`min_version = { hard = "2026.11.1" }`** in `config.toml` — for `{{ mise_config_dir }}` (`vars.repo`), templated doctor checks and their
   `depends`, and `miserc.toml`'s `[env_sets]`: an older mise loads a pinned
-  class on its own and silently drops its layers. `scripts/provision.sh` (installer and neko's bootstrap; paseo pins
+  class on its own and silently drops its layers. `scripts/provision.sh` (installer and pod-bootstrap; paseo pins
   mise by image tag) self-updates below it, because
   `self_update.auto` skips unattended runs; it reads the version from this very
   line with `sed`, so keep the inline-table shape. Don't
@@ -129,7 +132,13 @@ job and how `mise -E neko` selects a machine.
   upgraded within their ranges — `latest` tools move, so commit the lockfiles).
 - `mise doctor project` — the `[doctor.checks.*]`: wiring, config keys, file
   modes, native locked-install preview, task validation, credential perms, plus per-class ones (k8s-dns,
-  neko-hold, neko-autostart, gamescope-projector). Fields are
+  pod-bootstrap, gamescope-projector). `config-keys` exempts exactly three
+  deprecations (`bootstrap.macos.defaults`, `defaults_entries`,
+  `login_items`): mise ≥ 2026.11.8 deprecates them for
+  `[bootstrap.settings.macos]`, which is experimental and unknown to
+  min_version, so no file passes on both (CI was red on the newest mise until
+  this exemption). `file-modes` has nothing to check on a pod, whose
+  `~/.dotfiles` is a tarball. Fields are
   `description`/`run`/`hint`/`depends`; the first three are Tera-templated
   (2026.10.17), so a check reads `{{ vars.x }}` directly. A check whose
   `depends` fails is BLOCKED, not run. Add a check whenever you catch a
@@ -173,10 +182,10 @@ picked, a missing main IP is fine).
   resolver with no zone or no nameserver, which breaks the lookups. (The
   MacBook always runs under fnox anyway.)
 - **Wrong for the shared templates**, because the abort is global. On a fresh
-  neko PVC with no Proton Pass session, `neko-bootstrap`'s `fresh` mode applies
+  neko PVC with no Proton Pass session, `pod-bootstrap`'s `fresh` mode applies
   dotfiles with no secrets on purpose — that is what gives a new container its
-  fish config and autostart entry. Under `secret()` it would get nothing. The
-  `secrets`/`fresh`/`protect` modes in `neko-bootstrap` cover that ground more
+  fish config. Under `secret()` it would get nothing. The
+  `secrets`/`fresh`/`protect` modes in `pod-bootstrap` cover that ground more
   precisely; keep them.
 - **Never `remove_empty = true` on a secret-gated template**: a dead session
   would then _delete_ `~/.ssh/config` instead of blanking it.
@@ -447,14 +456,15 @@ one-line wrappers) and `dns:status`.
   So apt (`[bootstrap.packages]`) is a per-start cost and stays tiny; GUI apps
   are `[tools]` (`~/.local/share/mise` is on the PVC); the login shell and the
   timezone (`neko:shell`, `neko:tz`) are re-applied each run.
-- **Reprovisioning**: `~/.config/autostart/mise-bootstrap.desktop` →
-  `bin/neko-bootstrap` at every XFCE session start (the launchd equivalent;
-  `[bootstrap.linux.systemd.units]` is useless without systemd). It
-  fast-forwards `~/.dotfiles` first (skipped under hold), wires
-  `~/.config/mise`, picks `secrets`/`fresh`/`protect`, runs bootstrap once with
-  `--skip-dirty` (one dirty repo must not stop provisioning), logs to
-  `~/.local/state/neko-bootstrap.log`, `notify-send`s on failure.
-- **`touch ~/.neko-hold` parks it** — survives a pod roll, so a desktop parked
+- **Reprovisioning** is home-ops' `components/dotfiles`: an init container
+  puts the pinned commit at `~/.dotfiles` before the desktop starts, and a
+  system XFCE autostart entry (`/etc/xdg/autostart/dotfiles-bootstrap.desktop`)
+  runs `scripts/pod-bootstrap neko` in the session (the launchd equivalent;
+  `[bootstrap.linux.systemd.units]` is useless without systemd). Log, status
+  and doctor check are the `pod` layer's. The old user entry
+  (`~/.config/autostart/mise-bootstrap.desktop`) and `~/.local/bin/neko-bootstrap`
+  are `absent` entries: they launched the bootstrap before the pin.
+- **`touch ~/.pod-hold` parks it** — survives a pod roll, so a desktop parked
   mid-surgery comes back parked. Doctor flags it.
 - **`xfconf-query` needs the session D-Bus** — works from the autostart run,
   no-ops from `kubectl exec`.
@@ -495,8 +505,8 @@ one-line wrappers) and `dns:status`.
 ## The Paseo agent hosts (`conf.d/paseo/`)
 
 Home-ops defines `paseo-general` and `paseo-private` using one shared pod base.
-Both detect the same mise class through `/etc/paseo`; `PASEO_DATA_SCOPE` is the
-scope selector. The existing general release/PVC keeps its `paseo` identity.
+Both declare the same environment (`paseo,paseo-overlay`); `PASEO_DATA_SCOPE`
+is the scope selector. The existing general release/PVC keeps its `paseo` identity.
 
 - General runs Claude Code and OpenCode; private runs OpenCode and Hermes. Both
   have separate homes and credentials, and neither mounts a service-account token:
@@ -513,9 +523,11 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   vault; it logs in with the global login template (per-scope session, token
   fingerprint). The private pod needs no secrets and skips the login task.
 - **Provisioning** is home-ops' `tools` init container, on the app's image:
-  `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir .
-  --yes --force-dotfiles --skip-dirty --locked`, plus `--skip=repos` on
-  private, with no script. mise re-reads miserc after the first clone. The image tag is the
+  `mise -E paseo,paseo-overlay bootstrap --from <dotfiles.git>?ref=<pin>
+  --save-env --from-dir ~/.dotfiles --config-dir . --yes --force-dotfiles
+  --skip-dirty --locked`, plus `--skip=repos,task` on private, with no script;
+  a failure logs a line and the pod starts. `--save-env` writes the
+  declaration into the checkout for the app container. The image tag is the
   mise version, so keep it ≥ `min_version`. `~/.dotfiles` is an `emptyDir`
   (fresh clone each start, read-only in the app container) because `--update`
   only fast-forwards: an agent's commit there once blocked the pod.
@@ -527,8 +539,8 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
   `locks/` pointers to `.mise/locks/`; 2026.10.23+ resolves both to `locks/`).
   Keep it unset on the pods — the checkout is read-only, the link is enough.
 - `paseo-overlay` merges `/etc/paseo/config/paseo.json` into
-  `~/.paseo/config.json`. It is its own layer because a missing merge source
-  is an error. That path is the only contract with home-ops.
+  `~/.paseo/config.json`. It is its own layer, declared by the pods, because a
+  missing merge source is an error. That path is the only contract with home-ops.
 - No sshd: terminals come from Paseo's web UI, admin shells from `kubectl exec`.
 - Scope separation is enforced by home-ops (per-scope pods and credentials).
   See home-ops `agents/README.md`.
@@ -537,38 +549,39 @@ scope selector. The existing general release/PVC keeps its `paseo` identity.
 
 The owner's own environment in the cluster: `ghcr.io/coder/code-server`,
 Debian, user `coder`, in his browser behind the Kanidm login, where he works
-as himself (`gh auth login`, `land <pr>`). Class `code-server` = `workstation`
-+ `pod` + `fish`; its folder holds only what is about this image: the fish
-binary, the editor's terminal profile, and the `pod-bootstrap` doctor check
-until neko uses it too.
+as himself (`gh auth login`, `land <pr>`). Set `code-server` = `workstation`
++ `pod` + `nonroot` + `fish`; its folder holds only what is about this image:
+the fish binary and the editor's terminal profile.
 
-- **Provisioning** is home-ops' `dotfiles` Component: at every start it clones
-  `~/.dotfiles` when `scripts/pod-bootstrap` is missing (a cut-off clone is
-  moved aside), then runs that script **by path** — never a link the bootstrap
+- **Provisioning** is home-ops' `dotfiles` Component, in the init container:
+  it downloads the pinned commit's tarball, swaps it in at `~/.dotfiles` (whatever
+  was there goes, `.pinned-commit` names the commit), then runs
+  `scripts/pod-bootstrap code-server` **by path** — never a link the bootstrap
   manages, so a rolled pod comes back provisioned (the neko incident of
   2026-11-12). Don't move the script without changing home-ops with it.
-- **`scripts/pod-bootstrap`** is the one implementation for workstation pods:
-  mise from `provision.sh`, neko's `secrets`/`fresh`/`protect` modes, a second
-  run when a fresh volume's token works, a status file for doctor
-  `pod-bootstrap`, only the status line on stdout (pod logs are readable by the
-  agents' cluster tools). neko's differences are options (`--pull`, `--hold`,
-  `--log`, `--timeout`); neko itself still runs `neko-bootstrap`.
-- **It never pulls on code-server.** It runs unattended with the owner's token,
-  so it applies the checkout on the volume; only an empty volume clones
-  `master`. Updating is the Mac's way: `git -C ~/.dotfiles pull`, read it,
-  `mise run apply`. Keep `master` protected (pull request plus the owner's
-  review): the first clone and every pull take it.
+- **`scripts/pod-bootstrap ENVIRONMENT`** is the one implementation for pods:
+  it declares the environment first, then mise from `provision.sh`, the
+  `secrets`/`fresh`/`protect` modes, a second run when a fresh volume's token
+  works, one log and status (`RESULT MODE DATE COMMIT`; `stale` when the
+  Component's download failed and an older commit ran), only the status line on
+  stdout (pod logs are readable by the agents' cluster tools). It never
+  fetches or pulls; `~/.pod-hold` parks it. Its doctor check is the `pod` layer's.
+- **The commit arrives unattended**, with the owner's token in the pod:
+  Renovate auto-merges home-ops' pin to `master`'s head at night. Keep
+  `master` protected (pull request plus the owner's review) and its CI green.
+  To undo a bad commit, revert the pin's merge in home-ops.
 - **Proton Pass**: one token, BWS `code-server`, as `PROTON_PASS_TOKEN` (repos'
   `pass:login`); pod-bootstrap logs the default session in with it. Never the
   Paseo pod's token.
 - **Shell**: fish, layer `fish`; the binary is fish's own static build
   (`github:fish-shell/fish-shell`, pinned and locked) in the home volume, as
   the image has none. The image's login shell is bash and `/etc` does not
-  survive a roll, so the terminal is pointed at fish's mise shim in the *Machine*
+  survive a roll, so the terminal starts fish by its install path (not the
+  shim, which exits in a folder whose mise config errors) in the *Machine*
   `settings.json`; the User one is the settings UI's.
 - **GitHub**: git uses `gh auth git-credential`, `gh` by its shim path (the
   editor's own git has no mise on PATH), after the owner's own `gh auth
-  login`. The credential branch in `home/git/config.tmpl` follows the class.
+  login`. The credential branch in `home/git/config.tmpl` follows the declared environment.
 - **Credentials live on the PVC and in its kopiur backups**: rotate rather than
   rely on deletion.
 
@@ -580,7 +593,10 @@ of the neko constraints: apps are `pacman:` packages.
 - **Scope is "what was added after the installer"**, from `/var/log/pacman.log`
   (install dates are useless: a full `-Syu` on 2026-09-27 reset them). Theme,
   cursor, animation speed and the fish prompt are CachyOS's `/etc/skel`
-  defaults — don't re-declare them. `pacman -Qm` lib32 entries are orphans.
+  defaults — don't re-declare them. It loads the shared `fish` layer;
+  `fish/cachyos.fish` sources CachyOS's own fish config and sets
+  `dotfiles_native_prompt`, which keeps CachyOS's greeting and prompt instead of
+  starship (switching it is the owner's call). `pacman -Qm` lib32 entries are orphans.
 - No AUR helper needed (zen-browser-bin, gamescope-session-cachyos are in the
   cachyos repo). RetroDECK is a _system_ flatpak; Arch's flatpak ships the
   flathub remote, so the pre-packages hook only ensures flatpak exists.
