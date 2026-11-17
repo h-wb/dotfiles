@@ -10,7 +10,8 @@
 #   protect  no session and secrets on disk: skip dotfiles, or they render empty
 #
 # What it owns on the volume: ~/.dotfiles (replaced by the Component at every
-# start: edits there do not survive; develop in ~/Repositories/dotfiles), the
+# start: edits there do not survive; develop in ~/Repositories/dotfiles; a git
+# clone from before the pin is kept once at ~/.dotfiles.pre-pin), the
 # files the environment's [dotfiles] and [bootstrap] entries name, and
 # ~/.local/state/pod-bootstrap.{log,status}. [bootstrap.repos] are cloned when
 # missing and never touched after. Anything else is left alone; the doctor's

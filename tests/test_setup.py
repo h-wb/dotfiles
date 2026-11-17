@@ -1055,10 +1055,11 @@ exit 22
                         (state / "pod-bootstrap.status").write_text(line + "\n")
                         self.assertEqual(self.doctor()["pod-bootstrap"], want)
                 # What the bootstraps before the pin left is flagged, not removed.
-                (self.home / "home-ops").mkdir()
-                self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
-                self.assertTrue((self.home / "home-ops").is_dir())
-                (self.home / "home-ops").rmdir()
+                for left in ("home-ops", ".dotfiles.pre-pin"):
+                    (self.home / left).mkdir()
+                    self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
+                    self.assertTrue((self.home / left).is_dir())
+                    (self.home / left).rmdir()
 
     def test_code_server_terminal_and_shell(self):
         self.select("code-server")

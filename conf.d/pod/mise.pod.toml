@@ -38,7 +38,7 @@ hold) echo "~/.pod-hold is present: nothing was applied"; exit 1 ;;
 esac
 # Left by the bootstraps before the pinned commit; look, then delete.
 rc=0
-for p in "$HOME"/.dotfiles.broken-* "$HOME/home-ops" "$HOME/.neko-hold"; do
+for p in "$HOME"/.dotfiles.broken-* "$HOME/.dotfiles.pre-pin" "$HOME/home-ops" "$HOME/.neko-hold"; do
 	[ -e "$p" ] || continue
 	echo "$p: left by an earlier bootstrap, not used any more"
 	rc=1
