@@ -1020,7 +1020,7 @@ exit 22
         settings = json.loads((self.home / ".local/share/code-server/Machine/settings.json").read_text())
         profile = settings["terminal.integrated.defaultProfile.linux"]
         self.assertEqual(settings["terminal.integrated.profiles.linux"][profile]["path"],
-                         str(self.home / ".local/share/mise/shims/fish"))
+                         str(self.home / ".local/share/mise/installs/github-fish-shell-fish-shell/latest/fish"))
         self.assertEqual((self.home / ".config/fish/config.fish").resolve(),
                          (self.repo / "conf.d/fish/config.fish").resolve())
         self.assertEqual((self.home / ".config/starship.toml").resolve(),
