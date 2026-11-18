@@ -560,8 +560,8 @@ the fish binary and the editor's terminal profile.
   2026-11-12). Don't move the script without changing home-ops with it.
 - **`scripts/pod-bootstrap ENVIRONMENT`** is the one implementation for pods:
   the environment (`use_env`, saved by `--save-env`), mise from `provision.sh`, the
-  `secrets`/`fresh`/`protect` modes, a second run when a fresh volume's token
-  works, one log and status (`RESULT MODE DATE COMMIT`; `stale` when the
+  `secrets`/`fresh`/`protect` modes (fnox and pass-cli come from `mise exec`,
+  on demand, so a fresh volume's token works in the first run), one log and status (`RESULT MODE DATE COMMIT`; `stale` when the
   Component's download failed and an older commit ran), only the status line on
   stdout (pod logs are readable by the agents' cluster tools). It never
   fetches or pulls. Its doctor check is the `pod` layer's.

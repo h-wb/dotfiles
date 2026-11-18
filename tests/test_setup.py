@@ -81,10 +81,7 @@ config)
   *paseo*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
   *) echo "$HOME/.dotfiles/config.workstation.toml" ;;
   esac ;;
-which)
-  [ "$2" = fnox ] && [ -n "${TEST_FNOX:-}" ] && [ -e "$HOME/fnox-installed" ] || exit 1
-  echo "$TEST_FNOX" ;;
-bootstrap) [ -z "${TEST_FNOX:-}" ] || touch "$HOME/fnox-installed" ;;
+which) exit 1 ;;
 exec)
   export PROTON_PASS_KEY_PROVIDER=fs
   while [ "$1" != -- ]; do shift; done
@@ -875,12 +872,10 @@ exit 22
                 result = self.ensure_mise(TEST_VERSION="2026.9.1", TEST_UPDATE_EXIT=exit_code)
                 self.assertNotEqual(result.returncode, 0)
 
-    def pod_bootstrap(self, ok=True, fnox_installed=False, args=("code-server",), **extra):
-        for name in ("mise.calls", "fnox.calls", "fnox-installed", "pass-cli.calls"):
+    def pod_bootstrap(self, ok=True, args=("code-server",), **extra):
+        for name in ("mise.calls", "fnox.calls", "pass-cli.calls"):
             (self.home / name).unlink(missing_ok=True)
         (self.home / "mise.calls").touch()
-        if fnox_installed:
-            (self.home / "fnox-installed").touch()
         env = {**self.env, **extra}
         env.pop("MISE_CONFIG_DIR")
         result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), *args, ok=ok, env=env)
@@ -893,7 +888,6 @@ exit 22
         self.fake("timeout", 'shift; exec "$@"')
         self.fake("fnox", 'printf "%s\\n" "$*" >> "$HOME/fnox.calls"\n'
                   'while [ "$1" != -- ]; do shift; done; shift; exec "$@"')
-        fnox = str(self.bin / "fnox")
         kube = self.home / ".kube"
         kube.mkdir()
 
@@ -909,24 +903,25 @@ exit 22
 
         self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
         with self.subTest("fresh PVC, token rejected: one run"):
-            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
+            _, status, calls = self.pod_bootstrap(PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "fresh"])
             self.assertEqual(calls.count("bootstrap --yes"), 1)
             self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
 
-        # The first run installs fnox; the token is used in the same pod start.
+        # `mise exec` installs fnox and pass-cli on demand: one run, with secrets.
         self.fake("pass-cli", '[ "$1" = login ] && [ "$2" = --pat ]')
         with self.subTest("fresh PVC, token waiting"):
-            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
+            _, status, calls = self.pod_bootstrap(PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "secrets"])
-            self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)
+            self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)  # mise exec … -- mise bootstrap
+            self.assertIn("exec github:jdx/fnox github:protonpass/pass-cli -- fnox --if-missing error exec "
+                          "-c fnox.toml --", calls)
             self.assertIn("--if-missing error exec", (self.home / "fnox.calls").read_text())
 
         (kube / "main.yaml").write_text("fixture credentials\n")
-        with self.subTest("secrets on disk, fnox installed, token rejected"):
+        with self.subTest("secrets on disk, token rejected"):
             self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
-            _, status, calls = self.pod_bootstrap(fnox_installed=True, TEST_FNOX=fnox,
-                                                  PROTON_PASS_TOKEN="fixture-pat")
+            _, status, calls = self.pod_bootstrap(PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "protect"])
             self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
             self.assertIn("--skip dotfiles", calls)
