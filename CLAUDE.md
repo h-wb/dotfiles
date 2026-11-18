@@ -43,15 +43,16 @@ updates the Mac's or CachyOS's clone with git, and every pod gets home-ops'
 pinned commit fresh at each start (`DOTFILES_REF`, bumped by Renovate). Checks:
 the addendum in the mise audit.
 
-The **machine's environment is declared, never detected.** The caller writes
-an untracked `miserc.local.toml`: `install.sh` from `DOTFILES_ENV` (the Mac,
-CachyOS; required on the first run, kept after), `scripts/pod-bootstrap` from
-its one argument (neko, code-server, from home-ops' `DOTFILES_ENV`), the Paseo
-pods with `mise -E paseo,paseo-overlay bootstrap --save-env`. It names one set
-from `miserc.toml`'s `[env_sets]`, then any layers for that machine only;
-`scripts/provision.sh`'s `declare_env` validates and writes it. An inherited
-`MISE_ENV` (an activated shell exports one) would override the file, so both
-entry points unset it. The sets, applied in order (later wins):
+The **machine's environment is declared, never detected.** The caller names
+it and mise's own `bootstrap --save-env` writes the untracked
+`miserc.local.toml`: `install.sh` from `DOTFILES_ENV` (the Mac, CachyOS;
+required on the first run, kept after), `scripts/pod-bootstrap` from its one
+argument (neko, code-server, from home-ops' `DOTFILES_ENV`), the Paseo pods
+with `mise -E paseo,paseo-overlay bootstrap --save-env`. It names one set from
+`miserc.toml`'s `[env_sets]`, then any layers for that machine only. mise
+saves any name, so `scripts/provision.sh`'s `use_env` checks the set first; it
+exports `MISE_ENV` for the run, and mise writes the file before it applies
+anything. The sets, applied in order (later wins):
 
 | env                   | machines                | holds                                                                                                               |
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -464,8 +465,6 @@ one-line wrappers) and `dns:status`.
   and doctor check are the `pod` layer's. The old user entry
   (`~/.config/autostart/mise-bootstrap.desktop`) and `~/.local/bin/neko-bootstrap`
   are `absent` entries: they launched the bootstrap before the pin.
-- **`touch ~/.pod-hold` parks it** — survives a pod roll, so a desktop parked
-  mid-surgery comes back parked. Doctor flags it.
 - **`xfconf-query` needs the session D-Bus** — works from the autostart run,
   no-ops from `kubectl exec`.
 - **pass-cli**: the default backend keeps its key in the kernel keyring, which
@@ -560,12 +559,12 @@ the fish binary and the editor's terminal profile.
   manages, so a rolled pod comes back provisioned (the neko incident of
   2026-11-12). Don't move the script without changing home-ops with it.
 - **`scripts/pod-bootstrap ENVIRONMENT`** is the one implementation for pods:
-  it declares the environment first, then mise from `provision.sh`, the
+  the environment (`use_env`, saved by `--save-env`), mise from `provision.sh`, the
   `secrets`/`fresh`/`protect` modes, a second run when a fresh volume's token
   works, one log and status (`RESULT MODE DATE COMMIT`; `stale` when the
   Component's download failed and an older commit ran), only the status line on
   stdout (pod logs are readable by the agents' cluster tools). It never
-  fetches or pulls; `~/.pod-hold` parks it. Its doctor check is the `pod` layer's.
+  fetches or pulls. Its doctor check is the `pod` layer's.
 - **The commit arrives unattended**, with the owner's token in the pod:
   Renovate auto-merges home-ops' pin to `master`'s head at night. Keep
   `master` protected (pull request plus the owner's review) and its CI green.

@@ -68,8 +68,8 @@ Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds
 
 The untracked `miserc.local.toml` declares the environment: one set from
 `miserc.toml`'s `[env_sets]`, then any layers for that machine only
-(`env = ["paseo", "paseo-overlay"]`). The caller writes it: `install.sh`,
-`scripts/pod-bootstrap`, or the Paseo pods' `mise bootstrap --save-env`.
+(`env = ["paseo", "paseo-overlay"]`). The caller names it and `mise bootstrap
+--save-env` writes it: `install.sh`, `scripts/pod-bootstrap`, the Paseo pods.
 
 | set | layers |
 | --- | --- |
@@ -90,7 +90,7 @@ sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/m
 ```
 
 Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos`
-the first time; the installer saves it in `miserc.local.toml`, so later runs
+the first time; mise saves it in `miserc.local.toml`, so later runs
 need it only to change it. On a Mac, sign in to iCloud and the App Store first.
 The installer installs mise, clones to `~/.dotfiles` (an existing checkout is
 used as it is: update it with git) and runs `mise bootstrap` under fnox.
@@ -159,8 +159,8 @@ pod roll, and there is no systemd or launchd. So GUI apps are mise `[tools]`
 (on the PVC), and the apt list is tiny and reinstalled per start. home-ops
 fetches the pinned commit in an init container and a system XFCE autostart
 entry runs `scripts/pod-bootstrap neko` inside the session (xfconf needs it).
-`touch ~/.pod-hold` pauses it; the log is `~/.local/state/pod-bootstrap.log`,
-and `mise doctor project` reports the last start.
+The log is `~/.local/state/pod-bootstrap.log`, and `mise doctor project`
+reports the last start.
 
 To add a GUI app: a `[tools]` entry in `conf.d/neko/mise.neko.toml`, a
 `.desktop` file in `conf.d/neko/xfce/applications/` and its `[dotfiles]` line.

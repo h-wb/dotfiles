@@ -2,9 +2,9 @@
 # Provision ~/.dotfiles on a machine a person installs by hand (the Mac,
 # CachyOS); pods run scripts/pod-bootstrap instead. DOTFILES_ENV names the
 # environment, a set from miserc.toml's [env_sets] plus any extra layers
-# (`personal`, `cachyos`). It is saved in miserc.local.toml, so later runs
-# need it only to change it. An existing checkout is used as it is: update it
-# with git.
+# (`personal`, `cachyos`). mise saves it in miserc.local.toml (--save-env), so
+# later runs need it only to change it. An existing checkout is used as it is:
+# update it with git.
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
@@ -26,8 +26,9 @@ cd "${DOTFILES_DIR}"
 # The ~/.config/mise link doesn't exist until this run's dotfiles step.
 export MISE_CONFIG_DIR="${DOTFILES_DIR}"
 . ./scripts/provision.sh
-[ -z "${DOTFILES_ENV:-}" ] || declare_env "$DOTFILES_DIR" "$DOTFILES_ENV"
+# Not declared now: the saved environment, not an activated shell's MISE_ENV.
 unset MISE_ENV
+[ -z "${DOTFILES_ENV:-}" ] || use_env "$DOTFILES_ENV" || exit 1
 ensure_mise || exit 1
 
 configs="$("$MISE" config)"
@@ -37,6 +38,6 @@ case "$configs" in
 	"$MISE" exec github:jdx/fnox github:protonpass/pass-cli -- sh -c '
 		./scripts/pass-preflight || exit 1
 		exec fnox --if-missing error exec -c fnox.toml -- "$@"
-	' sh "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
-*) "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
+	' sh "$MISE" bootstrap --yes --force-dotfiles ${DOTFILES_ENV:+--save-env} || exit 1 ;;
+*) "$MISE" bootstrap --yes --force-dotfiles ${DOTFILES_ENV:+--save-env} || exit 1 ;;
 esac

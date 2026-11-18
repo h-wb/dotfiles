@@ -12,7 +12,7 @@ ANKI="${HOME}/.local/share/mise/shims/anki"
 # After a pod roll the Qt libraries are gone until the bootstrap reinstalls them.
 i=0
 until [ -x "$ANKI" ] && ldconfig -p 2>/dev/null | grep -q 'libxcb-cursor\.so\.0'; do
-	[ $((i % 60)) -eq 0 ] && echo "[wait] Anki or its Qt libraries are not there yet (bootstrap running, or ~/.pod-hold?)"
+	[ $((i % 60)) -eq 0 ] && echo "[wait] Anki or its Qt libraries are not there yet (is the bootstrap still running?)"
 	i=$((i + 1))
 	sleep 5
 done

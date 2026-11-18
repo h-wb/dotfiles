@@ -27,21 +27,18 @@ ensure_mise() {
 	fi
 }
 
-# declare_env DIR SPEC: record this machine's environment in DIR/miserc.local.toml.
-# SPEC is a set from DIR/miserc.toml's [env_sets], then any extra layers,
-# comma-separated (`code-server`, `paseo,paseo-overlay`). A bad SPEC writes
-# nothing. A MISE_ENV inherited from an activated shell would override the file.
-declare_env() {
-	case "$2" in
+# use_env SPEC, from the checkout: select this machine's environment for this
+# run, a set from miserc.toml's [env_sets] then any extra layers, comma-separated
+# (`code-server`, `paseo,paseo-overlay`). `mise bootstrap --save-env` keeps it in
+# miserc.local.toml. mise takes any name and loads nothing for an unknown one,
+# so the set is checked here.
+use_env() {
+	case "$1" in
 	"" | ,* | *, | *,,* | *[!a-z0-9,-]*)
-		echo "[error] environment '$2': a set name, then layers, comma-separated" >&2
+		echo "[error] environment '$1': a set name, then layers, comma-separated" >&2
 		return 1 ;;
 	esac
-	sets="$(sed -n '/^\[env_sets\]/,/^\[/s/^\([a-z0-9-]*\) = .*/\1/p' "$1/miserc.toml")"
-	printf '%s\n' "$sets" | grep -qx -- "${2%%,*}" || {
-		echo "[error] environment '${2%%,*}' is not a set in miserc.toml:" $sets >&2
-		return 1
-	}
-	printf 'env = [%s]\n' "$(printf '%s' "$2" | sed 's/[^,]*/"&"/g; s/,/, /g')" >"$1/miserc.local.toml"
-	unset MISE_ENV
+	grep -q "^${1%%,*} = \[" miserc.toml ||
+		{ echo "[error] environment '${1%%,*}' is not a set in miserc.toml" >&2; return 1; }
+	export MISE_ENV="$1"
 }

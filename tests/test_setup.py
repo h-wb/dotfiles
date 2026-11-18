@@ -77,8 +77,8 @@ case "$1" in
 --version) echo "${TEST_VERSION:-2026.11.1}" ;;
 self-update) exit "${TEST_UPDATE_EXIT:-0}" ;;
 config)
-  case "$(cat "$HOME/.dotfiles/miserc.local.toml" 2>/dev/null)" in
-  *'"paseo"'*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
+  case "${MISE_ENV:-$(cat "$HOME/.dotfiles/miserc.local.toml" 2>/dev/null)}" in
+  *paseo*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
   *) echo "$HOME/.dotfiles/config.workstation.toml" ;;
   esac ;;
 which)
@@ -772,8 +772,17 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertEqual(wiring["status"], "fail")
         self.assertIn("DOTFILES_ENV", wiring["hint"])
 
-    def test_a_declared_set_takes_extra_layers(self):
-        (self.repo / "miserc.local.toml").write_text('env = ["personal", "fish"]\n')
+    def test_save_env_declares_a_set_and_extra_layers(self):
+        # What install.sh and pod-bootstrap rely on: mise writes the declaration
+        # itself, before it applies anything, so a failed run still leaves it.
+        local = self.repo / "miserc.local.toml"
+        local.unlink()
+        (self.repo / "config.local.toml").write_text(
+            '[bootstrap.repos]\n"~/nowhere" = { url = "file:///does/not/exist.git" }\n')
+        result = self.mise("bootstrap", "--save-env", "--yes", "--only", "repos", ok=False,
+                           env={**self.env, "MISE_ENV": "personal,fish"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(tomllib.loads(local.read_text()), {"env": ["personal", "fish"]})
         configs = self.mise("config").stdout
         self.assertIn("conf.d/macos/mise.personal.toml", configs)
         self.assertIn("conf.d/fish/mise.fish.toml", configs)
@@ -796,15 +805,14 @@ exec "$@"
                 for log in self.home.glob("*.calls"):
                     log.unlink()
                 self.run_cmd("sh", str(self.repo / "install.sh"),
-                             env={**self.env, "DOTFILES_ENV": machine, "MISE_ENV": "paseo"})
-                actual = tomllib.loads((self.repo / "miserc.local.toml").read_text())
-                self.assertEqual(actual, {"env": [machine]})
-                # an activated shell's MISE_ENV would override the declared one
-                self.assertNotIn("MISE_ENV=paseo", (self.home / "mise.calls").read_text())
+                             env={**self.env, "DOTFILES_ENV": machine, "MISE_ENV": "inherited"})
+                calls = (self.home / "mise.calls").read_text()
+                # The declared environment, never an activated shell's, and mise saves it.
+                self.assertNotIn("MISE_ENV=inherited", calls)
+                self.assertIn(f"config MISE_ENV={machine}\n", calls)
+                self.assertIn(f"bootstrap --yes --force-dotfiles --save-env MISE_ENV={machine}\n", calls)
                 self.assertEqual((self.home / "fnox.calls").exists(),
                                  "workstation" in LAYERS[machine])
-                calls = (self.home / "mise.calls").read_text()
-                self.assertIn("bootstrap --yes --force-dotfiles", calls)
                 self.assertNotIn("@latest", calls)
 
     def test_installer_saves_layers_and_needs_an_environment_once(self):
@@ -816,22 +824,26 @@ exec "$@"
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("DOTFILES_ENV", result.stderr)
         self.assertFalse((self.home / "mise.calls").exists())
+        calls = self.home / "mise.calls"
         self.run_cmd("sh", str(self.repo / "install.sh"),
                      env={**self.env, "DOTFILES_ENV": "paseo,paseo-overlay"})
-        self.assertEqual(tomllib.loads((self.repo / "miserc.local.toml").read_text()),
-                         {"env": ["paseo", "paseo-overlay"]})
-        # Declared once: a later run keeps it. An existing checkout is not pulled.
-        self.run_cmd("sh", str(self.repo / "install.sh"))
-        self.assertEqual(tomllib.loads((self.repo / "miserc.local.toml").read_text()),
-                         {"env": ["paseo", "paseo-overlay"]})
+        self.assertIn("--save-env MISE_ENV=paseo,paseo-overlay\n", calls.read_text())
+        # Declared once (the file is mise's to write: the fake does not): a later
+        # run uses what was saved, not an activated shell's MISE_ENV. An existing
+        # checkout is not pulled.
+        (self.repo / "miserc.local.toml").write_text('env = ["paseo", "paseo-overlay"]\n')
+        calls.unlink()
+        self.run_cmd("sh", str(self.repo / "install.sh"), env={**self.env, "MISE_ENV": "inherited"})
+        self.assertIn("bootstrap --yes --force-dotfiles\n", calls.read_text())
+        self.assertNotIn("MISE_ENV=", calls.read_text())
         self.assertFalse((self.home / "git.calls").exists())
         for bad in ("bogus", "paseo,", ",paseo-overlay"):
             with self.subTest(env=bad):
+                calls.unlink(missing_ok=True)
                 result = self.run_cmd("sh", str(self.repo / "install.sh"), ok=False,
                                       env={**self.env, "DOTFILES_ENV": bad})
                 self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(tomllib.loads((self.repo / "miserc.local.toml").read_text()),
-                                 {"env": ["paseo", "paseo-overlay"]})
+                self.assertFalse(calls.exists())
 
     def test_installer_rejects_unknown_class_before_side_effects(self):
         self.fake_mise()
@@ -986,29 +998,19 @@ exit 22
                 self.assertEqual(config.count("helper ="), 1, config)
                 self.assertEqual("[safe]" in config, machine == "paseo")
 
-    def test_pod_bootstrap_declares_the_environment_first(self):
+    def test_pod_bootstrap_runs_as_the_declared_environment(self):
         self.fake_mise()
         self.fake("timeout", 'shift; exec "$@"')
-        local = self.repo / "miserc.local.toml"
-        local.unlink()
-        _, status, calls = self.pod_bootstrap(args=("code-server,fish",), MISE_ENV="paseo")
-        self.assertEqual(tomllib.loads(local.read_text()), {"env": ["code-server", "fish"]})
+        _, status, calls = self.pod_bootstrap(args=("code-server,fish",), MISE_ENV="inherited")
         self.assertEqual(status, ["ok", "fresh"])
-        self.assertNotIn("MISE_ENV=", calls)  # the declared one, not an inherited one
-
-        # Held: nothing runs, but the pod's own terminals still get its environment.
-        (self.home / ".pod-hold").touch()
-        local.unlink()
-        result, status, calls = self.pod_bootstrap(args=("neko",))
-        self.assertEqual(status, ["ok", "hold"])
-        self.assertEqual(calls, "")
-        self.assertEqual(tomllib.loads(local.read_text()), {"env": ["neko"]})
-        (self.home / ".pod-hold").unlink()
+        # Not an inherited one, and mise saves it for the pod's shells.
+        self.assertNotIn("MISE_ENV=inherited", calls)
+        self.assertIn("bootstrap --yes --force-dotfiles --skip-dirty --locked --save-env"
+                      " MISE_ENV=code-server,fish\n", calls)
 
         result, status, calls = self.pod_bootstrap(ok=False, args=("bogus",))
         self.assertEqual(status, ["error", "none"])
         self.assertEqual(calls, "")
-        self.assertEqual(tomllib.loads(local.read_text()), {"env": ["neko"]})
         for args in ((), ("neko", "--pull")):
             with self.subTest(args=args):
                 result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), *args, ok=False)
@@ -1048,7 +1050,7 @@ exit 22
                 (state / "pod-bootstrap.status").unlink(missing_ok=True)
                 self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
                 for line, want in (("ok secrets 2026-11-16 abc", "pass"), ("ok fresh 2026-11-16 abc", "fail"),
-                                   ("ok protect 2026-11-16 abc", "fail"), ("ok hold 2026-11-16 abc", "fail"),
+                                   ("ok protect 2026-11-16 abc", "fail"),
                                    ("stale secrets 2026-11-16 abc", "fail"),
                                    ("error secrets 2026-11-16 abc", "fail")):
                     with self.subTest(status=line):

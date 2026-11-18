@@ -33,7 +33,6 @@ stale) echo "the last pod start applied $commit, not the pinned commit (the fetc
 esac
 case "$mode" in
 secrets) ;;
-hold) echo "~/.pod-hold is present: nothing was applied"; exit 1 ;;
 *) echo "the last pod start ran in mode $mode: no Proton Pass session (PROTON_PASS_TOKEN)"; exit 1 ;;
 esac
 # Left by the bootstraps before the pinned commit; look, then delete.
