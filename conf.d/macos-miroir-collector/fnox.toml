@@ -1,0 +1,6 @@
+[providers.protonpass]
+type = "proton-pass"
+vault = "Machines"
+
+[secrets]
+MIROIR_TOKEN_SCREEN_MACBOOK = { provider = "protonpass", value = "pass://Machines/miroir-collector/screen_macbook" }

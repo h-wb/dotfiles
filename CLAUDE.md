@@ -398,6 +398,11 @@ in `conf.d/ai/README.md`; what is easy to break:
   `environment`/`stdout_path`/`stderr_path` keys (launchd appends), so `sh -c`
   is only there for the `$(mise which …)`; an agent that needs none of that
   runs mise directly (`macos-zen-history`, `macos-miroir-collector`).
+- **Miroir collector (MacBook only)**: mise installs the pinned collector and
+  renders its private JSON config at bootstrap. The hourly agent runs
+  `miroir:collect` with mise's tool PATH (including pass-cli); the folder's
+  fnox config injects the delivery token only at runtime. The Mac's default
+  Proton Pass session must be live; the agent never prompts.
 - **Login items** are `[bootstrap.macos.login_items]`: additive (what an app
   registered itself stays) and combined across files, so every Mac's two and
   the MacBook's three sit next to the casks that install them. List only apps
