@@ -72,19 +72,16 @@ class SetupTests(unittest.TestCase):
 
     def fake_mise(self):
         self.fake("mise", '''
-printf '%s\n' "$*" >> "$HOME/mise.calls"
+printf '%s\n' "$*${MISE_ENV:+ MISE_ENV=$MISE_ENV}" >> "$HOME/mise.calls"
 case "$1" in
 --version) echo "${TEST_VERSION:-2026.11.1}" ;;
 self-update) exit "${TEST_UPDATE_EXIT:-0}" ;;
 config)
-  case "$(cat "$HOME/.dotfiles/miserc.local.toml" 2>/dev/null)" in
-  *'"paseo"'*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
+  case "${MISE_ENV:-$(cat "$HOME/.dotfiles/miserc.local.toml" 2>/dev/null)}" in
+  *paseo*) echo "$HOME/.dotfiles/conf.d/paseo/mise.paseo.toml" ;;
   *) echo "$HOME/.dotfiles/config.workstation.toml" ;;
   esac ;;
-which)
-  [ "$2" = fnox ] && [ -n "${TEST_FNOX:-}" ] && [ -e "$HOME/fnox-installed" ] || exit 1
-  echo "$TEST_FNOX" ;;
-bootstrap) [ -z "${TEST_FNOX:-}" ] || touch "$HOME/fnox-installed" ;;
+which) exit 1 ;;
 exec)
   export PROTON_PASS_KEY_PROVIDER=fs
   while [ "$1" != -- ]; do shift; done
@@ -100,7 +97,7 @@ esac
                 configs = self.mise("config").stdout
                 for other in LAYERS:
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
-                for layer in ("workstation", "pod", "fish"):
+                for layer in ("workstation", "pod", "nonroot", "fish"):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
                 for feature in ("macos-zen-history", "macos-miroir-collector"):
                     self.assertEqual(f"conf.d/{feature}/mise.personal.toml" in configs,
@@ -839,18 +836,47 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
                      "Repositories/sento/fnox.toml"):
             self.assertFalse((self.home / path).exists(), path)
 
-    def test_paseo_overlay_layer_loads_only_with_the_mount(self):
+    def test_paseo_overlay_layer_loads_only_when_declared(self):
         # The scope overlay (/etc/paseo/config/paseo.json, mounted by home-ops
-        # pods) is merged into ~/.paseo/config.json by the `paseo-overlay` env
-        # layer (miserc.toml tests the mount path). Without that env — tests,
+        # pods) is merged into ~/.paseo/config.json by the `paseo-overlay`
+        # layer, which the pods declare after their set. Undeclared — tests,
         # workstations — the entry must not load, so bootstrap never looks for
-        # /etc/paseo. The private pod's `--skip repos` arg is asserted in
-        # home-ops' tests/test_paseo.py (it lives in the pod spec now).
+        # /etc/paseo. The pods' args are asserted in home-ops' tests/test_paseo.py.
         self.select("paseo")
         self.assertNotIn("paseo-overlay", self.mise("config").stdout)
         (self.repo / "miserc.local.toml").write_text(
             'env = ["paseo", "paseo-overlay"]\n')
         self.assertIn("conf.d/paseo/mise.paseo-overlay.toml", self.mise("config").stdout)
+
+    def test_no_declared_environment_loads_the_base_only(self):
+        # Nothing is detected: a machine that declares nothing gets config.toml
+        # and the shared folders, whatever its paths, and the doctor says why.
+        (self.repo / "miserc.local.toml").unlink()
+        configs = self.mise("config").stdout
+        self.assertNotIn("config.workstation.toml", configs)
+        for layer in {name for layers in LAYERS.values() for name in layers} | set(LAYERS):
+            self.assertNotIn(f".{layer}.toml", configs, layer)
+        self.assertNotIn("is exists", (self.repo / "miserc.toml").read_text())
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        report = self.mise("doctor", "project", "--json", ok=False).stdout
+        wiring = next(c for c in json.loads(report)["checks"] if c["name"] == "wiring")
+        self.assertEqual(wiring["status"], "fail")
+        self.assertIn("DOTFILES_ENV", wiring["hint"])
+
+    def test_save_env_declares_a_set_and_extra_layers(self):
+        # What install.sh and pod-bootstrap rely on: mise writes the declaration
+        # itself, before it applies anything, so a failed run still leaves it.
+        local = self.repo / "miserc.local.toml"
+        local.unlink()
+        (self.repo / "config.local.toml").write_text(
+            '[bootstrap.repos]\n"~/nowhere" = { url = "file:///does/not/exist.git" }\n')
+        result = self.mise("bootstrap", "--save-env", "--yes", "--only", "repos", ok=False,
+                           env={**self.env, "MISE_ENV": "personal,fish"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(tomllib.loads(local.read_text()), {"env": ["personal", "fish"]})
+        configs = self.mise("config").stdout
+        self.assertIn("conf.d/macos/mise.personal.toml", configs)
+        self.assertIn("conf.d/fish/mise.fish.toml", configs)
 
     def test_installer_layers_and_secret_routing(self):
         self.fake_mise()
@@ -870,14 +896,45 @@ exec "$@"
                 for log in self.home.glob("*.calls"):
                     log.unlink()
                 self.run_cmd("sh", str(self.repo / "install.sh"),
-                             env={**self.env, "DOTFILES_ENV": machine})
-                actual = tomllib.loads((self.repo / "miserc.local.toml").read_text())
-                self.assertEqual(actual, {"env": [machine]})
+                             env={**self.env, "DOTFILES_ENV": machine, "MISE_ENV": "inherited"})
+                calls = (self.home / "mise.calls").read_text()
+                # The declared environment, never an activated shell's, and mise saves it.
+                self.assertNotIn("MISE_ENV=inherited", calls)
+                self.assertIn(f"config MISE_ENV={machine}\n", calls)
+                self.assertIn(f"bootstrap --yes --force-dotfiles --save-env MISE_ENV={machine}\n", calls)
                 self.assertEqual((self.home / "fnox.calls").exists(),
                                  "workstation" in LAYERS[machine])
-                calls = (self.home / "mise.calls").read_text()
-                self.assertIn("bootstrap --yes --force-dotfiles", calls)
                 self.assertNotIn("@latest", calls)
+
+    def test_installer_saves_layers_and_needs_an_environment_once(self):
+        self.fake_mise()
+        self.fake("git", 'printf "%s\\n" "$*" >> "$HOME/git.calls"')
+        (self.repo / ".git").mkdir()
+        (self.repo / "miserc.local.toml").unlink()
+        result = self.run_cmd("sh", str(self.repo / "install.sh"), ok=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DOTFILES_ENV", result.stderr)
+        self.assertFalse((self.home / "mise.calls").exists())
+        calls = self.home / "mise.calls"
+        self.run_cmd("sh", str(self.repo / "install.sh"),
+                     env={**self.env, "DOTFILES_ENV": "paseo,paseo-overlay"})
+        self.assertIn("--save-env MISE_ENV=paseo,paseo-overlay\n", calls.read_text())
+        # Declared once (the file is mise's to write: the fake does not): a later
+        # run uses what was saved, not an activated shell's MISE_ENV. An existing
+        # checkout is not pulled.
+        (self.repo / "miserc.local.toml").write_text('env = ["paseo", "paseo-overlay"]\n')
+        calls.unlink()
+        self.run_cmd("sh", str(self.repo / "install.sh"), env={**self.env, "MISE_ENV": "inherited"})
+        self.assertIn("bootstrap --yes --force-dotfiles\n", calls.read_text())
+        self.assertNotIn("MISE_ENV=", calls.read_text())
+        self.assertFalse((self.home / "git.calls").exists())
+        for bad in ("bogus", "paseo,", ",paseo-overlay"):
+            with self.subTest(env=bad):
+                calls.unlink(missing_ok=True)
+                result = self.run_cmd("sh", str(self.repo / "install.sh"), ok=False,
+                                      env={**self.env, "DOTFILES_ENV": bad})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(calls.exists())
 
     def test_installer_rejects_unknown_class_before_side_effects(self):
         self.fake_mise()
@@ -909,38 +966,13 @@ exit 22
                 result = self.ensure_mise(TEST_VERSION="2026.9.1", TEST_UPDATE_EXIT=exit_code)
                 self.assertNotEqual(result.returncode, 0)
 
-    def test_neko_protects_either_kubeconfig(self):
-        self.fake_mise()
-        self.env["DOTFILES_PULLED"] = "1"
-        self.fake("timeout", 'shift; exec "$@"')
-        for name in (None, "main.yaml", "edge.yaml"):
-            with self.subTest(kubeconfig=name):
-                kube = self.home / ".kube"
-                kube.mkdir(exist_ok=True)
-                for path in kube.iterdir():
-                    path.unlink()
-                if name:
-                    (kube / name).write_text("fixture credentials\n")
-                (self.home / "mise.calls").write_text("")
-                self.run_cmd("sh", str(self.repo / "conf.d/neko/bin/neko-bootstrap"))
-                calls = (self.home / "mise.calls").read_text()
-                self.assertEqual("--skip dotfiles" in calls, name is not None)
-
-    def test_neko_hold_prevents_mise_update(self):
-        self.fake_mise()
-        (self.home / ".neko-hold").touch()
-        self.run_cmd("sh", str(self.repo / "conf.d/neko/bin/neko-bootstrap"))
-        self.assertFalse((self.home / "mise.calls").exists())
-
-    def pod_bootstrap(self, ok=True, fnox_installed=False, **extra):
-        (self.repo / ".git").mkdir(exist_ok=True)
-        for name in ("mise.calls", "fnox.calls", "fnox-installed", "pass-cli.calls"):
+    def pod_bootstrap(self, ok=True, args=("code-server",), **extra):
+        for name in ("mise.calls", "fnox.calls", "pass-cli.calls"):
             (self.home / name).unlink(missing_ok=True)
-        if fnox_installed:
-            (self.home / "fnox-installed").touch()
+        (self.home / "mise.calls").touch()
         env = {**self.env, **extra}
         env.pop("MISE_CONFIG_DIR")
-        result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), ok=ok, env=env)
+        result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), *args, ok=ok, env=env)
         status = (self.home / ".local/state/pod-bootstrap.status").read_text().split()
         calls = (self.home / "mise.calls").read_text()
         return result, status[:2], calls
@@ -950,7 +982,6 @@ exit 22
         self.fake("timeout", 'shift; exec "$@"')
         self.fake("fnox", 'printf "%s\\n" "$*" >> "$HOME/fnox.calls"\n'
                   'while [ "$1" != -- ]; do shift; done; shift; exec "$@"')
-        fnox = str(self.bin / "fnox")
         kube = self.home / ".kube"
         kube.mkdir()
 
@@ -966,29 +997,37 @@ exit 22
 
         self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
         with self.subTest("fresh PVC, token rejected: one run"):
-            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
+            _, status, calls = self.pod_bootstrap(PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "fresh"])
             self.assertEqual(calls.count("bootstrap --yes"), 1)
             self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
 
-        # The first run installs fnox; the token is used in the same pod start.
+        # `mise exec` installs fnox and pass-cli on demand: one run, with secrets.
         self.fake("pass-cli", '[ "$1" = login ] && [ "$2" = --pat ]')
         with self.subTest("fresh PVC, token waiting"):
-            _, status, calls = self.pod_bootstrap(TEST_FNOX=fnox, PROTON_PASS_TOKEN="fixture-pat")
+            _, status, calls = self.pod_bootstrap(PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "secrets"])
-            self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)
+            self.assertEqual(calls.count("bootstrap --yes --force-dotfiles"), 2)  # mise exec … -- mise bootstrap
+            self.assertIn("exec github:jdx/fnox github:protonpass/pass-cli -- fnox --if-missing error exec "
+                          "-c fnox.toml --", calls)
             self.assertIn("--if-missing error exec", (self.home / "fnox.calls").read_text())
 
         (kube / "main.yaml").write_text("fixture credentials\n")
-        with self.subTest("secrets on disk, fnox installed, token rejected"):
+        with self.subTest("secrets on disk, token rejected"):
             self.fake("pass-cli", 'printf "%s\\n" "$*" >> "$HOME/pass-cli.calls"; exit 1')
-            _, status, calls = self.pod_bootstrap(fnox_installed=True, TEST_FNOX=fnox,
-                                                  PROTON_PASS_TOKEN="fixture-pat")
+            _, status, calls = self.pod_bootstrap(PROTON_PASS_TOKEN="fixture-pat")
             self.assertEqual(status, ["ok", "protect"])
             self.assertIn("login --pat", (self.home / "pass-cli.calls").read_text())
             self.assertIn("--skip dotfiles", calls)
             self.assertNotIn("--force-dotfiles", calls)
             self.assertFalse((self.home / "fnox.calls").exists())
+
+        (kube / "main.yaml").unlink()
+        (kube / "edge.yaml").write_text("fixture credentials\n")
+        with self.subTest("either kubeconfig protects"):
+            _, status, calls = self.pod_bootstrap()
+            self.assertEqual(status, ["ok", "protect"])
+            self.assertIn("--skip dotfiles", calls)
 
         with self.subTest("bootstrap fails"):
             self.fake("timeout", "exit 3")
@@ -996,9 +1035,9 @@ exit 22
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(status, ["error", "protect"])
 
-    def test_pod_bootstrap_never_pulls(self):
-        # It runs with the owner's token: a commit pushed upstream must not run
-        # until he pulls it himself.
+    def test_pod_bootstrap_never_fetches(self):
+        # The commit is home-ops' pin, fetched by its Component: whatever the
+        # checkout tracks upstream never runs here.
         self.fake_mise()
         self.fake("timeout", 'shift; exec "$@"')
         git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
@@ -1020,7 +1059,7 @@ exit 22
         before = git("rev-parse", "HEAD").stdout
         env = {**self.env}
         env.pop("MISE_CONFIG_DIR")
-        self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), env=env)
+        self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), "code-server", env=env)
         self.assertEqual(git("rev-parse", "HEAD").stdout, before)
         self.assertEqual(git("rev-parse", "origin/master").stdout, before)  # not even fetched
         self.assertFalse((self.home / "upstream-ran").exists())
@@ -1034,83 +1073,88 @@ exit 22
             "paseo": "helper = !gh auth git-credential",
             "code-server": "helper = !%s/.local/share/mise/shims/gh auth git-credential" % self.home,
             "cachyos": "helper = store",
+            "personal": None,
         }
         for machine, helper in expect.items():
             with self.subTest(machine=machine):
                 self.select(machine)
                 self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
                 config = (self.home / ".config/git/config").read_text()
+                if helper is None:
+                    self.assertNotIn("helper =", config)
+                    continue
                 self.assertIn(helper, config)
                 self.assertEqual(config.count("helper ="), 1, config)
                 self.assertEqual("[safe]" in config, machine == "paseo")
 
-    def test_pod_bootstrap_options(self):
-        # neko's differences, as options: pull and re-run, a hold file, its own log.
+    def test_pod_bootstrap_runs_as_the_declared_environment(self):
         self.fake_mise()
         self.fake("timeout", 'shift; exec "$@"')
-        git = lambda *a, cwd=self.repo: self.run_cmd("git", "-C", str(cwd), *a)
-        ident = ["-c", "user.name=t", "-c", "user.email=t@example.test"]
-        git("init", "-q", "-b", "master")
-        git("add", ".")
-        git(*ident, "commit", "-q", "-m", "base")
-        origin = self.home / "origin.git"
-        self.run_cmd("git", "clone", "-q", "--bare", str(self.repo), str(origin))
-        git("remote", "add", "origin", str(origin))
-        git("fetch", "-q", "origin")
-        git("branch", "-q", "--set-upstream-to=origin/master")
-        other = self.home / "other"
-        self.run_cmd("git", "clone", "-q", str(origin), str(other))
-        (other / "marker").write_text("new\n")
-        git("add", ".", cwd=other)
-        git(*ident, "commit", "-q", "-m", "next", cwd=other)
-        git("push", "-q", "origin", "master", cwd=other)
-        env = {**self.env}
-        env.pop("MISE_CONFIG_DIR")
-        script = str(self.repo / "scripts/pod-bootstrap")
-        state = self.home / ".local/state"
+        _, status, calls = self.pod_bootstrap(args=("code-server,fish",), MISE_ENV="inherited")
+        self.assertEqual(status, ["ok", "fresh"])
+        # Not an inherited one, and mise saves it for the pod's shells.
+        self.assertNotIn("MISE_ENV=inherited", calls)
+        self.assertIn("bootstrap --yes --force-dotfiles --skip-dirty --locked --save-env"
+                      " MISE_ENV=code-server,fish\n", calls)
 
-        hold = self.home / ".neko-hold"
-        hold.touch()
-        result = self.run_cmd("sh", script, "--pull", "--hold", str(hold), "--log", "neko-bootstrap", env=env)
-        self.assertTrue(result.stdout.startswith("pod-bootstrap: ok hold "), result.stdout)
-        self.assertFalse((self.home / "mise.calls").exists())
-        self.assertFalse((self.repo / "marker").exists())
-        hold.unlink()
+        result, status, calls = self.pod_bootstrap(ok=False, args=("bogus",))
+        self.assertEqual(status, ["error", "none"])
+        self.assertEqual(calls, "")
+        for args in ((), ("neko", "--pull")):
+            with self.subTest(args=args):
+                result = self.run_cmd("sh", str(self.repo / "scripts/pod-bootstrap"), *args, ok=False)
+                self.assertEqual(result.returncode, 2)
 
-        result = self.run_cmd("sh", script, "--pull", "--hold", str(hold), "--log", "neko-bootstrap",
-                              "--timeout", "900", env=env)
-        log = (state / "neko-bootstrap.log").read_text()
-        self.assertIn("dotfiles updated", log)
-        self.assertTrue((self.repo / "marker").exists())
-        self.assertEqual(log.count("[info] mode:"), 1)
-        self.assertTrue((state / "neko-bootstrap.status").read_text().startswith("ok fresh "))
-        self.assertFalse((state / "pod-bootstrap.status").exists())
-
-        result = self.run_cmd("sh", script, "--bogus", ok=False, env=env)
-        self.assertEqual(result.returncode, 2)
+    def test_pod_bootstrap_reports_the_commit_and_a_stale_one(self):
+        self.fake_mise()
+        self.fake("timeout", 'shift; exec "$@"')
+        pinned = "a" * 40
+        (self.repo / ".pinned-commit").write_text(pinned + "\n")
+        result, status, _ = self.pod_bootstrap(DOTFILES_REF=pinned)
+        self.assertEqual(status, ["ok", "fresh"])
+        self.assertTrue(result.stdout.rstrip().split("; log:")[0].endswith(pinned), result.stdout)
+        # The Component asked for another commit: its fetch failed, this one ran.
+        result, status, _ = self.pod_bootstrap(ok=False, DOTFILES_REF="b" * 40)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(status, ["stale", "fresh"])
 
     def test_pod_bootstrap_without_checkout(self):
         self.fake_mise()
-        shutil.rmtree(self.repo / "scripts")
         script = self.home / "pod-bootstrap"
         shutil.copy(ROOT / "scripts/pod-bootstrap", script)
-        result = self.run_cmd("sh", str(script), ok=False)
+        shutil.rmtree(self.repo)
+        result = self.run_cmd("sh", str(script), "code-server", ok=False)
         self.assertNotEqual(result.returncode, 0)
         status = (self.home / ".local/state/pod-bootstrap.status").read_text()
         self.assertTrue(status.startswith("error none "), status)
         self.assertFalse((self.home / "mise.calls").exists())
 
-    def test_code_server_doctor_reports_the_last_pod_start(self):
+    def test_pod_doctor_reports_the_last_pod_start(self):
+        for machine in ("code-server", "neko"):
+            with self.subTest(machine=machine):
+                self.select(machine)
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+                state = self.home / ".local/state"
+                state.mkdir(parents=True, exist_ok=True)
+                (state / "pod-bootstrap.status").unlink(missing_ok=True)
+                self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
+                for line, want in (("ok secrets 2026-11-16 abc", "pass"), ("ok fresh 2026-11-16 abc", "fail"),
+                                   ("ok protect 2026-11-16 abc", "fail"),
+                                   ("stale secrets 2026-11-16 abc", "fail"),
+                                   ("error secrets 2026-11-16 abc", "fail")):
+                    with self.subTest(status=line):
+                        (state / "pod-bootstrap.status").write_text(line + "\n")
+                        self.assertEqual(self.doctor()["pod-bootstrap"], want)
+                # What the bootstraps before the pin left is flagged, not removed.
+                for left in ("home-ops", ".dotfiles.pre-pin"):
+                    (self.home / left).mkdir()
+                    self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
+                    self.assertTrue((self.home / left).is_dir())
+                    (self.home / left).rmdir()
+
+    def test_code_server_terminal_and_shell(self):
         self.select("code-server")
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        state = self.home / ".local/state"
-        state.mkdir(parents=True, exist_ok=True)
-        self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
-        for line, want in (("ok secrets 2026-11-16", "pass"), ("ok fresh 2026-11-16", "fail"),
-                           ("ok protect 2026-11-16", "fail"), ("error secrets 2026-11-16", "fail")):
-            with self.subTest(status=line):
-                (state / "pod-bootstrap.status").write_text(line + "\n")
-                self.assertEqual(self.doctor()["pod-bootstrap"], want)
         settings = json.loads((self.home / ".local/share/code-server/Machine/settings.json").read_text())
         profile = settings["terminal.integrated.defaultProfile.linux"]
         self.assertEqual(settings["terminal.integrated.profiles.linux"][profile]["path"],
@@ -1120,6 +1164,31 @@ exit 22
         self.assertEqual((self.home / ".config/starship.toml").resolve(),
                          (self.repo / "conf.d/fish/starship.toml").resolve())
         self.assertFalse((self.home / ".zshrc").exists())
+
+    def test_neko_and_cachyos_use_the_fish_layer(self):
+        for machine in ("neko", "cachyos"):
+            with self.subTest(machine=machine):
+                self.select(machine)
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+                for target, source in ((".config/fish/config.fish", "conf.d/fish/config.fish"),
+                                       (".config/starship.toml", "conf.d/fish/starship.toml")):
+                    self.assertEqual((self.home / target).resolve(), (self.repo / source).resolve())
+                self.assertIn("ef", self.mise("shell-alias", "ls").stdout)
+        machine_file = self.home / ".config/fish/conf.d/cachyos.fish"
+        self.assertIn("cachyos-config.fish", machine_file.read_text())
+        self.assertIn("dotfiles_native_prompt", machine_file.read_text())
+
+    def test_neko_drops_what_the_old_bootstrap_left(self):
+        autostart = self.home / ".config/autostart/mise-bootstrap.desktop"
+        autostart.parent.mkdir(parents=True)
+        autostart.write_text("[Desktop Entry]\nExec=%s/.local/bin/neko-bootstrap\n" % self.home)
+        (self.bin / "neko-bootstrap").symlink_to(self.repo / "conf.d/neko/bin/neko-bootstrap")
+        self.select("neko")
+        self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+        self.assertFalse(autostart.exists())
+        self.assertFalse((self.bin / "neko-bootstrap").is_symlink())
+        self.assertTrue((self.bin / "git-credential-fnox").exists())
+        self.assertFalse((self.repo / "conf.d/neko/bin/neko-bootstrap").exists())
 
     def test_fish_config_loads(self):
         # The fish layer's config.fish, in both branches: scripts get mise's shims,

@@ -1,44 +1,43 @@
 #!/bin/sh
-# Provision ~/.dotfiles; DOTFILES_ENV overrides the detected class (its layers
-# come from miserc.toml's [env_sets]).
+# Provision ~/.dotfiles on a machine a person installs by hand (the Mac,
+# CachyOS); pods run scripts/pod-bootstrap instead. DOTFILES_ENV names the
+# environment, a set from miserc.toml's [env_sets] plus any extra layers
+# (`personal`, `cachyos`). mise saves it in miserc.local.toml (--save-env), so
+# later runs need it only to change it. An existing checkout is used as it is:
+# update it with git.
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
 DOTFILES_DIR="${HOME}/.dotfiles" # fixed: config.toml links ~/.config/mise here
 export PATH="${HOME}/.local/bin:${PATH}"
 
+if [ -z "${DOTFILES_ENV:-}" ] && [ ! -f "${DOTFILES_DIR}/miserc.local.toml" ]; then
+	echo "Set DOTFILES_ENV to this machine's environment (personal, cachyos, ...)" >&2
+	exit 1
+fi
 case "${DOTFILES_ENV:-}" in
-"" | personal | neko | cachyos | paseo | code-server) ;;
-*) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;
+*[!a-z0-9,-]*) echo "Unknown DOTFILES_ENV: $DOTFILES_ENV" >&2; exit 1 ;;
 esac
 
-# The neko image ships curl but no git.
-if ! command -v git >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
-	sudo apt-get update -qq
-	sudo apt-get install -y -qq --no-install-recommends git
-fi
-
 # On a fresh Mac, git triggers the Command Line Tools install.
-if [ -d "${DOTFILES_DIR}/.git" ]; then
-	git -C "${DOTFILES_DIR}" pull --ff-only
-else
-	git clone "${REPO_URL}" "${DOTFILES_DIR}"
-fi
+[ -d "${DOTFILES_DIR}/.git" ] || git clone "${REPO_URL}" "${DOTFILES_DIR}"
 cd "${DOTFILES_DIR}"
 
 # The ~/.config/mise link doesn't exist until this run's dotfiles step.
 export MISE_CONFIG_DIR="${DOTFILES_DIR}"
-[ -z "${DOTFILES_ENV:-}" ] || printf 'env = ["%s"]\n' "$DOTFILES_ENV" >miserc.local.toml
 . ./scripts/provision.sh
+# Not declared now: the saved environment, not an activated shell's MISE_ENV.
+unset MISE_ENV
+[ -z "${DOTFILES_ENV:-}" ] || use_env "$DOTFILES_ENV" || exit 1
 ensure_mise || exit 1
 
 configs="$("$MISE" config)"
 case "$configs" in
 *config.workstation.toml*)
-	# Activate configured tools and env before login (neko needs the fs key provider).
+	# Activate configured tools and env before login.
 	"$MISE" exec github:jdx/fnox github:protonpass/pass-cli -- sh -c '
 		./scripts/pass-preflight || exit 1
 		exec fnox --if-missing error exec -c fnox.toml -- "$@"
-	' sh "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
-*) "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
+	' sh "$MISE" bootstrap --yes --force-dotfiles ${DOTFILES_ENV:+--save-env} || exit 1 ;;
+*) "$MISE" bootstrap --yes --force-dotfiles ${DOTFILES_ENV:+--save-env} || exit 1 ;;
 esac

@@ -1,12 +1,46 @@
 # Layer `pod`: a workstation in a k8s pod (neko, code-server). Only $HOME is
 # on a volume, so it is provisioned at every start and may start empty; the
-# pod's seccomp blocks the kernel keyring. Not the Paseo pods: they are not
-# workstations and hold none of this.
+# pod's seccomp blocks the kernel keyring. home-ops' dotfiles Component puts
+# the cluster's pinned commit at ~/.dotfiles at every start and runs
+# scripts/pod-bootstrap. Not the Paseo pods: they are not workstations and hold
+# none of this.
 
 [env]
 # pass-cli keeps its key in the kernel keyring by default; `fs` keeps it on the PVC.
 PROTON_PASS_KEY_PROVIDER = "fs"
 
-# A fresh volume starts without the repo every pod works on.
+[shell_alias]
+# ~/.dotfiles is replaced at every pod start: edit, commit and push here.
+dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
+
+# A fresh volume starts without the repos every pod works on.
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
+
+# The pod always starts, so a failed run only shows here.
+[doctor.checks.pod-bootstrap]
+description = "the last pod start applied the pinned commit with secrets, and nothing older is in the way"
+hint = "see ~/.local/state/pod-bootstrap.log; restarting the pod retries"
+run = '''
+f="$HOME/.local/state/pod-bootstrap.status"
+[ -f "$f" ] || { echo "no $f: pod-bootstrap has not completed on this pod"; exit 1; }
+read -r result mode _ commit <"$f"
+case "$result" in
+ok) ;;
+stale) echo "the last pod start applied $commit, not the pinned commit (the fetch failed)"; exit 1 ;;
+*) echo "the last pod-bootstrap failed (mode $mode)"; exit 1 ;;
+esac
+case "$mode" in
+secrets) ;;
+*) echo "the last pod start ran in mode $mode: no Proton Pass session (PROTON_PASS_TOKEN)"; exit 1 ;;
+esac
+# Left by the bootstraps before the pinned commit; look, then delete.
+rc=0
+for p in "$HOME"/.dotfiles.broken-* "$HOME/.dotfiles.pre-pin" "$HOME/home-ops" "$HOME/.neko-hold"; do
+	[ -e "$p" ] || continue
+	echo "$p: left by an earlier bootstrap, not used any more"
+	rc=1
+done
+exit $rc
+'''

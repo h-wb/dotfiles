@@ -8,19 +8,22 @@
 
 ## Overview
 
-Dotfiles and full machine setup for four machines, managed entirely by
+Dotfiles and full machine setup for five machines, managed entirely by
 [mise](https://mise.jdx.dev): packages (Homebrew, Mac App Store, pacman, apt,
 flatpak), macOS defaults and login items, LaunchAgents, systemd units, the
 firewall, tools and dotfiles. Secrets are injected by
 [fnox](https://github.com/jdx/fnox) from Proton Pass; none is committed.
 
-| class | machine | detected by |
+| environment | machine | declared by |
 | --- | --- | --- |
-| `personal` | the MacBook | macOS |
-| `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | `/etc/neko` |
-| `cachyos` | CachyOS KDE gaming desktop | `/etc/pacman.d/cachyos-mirrorlist` |
-| `paseo` | headless coding-agent pods | `/etc/paseo` |
-| `code-server` | the owner's browser editor in a k8s pod | `/usr/lib/code-server` |
+| `personal` | the MacBook | `DOTFILES_ENV=personal install.sh`, once |
+| `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | home-ops (`components/dotfiles`) |
+| `cachyos` | CachyOS KDE gaming desktop | `DOTFILES_ENV=cachyos install.sh`, once |
+| `paseo` | headless coding-agent pods | home-ops (`-E paseo,paseo-overlay`) |
+| `code-server` | the owner's browser editor in a k8s pod | home-ops (`components/dotfiles`) |
+
+Nothing is detected from the filesystem: each machine's caller declares its
+environment.
 
 ## Layout
 
@@ -30,12 +33,13 @@ firewall, tools and dotfiles. Secrets are injected by
 ```
 config.toml              every machine: tools, env, vars, shell aliases, doctor checks
 config.workstation.toml  personal, neko, cachyos, code-server: credentialed CLIs, kubeconfigs, the apply tasks
-miserc.toml              picks this machine's class and layers
+miserc.toml              the environment sets: each declared name and its layers
 conf.d/                  one folder per machine, and the features
   ai/                    every machine: the agents' MCP servers and shared skills
   proton-pass/           every machine: the named-session login task other repos extend
-  pod/                   layer: a workstation in a k8s pod (neko, code-server)
-  fish/                  layer: config.fish and the starship prompt (code-server; neko and cachyos later)
+  pod/                   layer: a workstation in a k8s pod (neko, code-server): bootstrap status, doctor check
+  nonroot/               layer: pods on someone else's image without root (Paseo, code-server): node 24
+  fish/                  layer: config.fish and the starship prompt (neko, cachyos, code-server)
   macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
   macos-defaults/        `defaults write`, declaratively
   macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
@@ -63,18 +67,22 @@ says where it loads:
 Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds
 `mise.macos.toml` for any Mac and `mise.personal.toml` for the MacBook.
 
-`miserc.toml` detects the class and `[env_sets]` adds its layers:
+The untracked `miserc.local.toml` declares the environment: one set from
+`miserc.toml`'s `[env_sets]`, then any layers for that machine only
+(`env = ["paseo", "paseo-overlay"]`). The caller names it and `mise bootstrap
+--save-env` writes it: `install.sh`, `scripts/pod-bootstrap`, the Paseo pods.
 
-| class | layers |
+| set | layers |
 | --- | --- |
 | `personal` | `workstation` |
-| `neko` | `workstation`, `pod` |
-| `cachyos` | `workstation` |
-| `code-server` | `workstation`, `pod`, `fish` |
-| `paseo` | none |
+| `neko` | `workstation`, `pod`, `fish` |
+| `cachyos` | `workstation`, `fish` |
+| `code-server` | `workstation`, `pod`, `nonroot`, `fish` |
+| `paseo` | `nonroot` (the pods add `paseo-overlay`) |
 
-An untracked `miserc.local.toml` pins a class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on
-their own.
+With nothing declared, only `config.toml` and the shared folders load, and
+`mise doctor project` fails its `wiring` check. Platform files (`*.macos.toml`)
+load on their own.
 
 ## Set up a machine
 
@@ -82,10 +90,18 @@ their own.
 sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/master/install.sh)"
 ```
 
-On a Mac, sign in to iCloud and the App Store first. The installer installs
-mise, clones to `~/.dotfiles` and runs `mise bootstrap`, under fnox on a
-workstation and directly on a Paseo pod. `DOTFILES_ENV=personal|neko|cachyos|paseo|code-server`
-overrides the detected class; the installer saves it in `miserc.local.toml`.
+Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos`
+the first time; mise saves it in `miserc.local.toml`, so later runs
+need it only to change it. On a Mac, sign in to iCloud and the App Store first.
+The installer installs mise, clones to `~/.dotfiles` (an existing checkout is
+used as it is: update it with git) and runs `mise bootstrap` under fnox.
+
+The pods do not use it. home-ops fetches one pinned commit of this repo at
+every pod start (`DOTFILES_REF`, bumped by Renovate) and declares the pod's
+environment: neko and code-server through its `components/dotfiles`, which
+runs `scripts/pod-bootstrap <environment>`, and the Paseo pods through
+`mise bootstrap --from`. A pod's `~/.dotfiles` is replaced at every start, so
+edit this repo in `~/Repositories/dotfiles` there (the `pod` layer clones it).
 
 ## Everyday use
 
@@ -100,8 +116,8 @@ mise run dns:edge       # (MacBook) resolve the internal zone via the edge clust
 Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by
 `mise activate` in zsh, fish and bash alike.
 
-`apply`, `diff` and `upgrade` belong to the workstation layer; the Paseo pods
-reprovision at every start instead (`mise bootstrap --from` in home-ops).
+`apply`, `diff` and `upgrade` belong to the workstation layer; the pods
+reprovision at every start instead, from the commit home-ops pins.
 `diff` previews the bootstrap steps but does not render templates.
 
 ## Secrets
@@ -131,7 +147,8 @@ mise doctor project
 ```
 
 CI runs the same tests on macOS and Linux with the minimum and the latest
-mise, then renders each machine class's dotfiles. Commit dependency sidecars
+mise, then renders each environment's dotfiles. A green `test` run on
+`master` is what lets home-ops' Renovate move every pod to that commit. Commit dependency sidecars
 (`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
 
 ## Machine notes
@@ -140,11 +157,11 @@ mise, then renders each machine class's dotfiles. Commit dependency sidecars
 
 Only `/home/neko` is persisted (a PVC). `/usr` and `/etc` are wiped on every
 pod roll, and there is no systemd or launchd. So GUI apps are mise `[tools]`
-(on the PVC), the apt list is tiny and reinstalled per start, and
-`~/.config/autostart/mise-bootstrap.desktop` runs
-`conf.d/neko/bin/neko-bootstrap` to reprovision the desktop at every session
-start. `touch ~/.neko-hold` pauses it; the log is
-`~/.local/state/neko-bootstrap.log`.
+(on the PVC), and the apt list is tiny and reinstalled per start. home-ops
+fetches the pinned commit in an init container and a system XFCE autostart
+entry runs `scripts/pod-bootstrap neko` inside the session (xfconf needs it).
+The log is `~/.local/state/pod-bootstrap.log`, and `mise doctor project`
+reports the last start.
 
 To add a GUI app: a `[tools]` entry in `conf.d/neko/mise.neko.toml`, a
 `.desktop` file in `conf.d/neko/xfce/applications/` and its `[dotfiles]` line.

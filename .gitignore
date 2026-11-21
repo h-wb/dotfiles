@@ -1,5 +1,6 @@
 .DS_Store
-# Per-machine, never committed: miserc.local.toml (machine class), config.local.toml ([vars]).
+# Per-machine, never committed: miserc.local.toml (the declared environment),
+# config.local.toml ([vars]).
 *.local.toml
 !*.local.toml.example
 __pycache__/

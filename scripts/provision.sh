@@ -1,5 +1,4 @@
-# Shared by install.sh, neko-bootstrap and pod-bootstrap.
-# Sourced, POSIX sh. Sets MISE.
+# Shared by install.sh and pod-bootstrap. Sourced, POSIX sh. Sets MISE.
 
 # Install mise if missing, and self-update below config.toml's hard min_version:
 # self_update.auto skips unattended runs, so every run would fail instead.
@@ -28,30 +27,18 @@ ensure_mise() {
 	fi
 }
 
-# Fast-forward ~/.dotfiles. On a new commit, re-exec "$@" once, so the caller
-# (and this file, and the min_version check) run as of that commit.
-pull_dotfiles() {
-	[ -z "${DOTFILES_PULLED:-}" ] || return 0
-	# Migrate: the default branch moved from main to master (2026-10-28). A
-	# checkout still on main tracks a deleted remote branch and every pull fails.
-	if [ "$(git -C "${HOME}/.dotfiles" branch --show-current 2>/dev/null)" = "main" ] &&
-		! git -C "${HOME}/.dotfiles" ls-remote --exit-code --heads origin main >/dev/null 2>&1 &&
-		git -C "${HOME}/.dotfiles" ls-remote --exit-code --heads origin master >/dev/null 2>&1; then
-		echo "[info] migrating dotfiles branch: main -> master"
-		git -C "${HOME}/.dotfiles" fetch origin --quiet 2>/dev/null
-		git -C "${HOME}/.dotfiles" checkout -q master 2>/dev/null ||
-			git -C "${HOME}/.dotfiles" checkout -q -b master origin/master
-		git -C "${HOME}/.dotfiles" branch --set-upstream-to=origin/master master 2>/dev/null
-		git -C "${HOME}/.dotfiles" branch -d main 2>/dev/null
-	fi
-	before="$(git -C "${HOME}/.dotfiles" rev-parse HEAD 2>/dev/null)"
-	if timeout 60 git -C "${HOME}/.dotfiles" pull --ff-only --quiet; then
-		after="$(git -C "${HOME}/.dotfiles" rev-parse HEAD 2>/dev/null)"
-		if [ "$after" != "$before" ]; then
-			echo "[info] dotfiles updated ${before} -> ${after}"
-			DOTFILES_PULLED=1 exec "$@"
-		fi
-	else
-		echo "[warn] dotfiles pull skipped (offline, local commits, or no upstream)"
-	fi
+# use_env SPEC, from the checkout: select this machine's environment for this
+# run, a set from miserc.toml's [env_sets] then any extra layers, comma-separated
+# (`code-server`, `paseo,paseo-overlay`). `mise bootstrap --save-env` keeps it in
+# miserc.local.toml. mise takes any name and loads nothing for an unknown one,
+# so the set is checked here.
+use_env() {
+	case "$1" in
+	"" | ,* | *, | *,,* | *[!a-z0-9,-]*)
+		echo "[error] environment '$1': a set name, then layers, comma-separated" >&2
+		return 1 ;;
+	esac
+	grep -q "^${1%%,*} = \[" miserc.toml ||
+		{ echo "[error] environment '${1%%,*}' is not a set in miserc.toml" >&2; return 1; }
+	export MISE_ENV="$1"
 }

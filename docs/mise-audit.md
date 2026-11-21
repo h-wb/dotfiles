@@ -1,5 +1,11 @@
 # mise audit — 2026-10-27
 
+> Since 2026-11-17 the machine's environment is declared in `miserc.local.toml`
+> by its caller (`bootstrap --save-env` writes it; `MISE_ENV` covers the
+> `mise config` that runs before), not detected in `miserc.toml`; `neko-bootstrap`,
+> `pull_dotfiles` and every pull are gone, and pods get home-ops' pinned commit
+> (CLAUDE.md). Statements below about detection or pulling are history.
+
 Reviewed the configuration, bootstrap entry points, shell setup, tasks, lockfiles,
 and CI against the released mise source and docs through **2026.10.20**.
 The installed version is **2026.10.19**. Both versions pass the local regression
@@ -201,8 +207,6 @@ secret, like the nameserver.
   silent-overwrite trap for those three files, not for `~/.ssh/config` or git.
 - Unprefixed `[bootstrap.packages]` keys (2026.11.6): each class has one
   package manager and its own file, so the prefix costs nothing.
-- `bootstrap --save-env` (2026.11.1): `install.sh` needs `miserc.local.toml`
-  before its first `mise config`, earlier than bootstrap runs.
 - The Claude Code `SessionStart` hook from the new "Coding agents" page
   (`eval "$(mise hook-env -s bash)"` into `$CLAUDE_ENV_FILE`): it gives an
   agent's shell a project's `[env]`, where shims only give it to the tool they
