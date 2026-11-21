@@ -59,7 +59,7 @@ run = "mise run apply --upgrade"
 description = "Apply bot-tintin's workflow patch from a PR comment and push it as yourself"
 usage = '''
 arg "<pr>" help="PR number"
-flag "--repo" help="OWNER/NAME; default: the current directory's repository"
+flag "--repo <repo>" help="OWNER/NAME; default: the current directory's repository"
 '''
 # No dir: the cwd is the repository `land` defaults to.
 run = 'exec "{{ vars.repo }}/scripts/land" {{ usage.pr | quote }}{% if usage.repo %} --repo {{ usage.repo | quote }}{% endif %}'

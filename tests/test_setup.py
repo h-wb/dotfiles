@@ -1400,6 +1400,17 @@ esac
         self.select("paseo")
         self.assertNotIn("land", task_names())
 
+    def test_land_task_passes_a_repo_value(self):
+        # Declared as `flag "--repo"`, mise took it for a switch and refused
+        # `--repo OWNER/NAME` with "unexpected word".
+        self.select("workstation")
+        result = self.mise("run", "--dry-run", "--skip-tools", "land", "38", "--repo", "owner/name")
+        self.assertIn("scripts/land", result.stdout + result.stderr)
+        # The dry run prints the command, cut short after the flag.
+        self.assertIn("'38' --repo", result.stdout + result.stderr)
+        result = self.mise("run", "--dry-run", "--skip-tools", "land", "38")
+        self.assertNotIn("--repo", result.stdout + result.stderr)
+
     def test_paseo_general_pod_commits_as_the_bot(self):
         # The general pod's rendered git identity is the bot (static, from the
         # paseo layer's [vars]); the private pod shares the class but keeps the
