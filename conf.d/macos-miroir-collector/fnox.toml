@@ -4,3 +4,4 @@ vault = "Machines"
 
 [secrets]
 MIROIR_TOKEN_SCREEN_MACBOOK = { provider = "protonpass", value = "pass://Machines/miroir-collector/screen_macbook" }
+MIROIR_TOKEN_MESSAGES = { provider = "protonpass", value = "pass://Machines/miroir-collector/messages" }
