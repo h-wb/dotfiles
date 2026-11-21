@@ -37,6 +37,12 @@ content = '''
         "media": true,
         "names": true
       }
+    },
+    {
+      "id": "browser_macbook",
+      "source": "zen_history",
+      "receive_url": {{ ('https://miroir.' ~ secret(name="miroir_collector_zone") ~ '/api/connections/browser_macbook/receive') | json_encode }},
+      "token_env": "MIROIR_TOKEN_BROWSER_MACBOOK"
     }
   ]
 }
