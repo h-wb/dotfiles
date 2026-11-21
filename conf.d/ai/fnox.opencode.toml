@@ -1,6 +1,0 @@
-[providers.protonpass]
-type = "proton-pass"
-vault = "Machines"
-
-[secrets]
-LITELLM_API_KEY = { provider = "protonpass", value = "pass://Machines/litellm-workstation/password" }

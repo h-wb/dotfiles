@@ -19,6 +19,10 @@ args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude
 command = "fnox"
 args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.codex_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "codex"]
 
+[wrappers.opencode]
+command = "fnox"
+args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "opencode", "--no-defaults", "--if-missing", "error", "--non-interactive", "exec", "--", "opencode"]
+
 [wrappers.vibe]
 command = "fnox"
 args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.vibe_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "vibe"]
