@@ -17,14 +17,23 @@ skills/                the shared skills, linked into every agent's skills folde
 
 ## OpenCode subscription
 
-After `mise run apply`, run `mise run opencode:litellm` from your project with
-`LITELLM_API_KEY` supplied by your secret manager. Use a separate workstation
-virtual key that allows `gpt-*`. The task uses the internal LiteLLM HTTPS route
-and OpenCode's built-in OpenAI catalog, not a copy of Paseo's model list.
-Start with `openai/gpt-6-luna` in `/models`. The catalog isn't filtered by
-LiteLLM, so some entries may be unavailable. This uses LiteLLM's gateway
-subscription login, not an OpenCode ChatGPT sign-in. The task uses a separate
-local database; plain `opencode` and the Paseo pods are unchanged.
+Plain `opencode` on workstations uses the internal LiteLLM HTTPS route for
+its built-in OpenAI catalog. Remove any saved OpenAI account in OpenCode
+before applying, so it doesn't take precedence over the LiteLLM key.
+
+Put a separate LiteLLM virtual key with `gpt-*` access in the password field
+of `Machines/litellm-workstation` in Proton Pass. Run `mise run apply`, then
+run this once per workstation and again when the key rotates:
+
+```sh
+fnox -c ~/.dotfiles/conf.d/ai/fnox.opencode.toml -P opencode --no-defaults --if-missing error exec -- \
+  sh -c 'test -n "$LITELLM_API_KEY" && opencode service set env LITELLM_API_KEY "$LITELLM_API_KEY"'
+```
+
+This installs the key in OpenCode's local service environment, not in the
+rendered model config. Start with `openai/gpt-6-luna` in `/models`. The picker
+isn't filtered by LiteLLM, so some listed models may not be available. Paseo
+keeps its own config and key.
 
 ## Scopes
 

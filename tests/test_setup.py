@@ -587,7 +587,6 @@ echo 'collector ran'
             "type": "static", "api_key_env": "MCP_API_KEY",
             "api_key_header": "x-api-key", "api_key_format": "{token}"})
         self.assertFalse((self.home / ".claude.json").exists())
-        self.assertFalse((self.home / ".config/opencode/opencode.json").exists())
         # Claude Desktop: its mcp-remote shim, Desktop's own keys survive.
         self.select("personal")
         desktop = self.home / "Library/Application Support/Claude/claude_desktop_config.json"
@@ -608,31 +607,27 @@ echo 'collector ran'
 
     def test_workstation_opencode_litellm_profile(self):
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
-        profile = self.home / ".config/opencode/litellm.json"
-        command = ("run", "--skip-tools", "opencode:litellm", "--", "models")
+        profile = self.home / ".config/opencode/opencode.json"
+        profile.parent.mkdir(parents=True)
+        existing = {"providers": {"anthropic": {"settings": {"timeout": 60000}}}}
+        profile.write_text(json.dumps(existing))
         self.apply_ai()
-        self.assertFalse(json.loads(profile.read_text() or "{}"))
-        missing = self.mise(*command, ok=False)
-        self.assertNotEqual(missing.returncode, 0)
-        self.assertIn("configure the LiteLLM endpoint", missing.stderr)
+        self.assertEqual(json.loads(profile.read_text()), existing)
 
-        env = {**self.env, "LITELLM_API_KEY": "test-only"}
         self.apply_ai(SECRET_DOMAIN="example.test", LITELLM_API_KEY="test-only")
         self.apply_ai()  # Preserve the last endpoint when rendering without fnox.
+        self.assertNotIn("test-only", profile.read_text())
         self.assertEqual(json.loads(profile.read_text())["providers"], {
+            **existing["providers"],
             "openai": {"settings": {
                 "baseURL": "https://litellm.example.test/v1",
                 "apiKey": "{env:LITELLM_API_KEY}",
             }},
         })
-        missing = self.mise(*command, ok=False)
-        self.assertNotEqual(missing.returncode, 0)
-        self.assertIn("Set LITELLM_API_KEY", missing.stderr)
-        self.fake("opencode", 'printf "%s\\n" "$OPENCODE_CONFIG" "$XDG_DATA_HOME" "$@"')
-        result = self.mise(*command, env=env)
-        self.assertEqual(result.stdout.splitlines(), [
-            str(profile), str(self.home / ".local/share/opencode-litellm"), "--standalone", "models",
-        ])
+        fnox = tomllib.loads((self.repo / "conf.d/ai/fnox.opencode.toml").read_text())
+        self.assertEqual(fnox["secrets"], {
+            "LITELLM_API_KEY": {"provider": "protonpass", "value": "pass://Machines/litellm-workstation/password"},
+        })
 
     def test_ai_workstation_without_a_domain_leaves_servers_out(self):
         # The domain is never committed: fnox supplies SECRET_DOMAIN from Proton

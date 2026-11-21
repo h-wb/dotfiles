@@ -9,23 +9,7 @@ memini_private_url = "{% if vars.secret_domain %}https://memini-private.{{ vars.
 mcp_auth = "api-key"
 
 [dotfiles]
-"~/.config/opencode/litellm.json/litellm" = { source = "config/opencode-litellm.json", merge = true, template = "tera" }
-
-[tasks."opencode:litellm"]
-description = "Open OpenCode using LiteLLM's ChatGPT subscription routes"
-run = '''
-export OPENCODE_CONFIG="$HOME/.config/opencode/litellm.json"
-export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/opencode-litellm"
-if ! grep -q '"baseURL"' "$OPENCODE_CONFIG" 2>/dev/null; then
-  echo "Run mise run apply to configure the LiteLLM endpoint first." >&2
-  exit 1
-fi
-if [ -z "${LITELLM_API_KEY:-}" ]; then
-  echo "Set LITELLM_API_KEY to a workstation virtual key with gpt-* access." >&2
-  exit 1
-fi
-exec opencode --standalone "$@"
-'''
+"~/.config/opencode/opencode.json/litellm" = { source = "config/opencode-litellm.json", merge = true, template = "tera" }
 
 [wrappers.claude]
 command = "fnox"
