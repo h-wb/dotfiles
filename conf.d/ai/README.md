@@ -6,7 +6,7 @@ env; a class file adds an agent's config where its path or key source differs.
 
 ```text
 mise.toml              all machines: shared [vars], Claude Code, Codex and Vibe (merged)
-mise.workstation.toml  personal, neko, cachyos: public URLs, agent wrappers
+mise.workstation.toml  workstations: agent wrappers and OpenCode's LiteLLM profile
 mise.personal.toml     MacBook: Claude Desktop's config, the mcp-remote wrapper
 mise.paseo.toml        paseo pods: in-cluster URLs, OpenCode
 fnox.toml              the only secrets the agents may read (MCP_API_KEY)
@@ -14,6 +14,17 @@ config/                the agents' config templates, rendered by the files above
 skills/                the shared skills, linked into every agent's skills folder
                        (the ones only a Paseo pod can use are in conf.d/paseo/skills/)
 ```
+
+## OpenCode subscription
+
+After `mise run apply`, run `mise run opencode:litellm` from your project with
+`LITELLM_API_KEY` supplied by your secret manager. Use a separate workstation
+virtual key that allows `gpt-*`. The task uses the internal LiteLLM HTTPS route
+and OpenCode's built-in OpenAI catalog, not a copy of Paseo's model list.
+Start with `openai/gpt-6-luna` in `/models`. The catalog isn't filtered by
+LiteLLM, so some entries may be unavailable. This uses LiteLLM's gateway
+subscription login, not an OpenCode ChatGPT sign-in. The task uses a separate
+local database; plain `opencode` and the Paseo pods are unchanged.
 
 ## Scopes
 

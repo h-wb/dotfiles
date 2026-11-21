@@ -606,6 +606,34 @@ echo 'collector ran'
             "memini": {"command": bridge, "args": [
                 "https://memini-general.example.test/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]}})
 
+    def test_workstation_opencode_litellm_profile(self):
+        (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
+        profile = self.home / ".config/opencode/litellm.json"
+        command = ("run", "--skip-tools", "opencode:litellm", "--", "models")
+        self.apply_ai()
+        self.assertFalse(json.loads(profile.read_text() or "{}"))
+        missing = self.mise(*command, ok=False)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("configure the LiteLLM endpoint", missing.stderr)
+
+        env = {**self.env, "LITELLM_API_KEY": "test-only"}
+        self.apply_ai(SECRET_DOMAIN="example.test", LITELLM_API_KEY="test-only")
+        self.apply_ai()  # Preserve the last endpoint when rendering without fnox.
+        self.assertEqual(json.loads(profile.read_text())["providers"], {
+            "openai": {"settings": {
+                "baseURL": "https://litellm.example.test/v1",
+                "apiKey": "{env:LITELLM_API_KEY}",
+            }},
+        })
+        missing = self.mise(*command, ok=False)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("Set LITELLM_API_KEY", missing.stderr)
+        self.fake("opencode", 'printf "%s\\n" "$OPENCODE_CONFIG" "$XDG_DATA_HOME" "$@"')
+        result = self.mise(*command, env=env)
+        self.assertEqual(result.stdout.splitlines(), [
+            str(profile), str(self.home / ".local/share/opencode-litellm"), "--standalone", "models",
+        ])
+
     def test_ai_workstation_without_a_domain_leaves_servers_out(self):
         # The domain is never committed: fnox supplies SECRET_DOMAIN from Proton
         # Pass during `apply`. Any render without it leaves the gateway and memini
