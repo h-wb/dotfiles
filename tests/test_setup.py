@@ -605,6 +605,23 @@ echo 'collector ran'
             "memini": {"command": bridge, "args": [
                 "https://memini-general.example.test/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]}})
 
+    def test_tn1_ssh_uses_proton_pass_agent_on_macos_only(self):
+        self.select("personal" if sys.platform == "darwin" else "workstation")
+        target = self.home / ".ssh/config"
+        self.mise("bootstrap", "dotfiles", "apply", "--yes", str(target), env={
+            **self.env, "SSH_TRUENAS_HOST": "tn.example", "SSH_TRUENAS_USER": "someone",
+        })
+        env = {**self.env, "SSH_AUTH_SOCK": str(self.home / "other-agent.sock")}
+        result = self.run_cmd("ssh", "-G", "-F", str(target), "TN1", env=env)
+        config = dict(line.split(" ", 1) for line in result.stdout.splitlines())
+        self.assertEqual(config["hostname"], "tn.example")
+        self.assertEqual(config["user"], "someone")
+        if sys.platform == "darwin":
+            self.assertEqual(os.path.expanduser(config["identityagent"]),
+                             str(Path.home() / ".ssh/proton-pass-agent.sock"))
+        else:
+            self.assertNotIn("identityagent", config)
+
     def test_workstation_opencode_litellm_profile(self):
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
         profile = self.home / ".config/opencode/opencode.json"
