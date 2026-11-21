@@ -2,15 +2,6 @@
 
 lockfile_version = 3
 
-[[tools."aqua:anomalyco/opencode"]]
-version = "2.1.4"
-backend = "aqua:anomalyco/opencode"
-specifiers = ["latest"]
-
-[tools."aqua:anomalyco/opencode"."platforms.linux-x64"]
-checksum = "sha256:2edaf8cf96e81dec5ee996a3196b03345cf59e5a1673d83a4599bb4afc5c5f6d"
-url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-x64.tar.gz"
-
 [[tools.node]]
 version = "24.22.1"
 backend = "core:node"

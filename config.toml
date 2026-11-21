@@ -34,6 +34,7 @@ claude = "latest"
 "github:shoenot/diskard" = "latest"       # TUI disk usage analyzer
 usage = "latest"
 codex = "latest"
+"aqua:anomalyco/opencode" = "latest"
 # PyPI only since 3.0 (releases ship just vibe-acp). Its own Python: a project's newer
 # one (home-ops pins 3.15) has no cffi wheels, and installs build nothing.
 "pipx:mistral-vibe" = { version = "latest", python = "3.14" }
