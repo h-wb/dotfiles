@@ -3,4 +3,7 @@ HashKnownHosts no
 Host TN1
     HostName {{ vars.ssh_truenas_host }}
     User {{ vars.ssh_truenas_user }}
+{% if os() == "macos" %}
+    IdentityAgent ~/.ssh/proton-pass-agent.sock
+{% endif %}
 {% endif %}
