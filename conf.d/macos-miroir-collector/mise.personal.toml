@@ -1,0 +1,50 @@
+# miroir-collector (h-wb/pipelines, `collector/`) → the owner's Miroir server, hourly.
+
+[tools]
+# Pin main until upstream publishes collector-vX.Y.Z release tags.
+"pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector" = "deb8bfe4fd6a54fecad932b1bdb9bf30f474580d"
+
+[bootstrap.secrets]
+miroir_collector_zone = "SECRET_DOMAIN"
+
+[bootstrap.directories."~/.config/miroir-collector"]
+mode = "0700"
+
+[bootstrap.files."~/.config/miroir-collector/config.json"]
+template = true
+mode = "0600"
+content = '''
+{
+  "state_dir": "~/Library/Application Support/miroir-collector",
+  "sources": [
+    {
+      "id": "screen_macbook",
+      "source": "screenmemory",
+      "receive_url": {{ ('https://miroir.' ~ secret(name="miroir_collector_zone") ~ '/api/connections/screen_macbook/receive') | json_encode }},
+      "token_env": "MIROIR_TOKEN_SCREEN_MACBOOK",
+      "options": {
+        "data_dir": "~/Nextcloud/Hugo/Images/ScreenMemory/ScreenMemoryData",
+        "since": "2026-10-20",
+        "media": true
+      }
+    }
+  ]
+}
+'''
+
+# mise puts fnox, pass-cli and the collector on PATH even under launchd.
+[tasks."miroir:collect"]
+description = "Run miroir-collector with its Proton Pass delivery token"
+run = 'fnox --if-missing error --non-interactive exec -c "{{ config_root }}/fnox.toml" -- miroir-collector run --config "$HOME/.config/miroir-collector/config.json"'
+
+# Hourly (a missed run happens once on wake); the collector holds its own lock,
+# so an overlap is harmless. The collector logs counts, not source content.
+# A source that reads ~/Library/Messages needs Full Disk Access, granted by hand
+# to the program launchd runs (~/.local/bin/mise's target).
+[bootstrap.macos.launchd.agents.miroir-collector]
+program = "~/.local/bin/mise"
+args = ["run", "--quiet", "miroir:collect"]
+stdout_path = "~/Library/Logs/miroir-collector.log"
+stderr_path = "~/Library/Logs/miroir-collector.log"
+run_at_load = true
+start_interval = 3600

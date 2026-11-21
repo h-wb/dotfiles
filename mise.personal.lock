@@ -30,6 +30,11 @@ aube = { path = "locks/mise.personal/npm-mcp-remote/0.15.2", digest = "sha256:ff
 backend = "npm:mcp-remote"
 specifiers = ["0.15.2"]
 
+[[tools."pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector"]]
+version = "deb8bfe4fd6a54fecad932b1bdb9bf30f474580d"
+backend = "pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector"
+specifiers = ["deb8bfe4fd6a54fecad932b1bdb9bf30f474580d"]
+
 [[tools.sqlite]]
 version = "3.54.1"
 backend = "conda:sqlite"

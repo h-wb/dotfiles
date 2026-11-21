@@ -102,6 +102,9 @@ esac
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
                 for layer in ("workstation", "pod", "fish"):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
+                for feature in ("macos-zen-history", "macos-miroir-collector"):
+                    self.assertEqual(f"conf.d/{feature}/mise.personal.toml" in configs,
+                                     machine == "personal", feature)
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
                     self.mise("tasks", "info", line.split()[0])
@@ -201,6 +204,8 @@ esac
         self.assertEqual(text.count(f'[bootstrap.files."{self.RESOLVER}"]'), 1)
         config.write_text(text.replace(f'[bootstrap.files."{self.RESOLVER}"]', f'[bootstrap.files."{out}"]')
                           .replace('owner = "root"\n', "").replace('group = "wheel"\n', ""))
+        # This test applies only the resolver, not the other MacBook files.
+        (self.repo / "conf.d/macos-miroir-collector/mise.personal.toml").unlink()
         status = self.mise("bootstrap", "files", "status", "--json", env={**self.env, **self.DNS_SECRETS})
         self.assertEqual([entry["id"]["name"] for entry in json.loads(status.stdout)], [str(out)])
         return out
@@ -269,6 +274,95 @@ esac
         self.assertEqual({name for (name,) in db.execute("select name from sqlite_master")}, set(tables))
         for number, table in enumerate(tables):
             self.assertEqual(db.execute(f"select * from {table}").fetchall(), [(number, table)])
+
+    def test_miroir_collector_config_requires_zone(self):
+        self.select("personal")
+        # Do not let the test apply the real /etc/resolver entry.
+        (self.repo / "conf.d/macos-k8s-dns/mise.personal.toml").unlink()
+        out = self.home / ".config/miroir-collector/config.json"
+
+        def apply(ok=True, **env):
+            return self.mise("bootstrap", "files", "apply", "--yes", ok=ok,
+                             env={**self.env, **env})
+
+        status = self.mise("bootstrap", "files", "status", "--json",
+                           env={**self.env, "SECRET_DOMAIN": "example.test"})
+        self.assertEqual({entry["id"]["name"] for entry in json.loads(status.stdout)},
+                         {str(out), str(out.parent)})
+        missing = apply(ok=False)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("miroir_collector_zone", missing.stderr)
+        self.assertFalse(out.parent.exists())
+        apply(SECRET_DOMAIN="example.test")
+        original = out.read_text()
+        self.assertEqual(out.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(json.loads(original), {
+            "state_dir": "~/Library/Application Support/miroir-collector",
+            "sources": [{
+                "id": "screen_macbook",
+                "source": "screenmemory",
+                "receive_url": "https://miroir.example.test/api/connections/screen_macbook/receive",
+                "token_env": "MIROIR_TOKEN_SCREEN_MACBOOK",
+                "options": {
+                    "data_dir": "~/Nextcloud/Hugo/Images/ScreenMemory/ScreenMemoryData",
+                    "since": "2026-10-20",
+                    "media": True,
+                },
+            }],
+        })
+        self.assertNotEqual(apply(ok=False, SECRET_DOMAIN="").returncode, 0)
+        self.assertEqual(out.read_text(), original)
+
+    def test_miroir_collector_schedule_and_fnox_handoff(self):
+        self.select("personal")
+        folder = self.repo / "conf.d/macos-miroir-collector"
+        fragment = folder / "mise.personal.toml"
+        text = fragment.read_text()
+        config = tomllib.loads(text)
+        self.assertNotIn("miroir.example.test", text)
+        self.assertEqual(config["bootstrap"]["secrets"], {"miroir_collector_zone": "SECRET_DOMAIN"})
+        tool = "pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector"
+        lock = tomllib.loads((self.repo / "mise.personal.lock").read_text())
+        self.assertEqual(lock["tools"][tool][0]["version"], config["tools"][tool])
+        schema = self.mise("config", "explain", "--file", str(fragment)).stdout
+        self.assertNotIn("not a key mise reads", schema)
+        self.assertEqual(tomllib.loads((folder / "fnox.toml").read_text()), {
+            "providers": {"protonpass": {"type": "proton-pass", "vault": "Machines"}},
+            "secrets": {"MIROIR_TOKEN_SCREEN_MACBOOK": {
+                "provider": "protonpass", "value": "pass://Machines/miroir-collector/screen_macbook",
+            }},
+        })
+        agent = config["bootstrap"]["macos"]["launchd"]["agents"]["miroir-collector"]
+        self.assertEqual(agent, {
+            "program": "~/.local/bin/mise",
+            "args": ["run", "--quiet", "miroir:collect"],
+            "stdout_path": "~/Library/Logs/miroir-collector.log",
+            "stderr_path": "~/Library/Logs/miroir-collector.log",
+            "run_at_load": True,
+            "start_interval": 3600,
+        })
+        self.fake("fnox", '''
+test "$#" = 11 && test "$1 $2 $3 $4 $5" = '--if-missing error --non-interactive exec -c' &&
+  test "$6" = "$HOME/.dotfiles/conf.d/macos-miroir-collector/fnox.toml" &&
+  test "$7" = -- && test "$8" = miroir-collector || exit 90
+[ "$MISSING" != yes ] || exit 44
+export MIROIR_TOKEN_SCREEN_MACBOOK=synthetic-secret-screen
+shift 7
+exec "$@"
+''')
+        self.fake("miroir-collector", '''
+test "$#" = 3 && test "$1 $2" = 'run --config' &&
+  test "$3" = "$HOME/.config/miroir-collector/config.json" || exit 91
+test "$MIROIR_TOKEN_SCREEN_MACBOOK" = synthetic-secret-screen || exit 92
+echo 'collector ran'
+''')
+        for missing, expected in (("no", 0), ("yes", 44)):
+            with self.subTest(missing=missing):
+                result = self.mise(*agent["args"][:2], "--skip-tools", agent["args"][2],
+                                   ok=False, env={**self.env, "MISSING": missing})
+                self.assertEqual(result.returncode, expected, result.stderr)
+                self.assertEqual(result.stdout, "collector ran\n" if not expected else "")
+                self.assertNotIn("synthetic-secret", result.stdout + result.stderr)
 
     def test_paseo_leaves_paseo_config_alone(self):
         # Only home-ops' overlay (paseo-overlay layer) merges into it.
