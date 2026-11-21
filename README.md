@@ -39,7 +39,6 @@ conf.d/                  one folder per machine, and the features
   macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
   macos-defaults/        `defaults write`, declaratively
   macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
-  macos-zen-history/     Zen history snapshots → Nextcloud (MacBook)
   macos-miroir-collector/ ScreenMemory, Messages and Zen history to Miroir, hourly, with Proton Pass tokens (MacBook)
   neko/                  the neko/xfce container
   neko-anki/             Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive), kept running there
@@ -103,6 +102,17 @@ Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by
 `apply`, `diff` and `upgrade` belong to the workstation layer; the Paseo pods
 reprovision at every start instead (`mise bootstrap --from` in home-ops).
 `diff` previews the bootstrap steps but does not render templates.
+
+If the MacBook previously ran the Zen-to-Nextcloud snapshot job, unload it and
+remove its LaunchAgent once Miroir is receiving Zen history:
+
+```sh
+launchctl bootout "gui/$(id -u)/dev.mise.zen-history-snapshot"
+rm -f "$HOME/Library/LaunchAgents/dev.mise.zen-history-snapshot.plist"
+```
+
+If the agent is already unloaded, just remove the plist. This leaves existing
+Nextcloud snapshots and Zen's profile untouched.
 
 ## Secrets
 
