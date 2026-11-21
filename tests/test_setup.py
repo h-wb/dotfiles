@@ -1,11 +1,9 @@
-import gzip
 import importlib.machinery
 import importlib.util
 import json
 import os
 from pathlib import Path
 import shutil
-import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -102,9 +100,8 @@ esac
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
                 for layer in ("workstation", "pod", "fish"):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
-                for feature in ("macos-zen-history", "macos-miroir-collector"):
-                    self.assertEqual(f"conf.d/{feature}/mise.personal.toml" in configs,
-                                     machine == "personal", feature)
+                self.assertEqual("conf.d/macos-miroir-collector/mise.personal.toml" in configs,
+                                 machine == "personal")
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
                     self.mise("tasks", "info", line.split()[0])
@@ -245,35 +242,6 @@ esac
                 self.assertEqual(out.read_text(), want("10.1.1.1"))
         apply(K8S_GATEWAY_IP_EDGE="")
         self.assertEqual(out.read_text(), want("10.1.1.1"))
-
-    def test_zen_snapshot_keeps_only_the_tables_the_pipeline_reads(self):
-        # The dlt `browser_history` source selects these five, whole. Indexes
-        # and every other table are most of the upload and stay behind.
-        if not shutil.which("sqlite3", path=self.env["PATH"]):
-            self.skipTest("sqlite3 is not installed")
-        self.select("personal")
-        tables = ("moz_places", "moz_historyvisits", "moz_places_metadata", "moz_origins", "moz_bookmarks")
-        profile = self.home / "Library/Application Support/zen/Profiles/fixture.Default"
-        profile.mkdir(parents=True)
-        db = sqlite3.connect(profile / "places.sqlite")
-        for number, table in enumerate(tables):
-            db.execute(f"create table {table} (id integer primary key, value text)")
-            db.execute(f"insert into {table} values (?, ?)", (number, table))
-        db.execute("create index visits_by_value on moz_historyvisits (value)")
-        db.execute("create table moz_inputhistory (input text)")
-        db.commit()
-        db.close()
-        self.mise("run", "--skip-tools", "zen-history-snapshot")
-        snapshot = self.home / "Nextcloud/Hugo/Documents/data/browser/zen-places.sqlite.gz"
-        # Nothing half-written beside it for Nextcloud to upload.
-        self.assertEqual([path.name for path in snapshot.parent.iterdir()], [snapshot.name])
-        copy = self.home / "copy.sqlite"
-        copy.write_bytes(gzip.decompress(snapshot.read_bytes()))
-        db = sqlite3.connect(copy)
-        self.addCleanup(db.close)
-        self.assertEqual({name for (name,) in db.execute("select name from sqlite_master")}, set(tables))
-        for number, table in enumerate(tables):
-            self.assertEqual(db.execute(f"select * from {table}").fetchall(), [(number, table)])
 
     def test_miroir_collector_config_requires_zone(self):
         self.select("personal")
