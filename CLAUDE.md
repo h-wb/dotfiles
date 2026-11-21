@@ -87,7 +87,8 @@ job and how `mise -E neko` selects a machine.
   like its environment: `macos/` (`mise.macos.toml` for any Mac,
   `mise.personal.toml` for the MacBook), `neko/`, `cachyos/`, `paseo/`, `code-server/`. A
   feature only that machine has is `<machine>-<feature>/`: `macos-defaults/`,
-  `macos-k8s-dns/`, `macos-zen-history/`, `neko-anki/`, `neko-obsidian/`. A folder with no machine in its name loads on several:
+  `macos-k8s-dns/`, `macos-zen-history/`, `macos-miroir-collector/`,
+  `neko-anki/`, `neko-obsidian/`. A folder with no machine in its name loads on several:
   `ai/`, `proton-pass/`, and the layers `pod/`, `fish/`. So the root holds only
   `config.toml` and `config.workstation.toml`, and
   `test_conf_d_folder_names_say_where_they_load` holds the names to this. Give
@@ -396,7 +397,7 @@ in `conf.d/ai/README.md`; what is easy to break:
   the label `dev.mise.<key>`. Env and log files are the agent's own
   `environment`/`stdout_path`/`stderr_path` keys (launchd appends), so `sh -c`
   is only there for the `$(mise which …)`; an agent that needs none of that
-  runs mise directly (`macos-zen-history`).
+  runs mise directly (`macos-zen-history`, `macos-miroir-collector`).
 - **Login items** are `[bootstrap.macos.login_items]`: additive (what an app
   registered itself stays) and combined across files, so every Mac's two and
   the MacBook's three sit next to the casks that install them. List only apps

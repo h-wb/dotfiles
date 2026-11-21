@@ -102,6 +102,9 @@ esac
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
                 for layer in ("workstation", "pod", "fish"):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
+                for feature in ("macos-zen-history", "macos-miroir-collector"):
+                    self.assertEqual(f"conf.d/{feature}/mise.personal.toml" in configs,
+                                     machine == "personal", feature)
                 self.mise("tasks", "validate", "--errors-only")
                 for line in self.mise("tasks", "--hidden", "--no-header").stdout.splitlines():
                     self.mise("tasks", "info", line.split()[0])
@@ -269,6 +272,85 @@ esac
         self.assertEqual({name for (name,) in db.execute("select name from sqlite_master")}, set(tables))
         for number, table in enumerate(tables):
             self.assertEqual(db.execute(f"select * from {table}").fetchall(), [(number, table)])
+
+    def test_miroir_collector_schedule_and_keychain_handoff(self):
+        self.select("personal")
+        folder = self.repo / "conf.d/macos-miroir-collector"
+        fragment = folder / "mise.personal.toml"
+        config = tomllib.loads(fragment.read_text())
+        agent = config["bootstrap"]["macos"]["launchd"]["agents"]["miroir-collector"]
+        self.assertEqual(agent, {
+            "program": "~/.local/bin/mise",
+            "args": ["run", "--quiet", "miroir-collector-run"],
+            "stdout_path": "~/Library/Logs/miroir-collector.log",
+            "stderr_path": "~/Library/Logs/miroir-collector.log",
+            "run_at_load": True,
+            "start_interval": 3600,
+        })
+        self.fake("uv", '''
+test "$UV_TOOL_BIN_DIR" = "$HOME/.local/bin" || exit 90
+printf '%s\\n' "$@"
+''')
+        self.assertEqual(
+            self.mise("run", "--quiet", "--skip-tools", "miroir-collector-install").stdout.splitlines(),
+            ["tool", "install", "--force",
+             "git+https://github.com/h-wb/pipelines@deb8bfe4fd6a54fecad932b1bdb9bf30f474580d#subdirectory=collector"],
+        )
+
+        # Substitute only the platform binaries in the throwaway repo.
+        from shlex import quote
+        fragment.write_text(fragment.read_text().replace(
+            '/usr/bin/python3', quote(sys.executable)))
+        script = folder / "tasks/run.py"
+        script.write_text(script.read_text().replace('"/usr/bin/security"', json.dumps(str(self.bin / "security"))))
+        path = self.home / ".config/miroir-agent/agent.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"sources": [
+            {"id": "screen", "token_env": "SCREEN_TOKEN"},
+            {"id": "zen", "token_env": "ZEN_TOKEN"},
+        ]}))
+        self.fake("security", '''
+test "$#" = 6 && test "$1 $2 $3 $4 $6" = 'find-generic-password -s miroir-agent -a -w' || exit 90
+if [ "$5" = "$MISSING" ] || [ "$MISSING" = all ]; then
+  echo 'synthetic-secret-diagnostic' >&2
+  exit 44
+fi
+printf 'synthetic-secret-%s\\n' "$5"
+''')
+        self.fake("miroir-collector", '''
+test "$1" = run && test "$2" = --config &&
+  test "$3" = "$HOME/.config/miroir-agent/agent.json" || exit 91
+case "$#:${4-}:${5-}" in
+  3::) test "$SCREEN_TOKEN" = synthetic-secret-screen && test "$ZEN_TOKEN" = synthetic-secret-zen || exit 92 ;;
+  5:--source:zen) test -z "${SCREEN_TOKEN+x}" && test "$ZEN_TOKEN" = synthetic-secret-zen || exit 93 ;;
+  *) exit 94 ;;
+esac
+echo 'collector ran'
+exit 17
+''')
+        # Nothing to run at all is a failure (1), so the log does not read as fine.
+        for missing, expected in (("", 17), ("screen", 17), ("all", 1)):
+            with self.subTest(missing=missing):
+                result = self.mise("run", "--quiet", "--skip-tools", "miroir-collector-run", ok=False, env={
+                    **self.env, "MISSING": missing, "SCREEN_TOKEN": "stale-token",
+                })
+                self.assertEqual(result.returncode, expected, result.stderr)
+                self.assertEqual(result.stdout, "collector ran\n" if expected == 17 else "")
+                self.assertNotIn("synthetic-secret", result.stdout + result.stderr)
+                skipped = ("screen", "zen") if missing == "all" else (missing,) if missing else ()
+                # mise adds its own line when the task exits non-zero.
+                stderr = [line for line in result.stderr.splitlines()
+                          if line != "[miroir-collector-run] ERROR task failed"]
+                self.assertEqual(stderr, [
+                    f"miroir-collector: skipping {source!r}: no Keychain token" for source in skipped
+                ])
+        # No token was written anywhere under HOME (mise state and caches
+        # included) but the test's own fakes and repo copy, which spell them.
+        for file in self.home.rglob("*"):
+            if (file.is_file() and not file.is_symlink() and file.parent != self.bin
+                    and self.repo not in file.parents):
+                for token in (b"synthetic-secret-screen", b"synthetic-secret-zen"):
+                    self.assertNotIn(token, file.read_bytes(), file)
 
     def test_paseo_leaves_paseo_config_alone(self):
         # Only home-ops' overlay (paseo-overlay layer) merges into it.

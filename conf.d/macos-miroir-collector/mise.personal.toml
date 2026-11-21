@@ -1,0 +1,35 @@
+# miroir-collector (h-wb/pipelines, `collector/`) → the owner's Miroir server, hourly.
+
+[vars]
+# The installed commit. To move it: `git ls-remote https://github.com/h-wb/pipelines
+# refs/heads/main`, put the full hash here, then `mise run miroir-collector-install`
+# (`--force` moves the installed tool; it carries on from its saved state).
+miroir_collector_commit = "deb8bfe4fd6a54fecad932b1bdb9bf30f474580d"
+
+# Not part of bootstrap: run it once by hand, and again after moving the pin.
+[tasks.miroir-collector-install]
+description = "Install miroir-collector at the pinned commit"
+env.UV_TOOL_BIN_DIR = "{{ env.HOME }}/.local/bin"
+run = 'uv tool install --force "git+https://github.com/h-wb/pipelines@{{ vars.miroir_collector_commit }}#subdirectory=collector"'
+
+# Each source's delivery token goes from the login Keychain (account = the
+# source's id) to the collector's environment only: never output, a log, an
+# argument or a file. A source without a Keychain item is skipped.
+[tasks.miroir-collector-run]
+description = "Run miroir-collector with its delivery tokens from the Keychain"
+# Both names predate the rename to miroir-collector; kept so the existing setup keeps working.
+env = { MIROIR_COLLECTOR_CONFIG = "{{ env.HOME }}/.config/miroir-agent/agent.json", MIROIR_KEYCHAIN_SERVICE = "miroir-agent" }
+run = "/usr/bin/python3 -I tasks/run.py"
+
+# Hourly (a missed run happens once on wake); the collector holds its own lock,
+# so an overlap is harmless. launchd has no PATH, hence the absolute mise.
+# The collector prints counts only, never source content: the log is safe to read.
+# A source that reads ~/Library/Messages needs Full Disk Access, granted by hand
+# to the program launchd runs (~/.local/bin/mise's target).
+[bootstrap.macos.launchd.agents.miroir-collector]
+program = "~/.local/bin/mise"
+args = ["run", "--quiet", "miroir-collector-run"]
+stdout_path = "~/Library/Logs/miroir-collector.log"
+stderr_path = "~/Library/Logs/miroir-collector.log"
+run_at_load = true
+start_interval = 3600
