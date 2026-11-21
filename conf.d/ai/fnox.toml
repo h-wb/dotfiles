@@ -7,7 +7,14 @@ vault = "Machines"
 [profiles.general.secrets]
 MCP_API_KEY = { provider = "protonpass", value = "pass://Machines/toolhive/general" }
 MEMINI_API_KEY = { provider = "protonpass", value = "pass://Machines/memini/general" }
+LITELLM_API_KEY = { env = false }
 
 [profiles.private.secrets]
 MCP_API_KEY = { provider = "protonpass", value = "pass://Machines/toolhive/private" }
 MEMINI_API_KEY = { provider = "protonpass", value = "pass://Machines/memini/private" }
+LITELLM_API_KEY = { env = false }
+
+[profiles.opencode.secrets]
+MCP_API_KEY = { env = false }
+MEMINI_API_KEY = { env = false }
+LITELLM_API_KEY = { provider = "protonpass", value = "pass://Machines/litellm-workstation/password" }

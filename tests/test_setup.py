@@ -624,10 +624,6 @@ echo 'collector ran'
                 "apiKey": "{env:LITELLM_API_KEY}",
             }},
         })
-        fnox = tomllib.loads((self.repo / "conf.d/ai/fnox.opencode.toml").read_text())
-        self.assertEqual(fnox["secrets"], {
-            "LITELLM_API_KEY": {"provider": "protonpass", "value": "pass://Machines/litellm-workstation/password"},
-        })
 
     def test_ai_workstation_without_a_domain_leaves_servers_out(self):
         # The domain is never committed: fnox supplies SECRET_DOMAIN from Proton
@@ -651,8 +647,11 @@ echo 'collector ran'
         # Each wrapper's fnox profile is its agent's scope var; Desktop's mcp-remote is Claude's.
         expected = {"conf.d/ai/mise.workstation.toml": {"claude": "claude", "codex": "codex", "vibe": "vibe"},
                     "conf.d/ai/mise.personal.toml": {"mcp-remote": "claude"}}
+        opencode = None
         for path, agents in expected.items():
             wrappers = tomllib.loads((self.repo / path).read_text())["wrappers"]
+            if path.endswith("mise.workstation.toml"):
+                opencode = wrappers.pop("opencode")
             self.assertEqual(set(wrappers), set(agents))
             for name, wrapper in wrappers.items():
                 with self.subTest(wrapper=name):
@@ -661,17 +660,25 @@ echo 'collector ran'
                         "-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml",
                         "-P", "{{ vars.%s_scope }}" % agents[name],
                         "--if-missing", "warn", "--non-interactive", "exec", "--", name])
+        self.assertEqual(opencode, {"command": "fnox", "args": [
+            "-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "opencode",
+            "--no-defaults", "--if-missing", "error", "--non-interactive", "exec", "--", "opencode",
+        ]})
         # Pods take the key from their env: no wrapper outside workstations.
         self.assertNotIn("wrappers", (self.repo / "conf.d/ai/mise.paseo.toml").read_text())
 
     def test_ai_fnox_config_holds_only_the_agents_secrets(self):
         agents = tomllib.loads((self.repo / "conf.d/ai/fnox.toml").read_text())
-        self.assertNotIn("secrets", agents)  # only per-scope profiles
+        self.assertNotIn("secrets", agents)  # only named profiles
         self.assertEqual(set(agents["providers"]), {"protonpass"})
         profiles = {name: {k for k, v in p["secrets"].items() if v.get("env", True)}
                     for name, p in agents["profiles"].items()}
         self.assertEqual(profiles, {"general": {"MCP_API_KEY", "MEMINI_API_KEY"},
-                                    "private": {"MCP_API_KEY", "MEMINI_API_KEY"}})
+                                    "private": {"MCP_API_KEY", "MEMINI_API_KEY"},
+                                    "opencode": {"LITELLM_API_KEY"}})
+        self.assertEqual(agents["profiles"]["opencode"]["secrets"]["LITELLM_API_KEY"], {
+            "provider": "protonpass", "value": "pass://Machines/litellm-workstation/password",
+        })
         # A variable one scope holds is stripped from the others, never inherited.
         names = set().union(*profiles.values())
         for name, p in agents["profiles"].items():
@@ -679,7 +686,7 @@ echo 'collector ran'
         # Every scope an agent defaults to has a profile to run under.
         scopes = {v for k, v in tomllib.loads(
             (self.repo / "conf.d/ai/mise.toml").read_text())["vars"].items() if k.endswith("_scope")}
-        self.assertEqual(scopes, set(profiles))
+        self.assertEqual(scopes, set(profiles) - {"opencode"})
         repo = tomllib.loads((self.repo / "fnox.toml").read_text())
         self.assertNotIn("MCP_API_KEY", repo["secrets"])
         self.assertNotIn("profiles", repo)
