@@ -8,6 +8,9 @@ memini_general_url = "{% if vars.secret_domain %}https://memini-general.{{ vars.
 memini_private_url = "{% if vars.secret_domain %}https://memini-private.{{ vars.secret_domain }}{% endif %}"
 mcp_auth = "api-key"
 
+[dotfiles]
+"~/.config/opencode/opencode.json/litellm" = { source = "config/opencode-litellm.json", merge = true, template = "tera" }
+
 [wrappers.claude]
 command = "fnox"
 args = ["-c", "{{ mise_config_dir }}/conf.d/ai/fnox.toml", "-P", "{{ vars.claude_scope }}", "--if-missing", "warn", "--non-interactive", "exec", "--", "claude"]

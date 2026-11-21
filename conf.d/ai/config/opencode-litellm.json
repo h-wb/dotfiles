@@ -1,0 +1,15 @@
+{% if vars.secret_domain %}
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openai": {
+      "settings": {
+        "baseURL": {{ ("https://litellm." ~ vars.secret_domain ~ "/v1") | json_encode }},
+        "apiKey": "{env:LITELLM_API_KEY}"
+      }
+    }
+  }
+}
+{% else %}
+{}
+{% endif %}

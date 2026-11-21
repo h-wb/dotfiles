@@ -6,7 +6,7 @@ env; a class file adds an agent's config where its path or key source differs.
 
 ```text
 mise.toml              all machines: shared [vars], Claude Code, Codex and Vibe (merged)
-mise.workstation.toml  personal, neko, cachyos: public URLs, agent wrappers
+mise.workstation.toml  workstations: agent wrappers and OpenCode's LiteLLM profile
 mise.personal.toml     MacBook: Claude Desktop's config, the mcp-remote wrapper
 mise.paseo.toml        paseo pods: in-cluster URLs, OpenCode
 fnox.toml              the only secrets the agents may read (MCP_API_KEY)
@@ -14,6 +14,26 @@ config/                the agents' config templates, rendered by the files above
 skills/                the shared skills, linked into every agent's skills folder
                        (the ones only a Paseo pod can use are in conf.d/paseo/skills/)
 ```
+
+## OpenCode subscription
+
+Plain `opencode` on workstations uses the internal LiteLLM HTTPS route for
+its built-in OpenAI catalog. Remove any saved OpenAI account in OpenCode
+before applying, so it doesn't take precedence over the LiteLLM key.
+
+Put a separate LiteLLM virtual key with `gpt-*` access in the password field
+of `Machines/litellm-workstation` in Proton Pass. Run `mise run apply`, then
+run this once per workstation and again when the key rotates:
+
+```sh
+fnox -c ~/.dotfiles/conf.d/ai/fnox.opencode.toml -P opencode --no-defaults --if-missing error exec -- \
+  sh -c 'test -n "$LITELLM_API_KEY" && opencode service set env LITELLM_API_KEY "$LITELLM_API_KEY"'
+```
+
+This installs the key in OpenCode's local service environment, not in the
+rendered model config. Start with `openai/gpt-6-luna` in `/models`. The picker
+isn't filtered by LiteLLM, so some listed models may not be available. Paseo
+keeps its own config and key.
 
 ## Scopes
 

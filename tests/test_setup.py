@@ -587,7 +587,6 @@ echo 'collector ran'
             "type": "static", "api_key_env": "MCP_API_KEY",
             "api_key_header": "x-api-key", "api_key_format": "{token}"})
         self.assertFalse((self.home / ".claude.json").exists())
-        self.assertFalse((self.home / ".config/opencode/opencode.json").exists())
         # Claude Desktop: its mcp-remote shim, Desktop's own keys survive.
         self.select("personal")
         desktop = self.home / "Library/Application Support/Claude/claude_desktop_config.json"
@@ -605,6 +604,30 @@ echo 'collector ran'
                 "https://mcp-general.example.test/mcp", "--header", "x-api-key:${MCP_API_KEY}"]},
             "memini": {"command": bridge, "args": [
                 "https://memini-general.example.test/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]}})
+
+    def test_workstation_opencode_litellm_profile(self):
+        (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
+        profile = self.home / ".config/opencode/opencode.json"
+        profile.parent.mkdir(parents=True)
+        existing = {"providers": {"anthropic": {"settings": {"timeout": 60000}}}}
+        profile.write_text(json.dumps(existing))
+        self.apply_ai()
+        self.assertEqual(json.loads(profile.read_text()), existing)
+
+        self.apply_ai(SECRET_DOMAIN="example.test", LITELLM_API_KEY="test-only")
+        self.apply_ai()  # Preserve the last endpoint when rendering without fnox.
+        self.assertNotIn("test-only", profile.read_text())
+        self.assertEqual(json.loads(profile.read_text())["providers"], {
+            **existing["providers"],
+            "openai": {"settings": {
+                "baseURL": "https://litellm.example.test/v1",
+                "apiKey": "{env:LITELLM_API_KEY}",
+            }},
+        })
+        fnox = tomllib.loads((self.repo / "conf.d/ai/fnox.opencode.toml").read_text())
+        self.assertEqual(fnox["secrets"], {
+            "LITELLM_API_KEY": {"provider": "protonpass", "value": "pass://Machines/litellm-workstation/password"},
+        })
 
     def test_ai_workstation_without_a_domain_leaves_servers_out(self):
         # The domain is never committed: fnox supplies SECRET_DOMAIN from Proton
