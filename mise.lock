@@ -2,6 +2,39 @@
 
 lockfile_version = 3
 
+[[tools."aqua:anomalyco/opencode"]]
+version = "2.1.4"
+backend = "aqua:anomalyco/opencode"
+specifiers = ["latest"]
+
+[tools."aqua:anomalyco/opencode"."platforms.linux-arm64"]
+checksum = "sha256:759c9d6e7b246b81bcc93dfc6cc3bb2a38287c75b6202e305eacacb5dd882315"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-arm64.tar.gz"
+
+[tools."aqua:anomalyco/opencode"."platforms.linux-arm64-musl"]
+checksum = "sha256:0beebb2681f93f980393e2bd46f35bda76cc3d562610274e4ca9e1578bef2c4d"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-arm64-musl.tar.gz"
+
+[tools."aqua:anomalyco/opencode"."platforms.linux-x64"]
+checksum = "sha256:2edaf8cf96e81dec5ee996a3196b03345cf59e5a1673d83a4599bb4afc5c5f6d"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-x64.tar.gz"
+
+[tools."aqua:anomalyco/opencode"."platforms.linux-x64-musl"]
+checksum = "sha256:2d034053b4c8f95a7d64a57b5b350cfae3c60706f5757569afec0fc72189a388"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-linux-x64-musl.tar.gz"
+
+[tools."aqua:anomalyco/opencode"."platforms.macos-arm64"]
+checksum = "sha256:f9edc1dded080e39aa61db94270a51af66772ac572be7d6b15fa6f87251a3dff"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-darwin-arm64.zip"
+
+[tools."aqua:anomalyco/opencode"."platforms.macos-x64"]
+checksum = "sha256:7f35265b6900ce75b01e03cab2497622026b402c021ecf6e6e68755874245a6b"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-darwin-x64.zip"
+
+[tools."aqua:anomalyco/opencode"."platforms.windows-x64"]
+checksum = "sha256:6d3ee895c0f6e089bb1f1ee3addfa3d700cc4488a7da97f182cb700d3985a799"
+url = "https://opencode.ai/files/bin/2.1.4/opencode-windows-x64.zip"
+
 [[tools."aqua:kubernetes/kubectl"]]
 version = "1.37.2"
 backend = "aqua:kubernetes/kubectl"
