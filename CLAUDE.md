@@ -401,8 +401,9 @@ in `conf.d/ai/README.md`; what is easy to break:
 - **Miroir collector (MacBook only)**: mise installs the pinned collector and
   renders its private JSON config at bootstrap. The hourly agent runs
   `miroir:collect` with mise's tool PATH (including pass-cli); the folder's
-  fnox config injects the delivery token only at runtime. The Mac's default
-  Proton Pass session must be live; the agent never prompts.
+  fnox config injects each source's delivery token only at runtime; a token
+  missing from Proton Pass fails the whole run, so add it before the source.
+  The Mac's default Proton Pass session must be live; the agent never prompts.
 - **Login items** are `[bootstrap.macos.login_items]`: additive (what an app
   registered itself stays) and combined across files, so every Mac's two and
   the MacBook's three sit next to the casks that install them. List only apps

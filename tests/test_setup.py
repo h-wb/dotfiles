@@ -308,6 +308,17 @@ esac
                     "since": "2026-10-20",
                     "media": True,
                 },
+            }, {
+                "id": "messages",
+                "source": "apple_messages",
+                "receive_url": "https://miroir.example.test/api/connections/messages/receive",
+                "token_env": "MIROIR_TOKEN_MESSAGES",
+                "options": {"media": True, "names": True},
+            }, {
+                "id": "browser_macbook",
+                "source": "zen_history",
+                "receive_url": "https://miroir.example.test/api/connections/browser_macbook/receive",
+                "token_env": "MIROIR_TOKEN_BROWSER_MACBOOK",
             }],
         })
         self.assertNotEqual(apply(ok=False, SECRET_DOMAIN="").returncode, 0)
@@ -328,9 +339,11 @@ esac
         self.assertNotIn("not a key mise reads", schema)
         self.assertEqual(tomllib.loads((folder / "fnox.toml").read_text()), {
             "providers": {"protonpass": {"type": "proton-pass", "vault": "Machines"}},
-            "secrets": {"MIROIR_TOKEN_SCREEN_MACBOOK": {
-                "provider": "protonpass", "value": "pass://Machines/miroir-collector/screen_macbook",
-            }},
+            "secrets": {
+                f"MIROIR_TOKEN_{name.upper()}": {
+                    "provider": "protonpass", "value": f"pass://Machines/miroir-collector/{name}",
+                } for name in ("screen_macbook", "messages", "browser_macbook")
+            },
         })
         agent = config["bootstrap"]["macos"]["launchd"]["agents"]["miroir-collector"]
         self.assertEqual(agent, {
@@ -347,6 +360,8 @@ test "$#" = 11 && test "$1 $2 $3 $4 $5" = '--if-missing error --non-interactive 
   test "$7" = -- && test "$8" = miroir-collector || exit 90
 [ "$MISSING" != yes ] || exit 44
 export MIROIR_TOKEN_SCREEN_MACBOOK=synthetic-secret-screen
+export MIROIR_TOKEN_MESSAGES=synthetic-secret-messages
+export MIROIR_TOKEN_BROWSER_MACBOOK=synthetic-secret-browser
 shift 7
 exec "$@"
 ''')
@@ -354,6 +369,8 @@ exec "$@"
 test "$#" = 3 && test "$1 $2" = 'run --config' &&
   test "$3" = "$HOME/.config/miroir-collector/config.json" || exit 91
 test "$MIROIR_TOKEN_SCREEN_MACBOOK" = synthetic-secret-screen || exit 92
+test "$MIROIR_TOKEN_MESSAGES" = synthetic-secret-messages || exit 93
+test "$MIROIR_TOKEN_BROWSER_MACBOOK" = synthetic-secret-browser || exit 94
 echo 'collector ran'
 ''')
         for missing, expected in (("no", 0), ("yes", 44)):
