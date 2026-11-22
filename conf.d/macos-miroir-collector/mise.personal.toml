@@ -29,16 +29,6 @@ content = '''
       }
     },
     {
-      "id": "messages",
-      "source": "apple_messages",
-      "receive_url": {{ ('https://miroir.' ~ secret(name="miroir_collector_zone") ~ '/api/connections/messages/receive') | json_encode }},
-      "token_env": "MIROIR_TOKEN_MESSAGES",
-      "options": {
-        "media": true,
-        "names": true
-      }
-    },
-    {
       "id": "browser_macbook",
       "source": "zen_history",
       "receive_url": {{ ('https://miroir.' ~ secret(name="miroir_collector_zone") ~ '/api/connections/browser_macbook/receive') | json_encode }},
@@ -55,8 +45,9 @@ run = 'fnox --if-missing error --non-interactive exec -c "{{ config_root }}/fnox
 
 # Hourly (a missed run happens once on wake); the collector holds its own lock,
 # so an overlap is harmless. The collector logs counts, not source content.
-# Messages and the address book need Full Disk Access, granted by hand to the
-# program launchd runs (~/.local/bin/mise's target).
+# Messages is sent by the always-on edge Mac (home-ops, hosts/edge-mac), so no
+# source here needs Full Disk Access; the grant once given to the program
+# launchd runs (~/.local/bin/mise's target) can be removed in System Settings.
 [bootstrap.macos.launchd.agents.miroir-collector]
 program = "~/.local/bin/mise"
 args = ["run", "--quiet", "miroir:collect"]

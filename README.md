@@ -39,7 +39,7 @@ conf.d/                  one folder per machine, and the features
   macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
   macos-defaults/        `defaults write`, declaratively
   macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
-  macos-miroir-collector/ ScreenMemory, Messages and Zen history to Miroir, hourly, with Proton Pass tokens (MacBook)
+  macos-miroir-collector/ ScreenMemory and Zen history to Miroir, hourly, with Proton Pass tokens (MacBook)
   neko/                  the neko/xfce container
   neko-anki/             Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive), kept running there
   neko-obsidian/         Obsidian + Local REST API (n8n), kept running there
