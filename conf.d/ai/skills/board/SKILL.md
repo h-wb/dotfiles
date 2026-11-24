@@ -26,6 +26,11 @@ Project Homelab: `01a20b1d-1555-72d7-8277-76cfb9212e3e`. A task's status comes b
 
 Assigned to the owner: his step. Not assigned: an agent's.
 
+Labels (`orbit_list_labels` gives their ids): `handbook`, `home-ops`, `pipelines`,
+`dotfiles` for the repo the work lands in, every one that applies; `decision` for a choice
+only the owner can make; `hands-on` for a step that needs his machine, accounts or the
+NAS. To find work in one repo, list an outcome and keep the tasks with that label.
+
 ## Read it without loading it
 
 - Never list the whole project: it is too long for one answer and paging repeats the
@@ -40,10 +45,11 @@ Assigned to the owner: his step. Not assigned: an agent's.
 
 - A task is an outcome. Title: what will be true, starting with a verb. Description
   starts with "Done when:" and lists its pull requests.
-- A new task goes under the outcome it serves (`parent_task_id`). A new idea goes under
+- A new task goes under the outcome it serves (`parent_task_id`), with its labels (`label_ids`). A new idea goes under
   `HOMEL-91`, one line, Backlog. Do not start it.
 - `orbit_update_task` needs `expected_version` from a fresh read, and `parent_task_id`
-  sent again every time, or the task is detached from its outcome.
+  sent again every time, or the task is detached from its outcome. `label_ids` replaces
+  the labels: send them all, or leave the field out.
 - A pull request names its task (`HOMEL-17`) in its description, and the task lists the
   pull request.
 - Close a task only after a reviewed merge or the owner's yes. Before closing, do the
