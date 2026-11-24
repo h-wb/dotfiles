@@ -469,7 +469,7 @@ echo 'collector ran'
 
     def test_skills_are_named_after_their_folder_and_say_when_to_use_them(self):
         # Shared skills in conf.d/ai, the ones only a Paseo pod can use in conf.d/paseo.
-        expected = {"conf.d/ai/skills": ["tool-gateway"],
+        expected = {"conf.d/ai/skills": ["board", "handbook", "tool-gateway"],
                     "conf.d/paseo/skills": ["orchestrate", "paseo-workspace-hygiene"]}
         for folder, names in expected.items():
             skills = sorted(p.parent.name for p in (ROOT / folder).glob("*/SKILL.md"))
