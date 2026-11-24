@@ -118,7 +118,7 @@ python3 tests/test_setup.py -v  # Python 3.11+; isolated homes, nothing here is 
 mise doctor project
 ```
 
-CI runs the same tests on macOS and Linux with the minimum and the latest mise, then loads and renders the `personal`, `neko`, `cachyos` and `paseo` classes. Commit dependency sidecars (`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
+CI runs the same tests on macOS and Linux with the minimum and the latest mise, then loads and renders the `personal`, `neko`, `cachyos` and `paseo` classes, not `code-server`. It fails on `master` today (HOMEL-121). Commit dependency sidecars (`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
 
 ## Pages
 

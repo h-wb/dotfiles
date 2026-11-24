@@ -26,7 +26,7 @@ mise tasks validate --errors-only
 mise doctor project                 # on a machine with the repo applied
 ```
 
-CI (`.github/workflows/test.yml`) runs the tests on macOS and Linux with the minimum and the latest mise, then loads and renders the `personal`, `neko`, `cachyos` and `paseo` classes. Run the tests before each commit. `test_fish_config_loads` needs fish on the machine.
+CI (`.github/workflows/test.yml`) runs the tests on macOS and Linux with the minimum and the latest mise, then loads and renders the `personal`, `neko`, `cachyos` and `paseo` classes. It fails on `master` today (HOMEL-121), so compare a failure with `master` before blaming your change. Run the tests before each commit. `test_fish_config_loads` needs fish on the machine.
 
 ## Rules that are easy to break
 
