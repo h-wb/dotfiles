@@ -1,3 +1,15 @@
+---
+area: "[[Homelab]]"
+categories:
+  - "[[Resources]]"
+reviewed: 2026-11-24
+summary: What this repo sets up on each machine, how to bootstrap one, where each part lives, and how secrets reach the files.
+topics:
+  - "[[Workshop]]"
+  - "[[Device collector]]"
+created: 2022-02-20T21:04
+---
+
 <div align="center">
 
 ### ~/.dotfiles&nbsp;
@@ -8,72 +20,59 @@
 
 ## Overview
 
-Dotfiles and full machine setup for four machines, managed entirely by
-[mise](https://mise.jdx.dev): packages (Homebrew, Mac App Store, pacman, apt,
-flatpak), macOS defaults and login items, LaunchAgents, systemd units, the
-firewall, tools and dotfiles. Secrets are injected by
-[fnox](https://github.com/jdx/fnox) from Proton Pass; none is committed.
+Dotfiles and full machine setup for five machine classes, managed entirely by [mise](https://mise.jdx.dev): packages (Homebrew formulae and casks, Mac App Store, pacman, apt, flatpak), macOS defaults and login items, LaunchAgents, systemd units, the firewall, tools and dotfiles. It also defines what every coding agent gets: its tool and memory servers and its skills, rendered per scope. Secrets are injected by [fnox](https://github.com/jdx/fnox) from Proton Pass; none is committed.
 
-| class | machine | detected by |
-| --- | --- | --- |
-| `personal` | the MacBook | macOS |
-| `neko` | XFCE desktop in a k8s pod ([neko](https://github.com/m1k1o/neko)) | `/etc/neko` |
-| `cachyos` | CachyOS KDE gaming desktop | `/etc/pacman.d/cachyos-mirrorlist` |
-| `paseo` | headless coding-agent pods | `/etc/paseo` |
-| `code-server` | the owner's browser editor in a k8s pod | `/usr/lib/code-server` |
+How this fits with the other repos is in the [handbook](https://github.com/h-wb/handbook): [dotfiles](https://github.com/h-wb/handbook/blob/main/Repos/dotfiles.md), and [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md) for agents.
+
+| Class | Machine | Detected by | Layers | Page |
+| --- | --- | --- | --- | --- |
+| `personal` | the MacBook | macOS | `workstation` | [macos](conf.d/macos/README.md) |
+| `neko` | an XFCE desktop in a pod ([neko](https://github.com/m1k1o/neko)) | `/etc/neko` | `workstation`, `pod` | [neko](conf.d/neko/README.md) |
+| `cachyos` | a CachyOS KDE gaming desktop | `/etc/pacman.d/cachyos-mirrorlist` | `workstation` | [cachyos](conf.d/cachyos/README.md) |
+| `paseo` | the headless coding-agent pods | `/etc/paseo` | none | [paseo](conf.d/paseo/README.md) |
+| `code-server` | the owner's browser editor in a pod | `/usr/lib/code-server` | `workstation`, `pod`, `fish` | [code-server](conf.d/code-server/README.md) |
+
+What several classes share is a layer, not a copy in each:
+
+| Layer | Holds |
+| --- | --- |
+| `workstation` (`config.workstation.toml`) | what assumes a person and a Proton Pass session: credentialed CLIs (aws, bws, metabase), the `apply`, `diff`, `upgrade` and `land` tasks, both kubeconfigs |
+| `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, the repo a fresh volume needs. The Paseo pods do not load it |
+| `fish` (`conf.d/fish/`) | one `config.fish`, the starship prompt and `ef`; not the fish binary |
+
+`miserc.toml` detects the class and `[env_sets]` adds its layers; an untracked `miserc.local.toml` pins a class by name (`env = ["neko"]`). How that works: [docs/mise.md](docs/mise.md).
 
 ## Layout
 
-**This repo is mise's config directory.** `~/.config/mise` is a symlink to
-`~/.dotfiles`, so mise reads every file here under its native name:
+This repo is mise's config directory: `~/.config/mise` is a symlink to `~/.dotfiles`, so mise reads every file here under its native name.
 
 ```
 config.toml              every machine: tools, env, vars, shell aliases, doctor checks
-config.workstation.toml  personal, neko, cachyos, code-server: credentialed CLIs, kubeconfigs, the apply tasks
+config.workstation.toml  layer workstation
 miserc.toml              picks this machine's class and layers
 conf.d/                  one folder per machine, and the features
-  ai/                    every machine: the agents' MCP servers and shared skills
+  ai/                    every machine: the agents' tool and memory servers, shared skills
   proton-pass/           every machine: the named-session login task other repos extend
-  pod/                   layer: a workstation in a k8s pod (neko, code-server)
-  fish/                  layer: config.fish and the starship prompt (code-server; neko and cachyos later)
-  macos/                 the Macs: apps, zsh, ssh agent, wireguard, BetterTouchTool; the MacBook's own packages
-  macos-defaults/        `defaults write`, declaratively
-  macos-k8s-dns/         pick which cluster resolves the internal zone (MacBook)
-  macos-miroir-collector/ ScreenMemory, Messages and Zen history to Miroir, hourly, with Proton Pass tokens (MacBook)
+  pod/                   layer: a workstation in a pod (neko, code-server)
+  fish/                  layer: config.fish and the starship prompt (code-server)
+  macos/                 the Macs: apps, zsh, ssh agent, WireGuard, BetterTouchTool; the MacBook's own packages
+  macos-defaults/        `defaults write`, declared
+  macos-k8s-dns/         which cluster resolves the internal zone (MacBook)
+  macos-miroir-collector/ the device collector, hourly, with Proton Pass tokens (MacBook)
   neko/                  the neko/xfce container
-  neko-anki/             Anki + AnkiConnect (n8n) + AnkiMCP (ToolHive), kept running there
-  neko-obsidian/         Obsidian + Local REST API (n8n), kept running there
+  neko-anki/             Anki with AnkiConnect and AnkiMCP, kept running there
+  neko-obsidian/         Obsidian with the Local REST API, kept running there
   cachyos/               the CachyOS gaming desktop
   paseo/                 the coding-agent pods, and the skills only they use
-  code-server/           the owner's code-server pod: the fish binary and its editor settings
-home/                    sources for the two root configs (git, ssh, kube)
-fnox.toml                Proton Pass secret references (no values); the agents' own in conf.d/ai/
-scripts/                 first-install helpers, the Proton Pass preflight, pod-bootstrap
+  code-server/           the code-server pod: the fish binary and its editor settings
+home/                    sources for the root configs (git, ssh, kube)
+fnox.toml                Proton Pass references for provisioning (no values); the agents' own are in conf.d/ai/
+scripts/                 install helpers, the Proton Pass preflight, pod-bootstrap, land
 tests/                   regressions, run in throwaway homes
+docs/                    how this repo uses mise
 ```
 
-Each `conf.d/` folder holds its own config and the files it uses, and its name
-says where it loads:
-
-- a machine's folder is named like its environment (`neko`);
-- a feature only that machine has is `<machine>-<feature>` (`neko-anki`);
-- a folder with no machine in its name loads on several (`ai`).
-
-Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds
-`mise.macos.toml` for any Mac and `mise.personal.toml` for the MacBook.
-
-`miserc.toml` detects the class and `[env_sets]` adds its layers:
-
-| class | layers |
-| --- | --- |
-| `personal` | `workstation` |
-| `neko` | `workstation`, `pod` |
-| `cachyos` | `workstation` |
-| `code-server` | `workstation`, `pod`, `fish` |
-| `paseo` | none |
-
-An untracked `miserc.local.toml` pins a class by name (`env = ["neko"]`). Platform files (`*.macos.toml`) load on
-their own.
+A folder's name says where it loads: a machine's folder is named like its environment (`neko`), a feature only that machine has is `<machine>-<feature>` (`neko-anki`), and a folder with no machine in its name loads on several (`ai`). Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds `mise.macos.toml` for any Mac and `mise.personal.toml` for the MacBook.
 
 ## Set up a machine
 
@@ -81,57 +80,36 @@ their own.
 sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/master/install.sh)"
 ```
 
-On a Mac, sign in to iCloud and the App Store first. The installer installs
-mise, clones to `~/.dotfiles` and runs `mise bootstrap`, under fnox on a
-workstation and directly on a Paseo pod. `DOTFILES_ENV=personal|neko|cachyos|paseo|code-server`
-overrides the detected class; the installer saves it in `miserc.local.toml`.
+On a Mac, sign in to iCloud and the App Store first. The installer clones to `~/.dotfiles` (installing git with apt where it is missing), installs mise or updates it to `min_version`, and runs `mise bootstrap`: under fnox after the Proton Pass preflight on a workstation, directly on a Paseo pod. `DOTFILES_ENV=personal|neko|cachyos|paseo|code-server` overrides the detected class; the installer saves it in `miserc.local.toml`. The pods are provisioned by home-ops at every start instead; their pages say how.
 
 ## Everyday use
 
 ```sh
-mise run diff           # preview what apply would change
+mise run diff           # preview what apply would change (dotfile templates are not rendered)
 mise run apply          # provision everything, with secrets
-mise run upgrade        # the same, with packages and tools upgraded (then commit the lockfiles)
+mise run upgrade        # the same, with mise, packages and tools upgraded; then commit the lockfiles
 mise doctor project     # wiring, config keys, locked-install preview, tasks, file modes
-mise run dns:edge       # (MacBook) resolve the internal zone via the edge cluster
+mise run dns:use edge   # (MacBook) resolve the internal zone through the edge cluster
+mise run land <pr>      # apply a workflow patch the bot posted on a pull request, and push it as yourself
 ```
 
-Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by
-`mise activate` in zsh, fish and bash alike.
-
-`apply`, `diff` and `upgrade` belong to the workstation layer; the Paseo pods
-reprovision at every start instead (`mise bootstrap --from` in home-ops).
-`diff` previews the bootstrap steps but does not render templates.
-
-If the MacBook previously ran the Zen-to-Nextcloud snapshot job, unload it and
-remove its LaunchAgent once Miroir is receiving Zen history:
-
-```sh
-launchctl bootout "gui/$(id -u)/dev.mise.zen-history-snapshot"
-rm -f "$HOME/Library/LaunchAgents/dev.mise.zen-history-snapshot.plist"
-```
-
-If the agent is already unloaded, just remove the plist. This leaves existing
-Nextcloud snapshots and Zen's profile untouched.
+Aliases (`g`, `repo`, `dfa`, ...) are `[shell_alias]` in the configs, set by `mise activate` in zsh, fish and bash alike.
 
 ## Secrets
 
-Templates read `{{ vars.x }}` and never name a source. Each var defaults to
-the environment, so a value can come from:
+Templates read `{{ vars.x }}` and never name a source. Each var defaults to the process environment, so a value can come from:
 
-| source | used by |
+| Source | Used by |
 | --- | --- |
-| `fnox exec` injecting Proton Pass secrets | every workstation (`mise run apply`) |
+| `fnox exec` injecting Proton Pass secrets (`fnox.toml`) | every workstation (`mise run apply`) |
 | an untracked `config.local.toml` `[vars]` (highest precedence) | a machine that prefers a literal |
-| a real env var (k8s `envFrom`) | the neko container, the pods |
+| a real env var (the pod's `envFrom`) | the neko container, the pods |
 
-A var with no source renders empty and the templates skip their block, so a
-partial set still produces valid files. That is also the trap: a dead Proton
-Pass session would render every secret empty over the good copies, so `apply`
-checks the session first and fnox runs with `--if-missing error`.
+A var with no source renders empty and the templates skip their block, so a partial set still produces valid files. That is also the trap: a dead Proton Pass session would render every secret empty over the good copies, so `apply` checks the session first (`scripts/pass-preflight`) and fnox runs with `--if-missing error`.
 
-The k8s-dns resolver is the exception. It reads its zone and nameserver as
-bootstrap secrets, which abort the run before anything is written.
+Two files are the exception, because an empty value would break them: the Mac's resolver and the collector's config read their values as bootstrap secrets, which abort the run before anything is written. Proton Pass sessions, vaults and grants: [proton-pass](conf.d/proton-pass/README.md).
+
+The kubeconfigs are `~/.kube/main.yaml` and `~/.kube/edge.yaml`, from one Proton Pass item with a field per cluster; `KUBECONFIG` lists both. `~/.kube/config` is deliberately unmanaged and left out, so a stale hand-written file cannot win a context-name collision.
 
 ## Validate changes
 
@@ -140,39 +118,15 @@ python3 tests/test_setup.py -v  # Python 3.11+; isolated homes, nothing here is 
 mise doctor project
 ```
 
-CI runs the same tests on macOS and Linux with the minimum and the latest
-mise, then renders each machine class's dotfiles. Commit dependency sidecars
-(`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
+CI runs the same tests on macOS and Linux with the minimum and the latest mise, then loads and renders the `personal`, `neko`, `cachyos` and `paseo` classes. Commit dependency sidecars (`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
 
-## Machine notes
+## Pages
 
-### The neko/xfce container
-
-Only `/home/neko` is persisted (a PVC). `/usr` and `/etc` are wiped on every
-pod roll, and there is no systemd or launchd. So GUI apps are mise `[tools]`
-(on the PVC), the apt list is tiny and reinstalled per start, and
-`~/.config/autostart/mise-bootstrap.desktop` runs
-`conf.d/neko/bin/neko-bootstrap` to reprovision the desktop at every session
-start. `touch ~/.neko-hold` pauses it; the log is
-`~/.local/state/neko-bootstrap.log`.
-
-To add a GUI app: a `[tools]` entry in `conf.d/neko/mise.neko.toml`, a
-`.desktop` file in `conf.d/neko/xfce/applications/` and its `[dotfiles]` line.
-
-### macOS permissions to grant by hand
-
-Apps this repo installs that ask on first launch:
-
-- **Full Disk Access:** Ghostty
-- **Accessibility:** AltTab, BetterTouchTool, Plexamp, Raycast
-- **Screen Recording:** AltTab, ScreenMemory
-
-## More
-
-- [CLAUDE.md](CLAUDE.md): how the repo works in depth, and what is easy to break.
-- [conf.d/ai](conf.d/ai/README.md): the agents' MCP servers, scopes, keys and skills.
+- [AGENTS.md](AGENTS.md): instructions for agents working on this repo.
+- [docs/mise.md](docs/mise.md): how this repo uses mise, what is easy to get wrong, and what was rejected.
+- [conf.d/ai](conf.d/ai/README.md): the agents' servers, scopes, keys and skills.
 - [conf.d/proton-pass](conf.d/proton-pass/README.md): managed Proton Pass sessions and the vault layout.
-- [docs/mise-audit.md](docs/mise-audit.md): which mise features are used, which are not, and why.
+- One page per machine, in the table above.
 
 ## Inspiration
 
