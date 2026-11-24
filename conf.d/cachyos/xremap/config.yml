@@ -16,7 +16,7 @@
 # Modmaps run first; keymaps then match on what the modmap produced, so below
 # "C-" means Command in GUI apps and "Super-" means Command in terminals.
 # Application names are KWin's resourceClass (list them with a KWin script, see
-# CLAUDE.md). Within each section the first matching entry wins, so
+# conf.d/cachyos/README.md). Within each section the first matching entry wins, so
 # app-specific entries come before the general ones.
 #
 # Paired with conf.d/cachyos's cachyos:kde task, which: drops the old XKB
