@@ -30,7 +30,6 @@ fi
 
 [bootstrap.packages]
 "brew-cask:zen" = "latest"
-"brew-cask:alt-tab" = "latest"             # windows-style alt-tab switcher
 "brew-cask:anki" = "latest"                # flashcards
 "brew-cask:betterdisplay" = "latest"       # display management
 "brew-cask:bettertouchtool" = "latest"
@@ -45,11 +44,14 @@ fi
 "brew-cask:visual-studio-code" = "latest"
 "brew-cask:deepl" = "latest"
 
-# Additive: apps that register themselves (AltTab's own LaunchAgent) are left
-# alone. List only apps the casks here install: mise adds the path as written,
-# without checking that the app exists.
+[bootstrap.packages."macos-app:switch"]
+version = "1.0.0"
+url = "https://github.com/Sanyam-G/switch/releases/download/v{{version}}/Switch-{{version}}.dmg"
+sha256 = "08443e2d049b53d6818be74ebe36afb63e35e81d86eefc1fa4907575db3d7391"
+artifact = "Switch.app"
+
 [bootstrap.macos.login_items]
-apps = ["/Applications/Raycast.app", "/Applications/BetterTouchTool.app"]
+apps = ["/Applications/Raycast.app", "/Applications/BetterTouchTool.app", "/Applications/Switch.app"]
 
 [dotfiles]
 # zsh + z4h + p10k. Aliases are mise [shell_alias].

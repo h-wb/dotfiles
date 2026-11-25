@@ -65,26 +65,12 @@ BTTTouchBarVisible = 0
 DSDontWriteNetworkStores = true             # no .DS_Store on network/USB
 DSDontWriteUSBStores = true
 
-[bootstrap.macos.defaults."com.lwouis.alt-tab-macos"]
-updatePolicy = "2"                           # auto-update
-crashPolicy = "0"
-MSAppCenterNetworkRequestsAllowed = false
-menubarIconShown = "false"
-"NSStatusItem VisibleCC Item-0" = false
-holdShortcut = "⌘"
-appearanceStyle = "2"                        # macOS Ventura style
-appearanceSize = "3"
-previewFadeInAnimation = "false"
-previewFocusedWindow = "true"
-windowDisplayDelay = "0"
-appsToShow = "0"                             # all apps
-screensToShow = "0"                          # all screens
-spacesToShow = "1"                           # all spaces
-showWindowlessApps = "1"
-showTabsAsWindows = "false"
-showOnScreen = "1"
-hideSpaceNumberLabels = "false"
-settingsWindowShownOnFirstLaunch = "true"
+[bootstrap.macos.defaults."com.sanyamgarg.switch"]
+"switch.verticalList" = true                  # list, not grid
+"switch.showThumbnails" = false               # so no Screen Recording grant
+"switch.showTitleFirst" = true
+"switch.moveCursorToWindow" = true
+"switch.shiftTapReverses" = true
 
 [bootstrap.macos.defaults."com.apple.screencapture"]
 name = "Screenshot"
@@ -101,7 +87,7 @@ raycastGlobalHotkey = "Command-49"           # Cmd-Space
 
 # ── What the scalar table cannot express ────────────────────────────────────
 # `path` sets one key inside a shared dict (components are literal, dots are not
-# separators); `host = "current"` is -currentHost. No killall: Raycast/AltTab/BTT
+# separators); `host = "current"` is -currentHost. No killall: Raycast/Switch/BTT
 # would be quit and left dead, so changes land on next launch.
 
 # Empty the Dock.
