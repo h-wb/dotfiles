@@ -101,11 +101,11 @@ flowchart LR
 ```
 
 - A clone leaves a submodule empty and a pull does not move it, `mise bootstrap --from` on the pods included. So a `pre-dotfiles` hook in `mise.toml` runs `git submodule update --init --remote vendor/skills` before the links are made, on every bootstrap and `mise run apply`: the checkout is h-wb/skills' `main` as it is then. Offline it keeps the commit it has, or the one recorded here. The commit recorded in this repo is only that fallback. `.gitmodules` sets `ignore = all` on it, so a checkout ahead of that commit does not show as a change in `git status`.
-- The same hook then clears, in `~/.claude/skills` and `~/.agents/skills` only: a real directory whose every file links into this repo (what the old per-skill `symlink-each` entries left; it would block a group's link, since workstations apply without `--force-dotfiles`), and a dangling link (a skill that left its group: mise leaves a link no entry makes any more, `--prune-dotfiles` included). A directory holding anything else is not ours and stays.
+- The same hook then removes broken links in `~/.claude/skills` and `~/.agents/skills`: mise leaves the link of a skill that left its group, `--prune-dotfiles` included.
 - To add a skill to a group, or take it out, merge a pull request in h-wb/skills: workstations follow at their next `mise run apply`, pods at their next start. Nothing changes here. To take another group, add its two glob entries in the place's file.
 - Groups need `mode = "symlink"`: their entries are links, and `symlink-each` over them fails with "Not a directory".
 - A procedure for one repo lives in that repo (`.agents/skills/`); the assistant takes its own groups from h-wb/skills in home-ops, and its routines live there beside it.
-- `test_skills_are_declared_from_the_catalogue` checks the declared groups and the front matter, `test_only_declared_skills_reach_the_agent_folders` that nothing else is linked, `test_group_changes_reach_the_folders_at_the_next_apply` that a skill joining a group arrives and one leaving leaves no link, `test_per_skill_folders_are_migrated_without_force` the cleanup, `test_ai_skills_leave_other_skills_in_the_folder_alone` what stays, `test_a_fresh_clone_gets_the_catalogue_at_main` the update.
+- `test_skills_are_declared_from_the_catalogue` checks the declared groups and the front matter, `test_only_declared_skills_reach_the_agent_folders` that nothing else is linked, `test_group_changes_reach_the_folders_at_the_next_apply` that a skill joining a group arrives and one leaving leaves no link, `test_ai_skills_leave_other_skills_in_the_folder_alone` what stays, `test_a_fresh_clone_gets_the_catalogue_at_main` the update.
 
 ## What home-ops supplies
 

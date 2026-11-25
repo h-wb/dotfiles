@@ -541,29 +541,6 @@ echo 'collector ran'
         self.apply_ai()
         self.assert_skills(core[1:], absent=[core[0], "newcomer"])
 
-    def test_per_skill_folders_are_migrated_without_force(self):
-        core = self.group("core")
-        for folder in self.SKILL_DIRS:
-            for name in core:
-                old = self.home / folder / name
-                old.mkdir(parents=True)
-                (old / "SKILL.md").symlink_to(self.repo / "vendor/skills/skills" / name / "SKILL.md")
-            gone = self.home / folder / "retired"  # through the old conf.d/ai/skills, since removed
-            gone.mkdir()
-            (gone / "SKILL.md").symlink_to(self.repo / "conf.d/ai/skills/retired/SKILL.md")
-            mixed = self.home / folder / "mixed"
-            mixed.mkdir()
-            (mixed / "SKILL.md").symlink_to(self.repo / "vendor/skills/skills" / core[0] / "SKILL.md")
-            (mixed / "notes.md").write_text("theirs\n")
-            (self.home / folder / "empty").mkdir()
-        (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
-        self.apply_ai()
-        self.assert_skills(core, absent=["retired"])
-        for folder in self.SKILL_DIRS:
-            self.assertEqual("theirs\n", (self.home / folder / "mixed/notes.md").read_text())
-            self.assertTrue((self.home / folder / "mixed/SKILL.md").is_symlink())
-            self.assertTrue((self.home / folder / "empty").is_dir())
-
     def test_a_fresh_clone_gets_the_catalogue_at_main(self):
         env = {**self.env, "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "protocol.file.allow",
                "GIT_CONFIG_VALUE_0": "always", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",

@@ -15,37 +15,12 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 "~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 "~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
 "~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }
-# Skill groups from h-wb/skills (conf.d/ai/README.md).
 "~/.claude/skills/*" = { source = "../../vendor/skills/groups/core/*", mode = "symlink" }
 "~/.agents/skills/*" = { source = "../../vendor/skills/groups/core/*", mode = "symlink" }
 
-# Follow h-wb/skills main, then clear stale skill links (conf.d/ai/README.md).
 [bootstrap.hooks.pre-dotfiles]
-description = "Bring the skills catalogue to h-wb/skills main; clear stale skill links"
+description = "Bring the skills to h-wb/skills main and drop broken skill links"
 run = '''
-repo="{{ vars.repo }}"
-if [ -e "$repo/.git" ]; then
-  git -C "$repo" submodule update --init --remote vendor/skills \
-    || git -C "$repo" submodule update --init vendor/skills
-fi
-real=$(cd "$repo" && pwd -P)
-ours() {
-  [ -L "$1" ] || return 1
-  case $(readlink "$1") in "$repo"/*|"$real"/*) return 0 ;; esac
-  return 1
-}
-for folder in "$HOME/.claude/skills" "$HOME/.agents/skills"; do
-  [ -d "$folder" ] || continue
-  for entry in "$folder"/* "$folder"/.[!.]*; do
-    if [ -L "$entry" ]; then
-      [ -e "$entry" ] || rm -f "$entry"
-    elif [ -d "$entry" ]; then
-      if find "$entry" ! -type d | {
-        found=no
-        while IFS= read -r file; do ours "$file" || exit 1; found=yes; done
-        [ "$found" = yes ]
-      }; then rm -rf "$entry"; fi
-    fi
-  done
-done
+[ -e "{{ vars.repo }}/.git" ] && { git -C "{{ vars.repo }}" submodule update --init --remote vendor/skills || git -C "{{ vars.repo }}" submodule update --init vendor/skills; }
+find -L ~/.claude/skills ~/.agents/skills -mindepth 1 -maxdepth 1 -type l -exec rm -f {} + 2>/dev/null || true
 '''
