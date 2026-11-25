@@ -57,7 +57,7 @@ conf.d/                  one folder per machine, and the features
   pod/                   layer: a workstation in a pod (neko, code-server)
   nonroot/               layer: a pod without root on someone else's image (paseo, code-server)
   fish/                  layer: config.fish and the starship prompt (neko, cachyos, code-server)
-  macos/                 the Macs: apps, zsh, ssh agent, WireGuard, BetterTouchTool; the MacBook's own packages
+  macos/                 the Macs: apps, zsh, ssh agent, WireGuard; the MacBook's own packages
   macos-defaults/        `defaults write`, declared
   macos-k8s-dns/         which cluster resolves the internal zone (MacBook)
   macos-miroir-collector/ the device collector, hourly, with Proton Pass tokens (MacBook)

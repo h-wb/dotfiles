@@ -15,7 +15,7 @@ created: 2026-11-24T20:45
 
 | Folder | Loads on | Holds |
 | --- | --- | --- |
-| `conf.d/macos/` | `mise.macos.toml` any Mac, `mise.personal.toml` the MacBook | casks, zsh, the Proton Pass ssh agent, WireGuard, BetterTouchTool; the MacBook's own apps |
+| `conf.d/macos/` | `mise.macos.toml` any Mac, `mise.personal.toml` the MacBook | casks, zsh, the Proton Pass ssh agent, WireGuard; the MacBook's own apps |
 | `conf.d/macos-defaults/` | any Mac | `defaults write`, declared |
 | `conf.d/macos-k8s-dns/` | the MacBook | which cluster resolves the internal zone |
 | `conf.d/macos-miroir-collector/` | the MacBook | the [device collector](https://github.com/h-wb/handbook/blob/main/Systems/Device%20collector.md), hourly |
@@ -38,7 +38,7 @@ Homebrew itself is not installed: mise installs `brew:` formulae and `brew-cask:
 
 ## Defaults
 
-`conf.d/macos-defaults/` is the scalar table plus `[[bootstrap.macos.defaults_entries]]` for the rest: `value` takes real TOML types, `path` addresses one key inside a shared dict (components are literal, dots do not separate), `host = "current"` is `-currentHost`. Those five fields are the whole schema. There is no `killall`: Raycast, AltTab and BetterTouchTool would be quit and left dead.
+`conf.d/macos-defaults/` is the scalar table plus `[[bootstrap.macos.defaults_entries]]` for the rest: `value` takes real TOML types, `path` addresses one key inside a shared dict (components are literal, dots do not separate), `host = "current"` is `-currentHost`. Those five fields are the whole schema. There is no `killall`: Raycast and Switch would be quit and left dead.
 
 ## Cluster DNS
 
@@ -63,7 +63,7 @@ mise installs `miroir-collector` from a pipelines release tag (`collector-vX.Y.Z
 Apps this repo installs ask on first launch:
 
 - Full Disk Access: Ghostty
-- Accessibility: AltTab, BetterTouchTool, Plexamp, Raycast
-- Screen Recording: AltTab, ScreenMemory
+- Accessibility: Plexamp, Raycast, Switch
+- Screen Recording: ScreenMemory (Switch only for thumbnails, which are off)
 
 (not checked: these depend on the apps' current versions)
