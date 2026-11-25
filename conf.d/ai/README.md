@@ -2,8 +2,8 @@
 area: "[[Homelab]]"
 categories:
   - "[[Resources]]"
-reviewed: 2026-11-24
-summary: How the agents' tool and memory servers, keys and skills are defined once here and rendered per scope on every machine.
+reviewed: 2026-11-25
+summary: How the agents' tool and memory servers and keys are defined once here and rendered per scope on every machine, and which skills every machine declares.
 topics:
   - "[[Workshop]]"
   - "[[Tool gateway]]"
@@ -14,18 +14,17 @@ created: 2026-11-08T15:03
 
 # ai
 
-The tool and memory servers every agent connects to, its keys and its shared skills, defined once for every machine. Which scope may reach what, and why, is the handbook's: [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md), [Tool gateway](https://github.com/h-wb/handbook/blob/main/Systems/Tool%20gateway.md), [Agent memory](https://github.com/h-wb/handbook/blob/main/Systems/Agent%20memory.md). This page is how this folder renders it.
+The tool and memory servers every agent connects to and its keys, defined once for every machine, and the skills every machine declares from [h-wb/skills](https://github.com/h-wb/skills). Which scope may reach what, and why, is the handbook's: [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md), [Tool gateway](https://github.com/h-wb/handbook/blob/main/Systems/Tool%20gateway.md), [Agent memory](https://github.com/h-wb/handbook/blob/main/Systems/Agent%20memory.md). This page is how this folder renders it.
 
 `mise.toml` is an env-less folder fragment, so it loads everywhere; a class file adds an agent's config where its path or key source differs.
 
 ```text
-mise.toml              all machines: the scopes, Claude Code, Codex and Vibe (merged), the shared skills
+mise.toml              all machines: the scopes, Claude Code, Codex and Vibe (merged), the skills every machine declares
 mise.workstation.toml  workstations: public URLs, the agent wrappers, OpenCode's model gateway profile
 mise.personal.toml     MacBook: Claude Desktop's config and the mcp-remote wrapper
 mise.paseo.toml        Paseo pods: in-cluster URLs, OpenCode's config
 fnox.toml              the agents' only secrets, one profile per scope plus OpenCode's
 config/                the agents' config templates
-skills/                the shared skills
 ```
 
 ## Scopes
@@ -85,13 +84,26 @@ This stops the shared server; the wrapper resolves the key at each launch and th
 
 ## Skills
 
-`skills/<name>/SKILL.md` holds habits that are true on every machine, in the Agent Skills format (`name` and `description` in the front matter; the description is what an agent reads to decide whether to load the rest). `mise.toml` links each one into `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex, OpenCode, Vibe) with `symlink-each`, so whatever else lives there stays: Paseo installs its own skills there, and Claude keeps `synced`.
+The skills are written once, in [h-wb/skills](https://github.com/h-wb/skills) (its README says how each harness takes them). This repo holds it as the submodule `vendor/skills`, pinned to one commit, and each place declares the names it takes: one `[dotfiles]` entry per skill and agent folder, `~/.claude/skills/<name>` (Claude Code) and `~/.agents/skills/<name>` (Codex, OpenCode, Vibe), `symlink-each` from `../../vendor/skills/skills/<name>`. Only declared skills are linked; whatever else lives in those folders stays (Paseo installs its own skills there, and Claude keeps `synced`).
 
-- Three today: `tool-gateway` (reach a tool), `handbook` (find the page that answers, keep pages true) and `board` (read and update the build board). The two last are maps, not copies: they say where to look and hold no rule the handbook states, so they stay short and stay true. The handbook's [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md#how-the-rules-reach-everything) says why.
-- Only general habits belong here: nothing private, no domain, no secrets.
-- A procedure for one repo lives in that repo (`.agents/skills/`); the assistant's routines live in home-ops beside the assistant.
-- A skill that only makes sense where Paseo runs lives in `conf.d/paseo/skills/`, linked into the same two folders on the pods only ([paseo](../paseo/README.md)).
-- To add a skill, add its folder and run `mise run apply`. The next apply also removes the link of a skill deleted or moved. `test_skills_are_named_after_their_folder_and_say_when_to_use_them` checks the front matter.
+| Place | Declares | In |
+| --- | --- | --- |
+| every machine and pod | `handbook`, `board`, `tool-gateway` | `mise.toml` here |
+| the Paseo pods also | `orchestrate`, `paseo-workspace-hygiene` | [paseo](../paseo/README.md) |
+
+```mermaid
+flowchart LR
+  S["h-wb/skills"] -->|"submodule, pinned commit"| V["vendor/skills"]
+  V -->|"pre-dotfiles hook: git submodule update --init"| C["checked out"]
+  D["[dotfiles] entry per declared name"] --> L["~/.claude/skills/&lt;name&gt;, ~/.agents/skills/&lt;name&gt;"]
+  C --> L
+```
+
+- A clone leaves a submodule empty and a pull does not move it, `mise bootstrap --from` on the pods included. So a `pre-dotfiles` hook in `mise.toml` runs `git submodule update --init vendor/skills` before the links are made, on every bootstrap and `mise run apply`: the checkout always matches the pin.
+- To take a skill, add its two entries in the place's file and run `mise run apply` (the pods take it at their next start). To drop one, remove its entries and delete its two links (`rm -r ~/.claude/skills/<name> ~/.agents/skills/<name>`): mise leaves a link no entry declares any more, `--prune-dotfiles` included.
+- To change a skill or add one to the catalogue, open a pull request in h-wb/skills, then move the pin here: `git -C vendor/skills checkout <sha>`, commit `vendor/skills`. A new skill reaches an agent only when a place declares it.
+- A procedure for one repo lives in that repo (`.agents/skills/`); the assistant takes its own list from h-wb/skills in home-ops, and its routines live there beside it.
+- `test_skills_are_declared_from_the_catalogue` checks the declared lists and the front matter, `test_only_declared_skills_reach_the_agent_folders` that nothing else is linked, `test_a_fresh_clone_gets_the_catalogue_at_its_pin` the hook.
 
 ## What home-ops supplies
 

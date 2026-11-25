@@ -467,49 +467,89 @@ echo 'collector ran'
         self.assertEqual("", head[0], path)
         return dict(line.split(": ", 1) for line in head[1].splitlines())
 
-    def test_skills_are_named_after_their_folder_and_say_when_to_use_them(self):
-        # Shared skills in conf.d/ai, the ones only a Paseo pod can use in conf.d/paseo.
-        expected = {"conf.d/ai/skills": ["board", "handbook", "tool-gateway"],
-                    "conf.d/paseo/skills": ["orchestrate", "paseo-workspace-hygiene"]}
-        for folder, names in expected.items():
-            skills = sorted(p.parent.name for p in (ROOT / folder).glob("*/SKILL.md"))
-            self.assertEqual(skills, names)
-            self.assertEqual(skills, sorted(p.name for p in (ROOT / folder).iterdir()))
-            for name in skills:
-                meta = self.skill_meta(ROOT / folder / name / "SKILL.md")
-                self.assertEqual(name, meta["name"])
-                self.assertGreater(len(meta["description"]), 40, name)
+    # What each place declares: one [dotfiles] entry per skill and agent folder,
+    # into the h-wb/skills submodule at vendor/skills.
+    DECLARED = {"conf.d/ai/mise.toml": ["board", "handbook", "tool-gateway"],  # every machine and pod
+                "conf.d/paseo/mise.paseo.toml": ["orchestrate", "paseo-workspace-hygiene"]}  # the pods also
 
-    def test_ai_skills_reach_every_agent_folder(self):
+    def test_skills_are_declared_from_the_catalogue(self):
+        gitmodules = (ROOT / ".gitmodules").read_text()
+        self.assertIn("path = vendor/skills", gitmodules)
+        self.assertIn("url = https://github.com/h-wb/skills.git", gitmodules)
+        for config, names in self.DECLARED.items():
+            entries = {target: entry for target, entry in
+                       tomllib.loads((ROOT / config).read_text())["dotfiles"].items()
+                       if "/skills" in target}
+            expected = {f"~/{folder}/{name}": {"source": f"../../vendor/skills/skills/{name}",
+                                               "mode": "symlink-each"}
+                        for folder in self.SKILL_DIRS for name in names}
+            self.assertEqual(expected, entries, config)
+            for name in names:
+                with self.subTest(skill=name):
+                    # Fails on an empty vendor/skills: `git submodule update --init`.
+                    meta = self.skill_meta(ROOT / "vendor/skills/skills" / name / "SKILL.md")
+                    self.assertEqual(name, meta["name"])
+                    self.assertGreater(len(meta["description"]), 40)
+
+    def assert_skills(self, names, absent=()):
+        for folder in self.SKILL_DIRS:
+            for name in names:
+                skill = self.home / folder / name / "SKILL.md"
+                source = self.repo / "vendor/skills/skills" / name / "SKILL.md"
+                self.assertEqual(source.resolve(), skill.resolve(), skill)
+                self.assertEqual(name, self.skill_meta(skill)["name"])
+            for name in absent:
+                self.assertFalse((self.home / folder / name).exists(), f"{folder}/{name}")
+
+    def test_only_declared_skills_reach_the_agent_folders(self):
+        # A skill in the catalogue reaches an agent only when its place declares it.
+        extra = self.repo / "vendor/skills/skills/undeclared"
+        extra.mkdir()
+        (extra / "SKILL.md").write_text("---\nname: undeclared\ndescription: x\n---\n")
+        shared, pods = self.DECLARED.values()
         for layers in (["paseo"], ["workstation"]):
             with self.subTest(layers=layers):
                 (self.repo / "miserc.local.toml").write_text("env = " + json.dumps(layers) + "\n")
                 self.apply_ai()
-                for folder in self.SKILL_DIRS:
-                    skill = self.home / folder / "tool-gateway/SKILL.md"
-                    source = self.repo / "conf.d/ai/skills/tool-gateway/SKILL.md"
-                    self.assertEqual(source.resolve(), skill.resolve())
-                    self.assertEqual("tool-gateway", self.skill_meta(skill)["name"])
+                self.assert_skills(shared, absent=["undeclared"])
 
     def test_paseo_skills_reach_the_pods_only(self):
         # Two link trees share ~/.claude/skills and ~/.agents/skills on a pod:
-        # the shared skills (conf.d/ai) and the pod's own (conf.d/paseo).
-        names = ("orchestrate", "paseo-workspace-hygiene")
+        # what every machine declares (conf.d/ai) and what the pods add (conf.d/paseo).
+        shared, pods = self.DECLARED.values()
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
         self.apply_ai()
-        for folder in self.SKILL_DIRS:
-            for name in names:
-                self.assertFalse((self.home / folder / name).exists(), name)
-            self.assertTrue((self.home / folder / "tool-gateway/SKILL.md").is_symlink())
+        self.assert_skills(shared, absent=pods)
         self.select("paseo")
         self.apply_ai()
-        for folder in self.SKILL_DIRS:
-            for name in names:
-                skill = self.home / folder / name / "SKILL.md"
-                source = self.repo / "conf.d/paseo/skills" / name / "SKILL.md"
-                self.assertEqual(source.resolve(), skill.resolve())
-                self.assertEqual(name, self.skill_meta(skill)["name"])
-            self.assertTrue((self.home / folder / "tool-gateway/SKILL.md").is_symlink())
+        self.assert_skills(shared + pods)
+
+    def test_a_fresh_clone_gets_the_catalogue_at_its_pin(self):
+        # `mise bootstrap --from` and `git clone` leave the submodule empty; the
+        # pre-dotfiles hook checks out the pinned commit before the links.
+        env = {**self.env, "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "protocol.file.allow",
+               "GIT_CONFIG_VALUE_0": "always", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
+        catalogue = self.home / "skills"
+        shutil.copytree(self.repo / "vendor/skills", catalogue)
+        self.git(catalogue, "init", "-q", env=env)
+        self.git(catalogue, "add", "-A", env=env)
+        self.git(catalogue, "commit", "-qm", "catalogue", env=env)
+        pin = self.git(catalogue, "rev-parse", "HEAD", env=env).decode().strip()
+        (catalogue / "skills/handbook/SKILL.md").write_text("after the pin\n")
+        self.git(catalogue, "commit", "-qam", "later", env=env)
+        shutil.rmtree(self.repo / "vendor/skills")
+        (self.repo / ".gitmodules").unlink()
+        self.git(self.repo, "init", "-q", env=env)
+        self.git(self.repo, "submodule", "--quiet", "add", str(catalogue), "vendor/skills", env=env)
+        self.git(self.repo / "vendor/skills", "checkout", "-q", pin, env=env)
+        self.git(self.repo, "add", "-A", env=env)
+        self.git(self.repo, "commit", "-qm", "dotfiles", env=env)
+        self.git(self.repo, "submodule", "--quiet", "deinit", "-f", "vendor/skills", env=env)
+        self.assertEqual([], list((self.repo / "vendor/skills").iterdir()))
+        self.mise("bootstrap", "dotfiles", "apply", "--yes", env=env)
+        self.assertEqual(pin, self.git(self.repo / "vendor/skills", "rev-parse", "HEAD", env=env).decode().strip())
+        self.assert_skills(self.DECLARED["conf.d/ai/mise.toml"])
 
     def test_ai_skills_leave_other_skills_in_the_folder_alone(self):
         # Paseo installs and refreshes its own skills there; Claude keeps `synced`.
@@ -523,8 +563,7 @@ echo 'collector ran'
         for path in theirs:
             self.assertFalse(path.is_symlink(), path)
             self.assertEqual("theirs\n", path.read_text())
-        for folder in self.SKILL_DIRS:
-            self.assertTrue((self.home / folder / "tool-gateway/SKILL.md").is_symlink())
+        self.assert_skills(self.DECLARED["conf.d/ai/mise.toml"])
 
     def test_ai_workstation_configs_reference_the_key_by_name(self):
         # `workstation` without a class, then personal for Claude Desktop.

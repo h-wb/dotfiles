@@ -15,8 +15,24 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 "~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 "~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
 "~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }
-# The shared skills (README.md): Claude Code reads the first folder; Codex, OpenCode
-# and Vibe the second. symlink-each links our files and leaves what others keep
-# there alone (the pods' own from conf.d/paseo, Paseo's, Claude's `synced`).
-"~/.claude/skills" = { source = "skills", mode = "symlink-each" }
-"~/.agents/skills" = { source = "skills", mode = "symlink-each" }
+# The skills every machine declares, from the h-wb/skills submodule (README.md):
+# one entry per skill and folder. Claude Code reads ~/.claude/skills; Codex,
+# OpenCode and Vibe ~/.agents/skills. symlink-each links the skill's files and
+# leaves what others keep there alone (the pods' own from conf.d/paseo, Paseo's,
+# Claude's `synced`).
+"~/.claude/skills/board" = { source = "../../vendor/skills/skills/board", mode = "symlink-each" }
+"~/.claude/skills/handbook" = { source = "../../vendor/skills/skills/handbook", mode = "symlink-each" }
+"~/.claude/skills/tool-gateway" = { source = "../../vendor/skills/skills/tool-gateway", mode = "symlink-each" }
+"~/.agents/skills/board" = { source = "../../vendor/skills/skills/board", mode = "symlink-each" }
+"~/.agents/skills/handbook" = { source = "../../vendor/skills/skills/handbook", mode = "symlink-each" }
+"~/.agents/skills/tool-gateway" = { source = "../../vendor/skills/skills/tool-gateway", mode = "symlink-each" }
+
+# A clone, `mise bootstrap --from` included, leaves submodules empty, and a pull
+# does not move them: check the catalogue out at its pinned commit before the
+# links are made. Only a checkout has one (the tests copy the tree).
+[bootstrap.hooks.pre-dotfiles]
+description = "Check out the skills catalogue at its pinned commit"
+run = '''
+[ -e "{{ vars.repo }}/.git" ] || exit 0
+git -C "{{ vars.repo }}" submodule update --init vendor/skills
+'''
