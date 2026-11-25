@@ -80,7 +80,6 @@ run = [
   { task = "neko:gh" },
   { task = "neko:xfce" },
   { task = "anki:setup" },
-  { task = "obsidian:start" },
 ]
 
 [tasks."neko:shell"]

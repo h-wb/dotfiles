@@ -61,7 +61,7 @@ conf.d/                  one folder per machine, and the features
   macos-miroir-collector/ the device collector, hourly, with Proton Pass tokens (MacBook)
   neko/                  the neko/xfce container
   neko-anki/             Anki with AnkiConnect and AnkiMCP, kept running there
-  neko-obsidian/         Obsidian with the Local REST API, kept running there
+  neko-obsidian/         Obsidian, a desktop app there
   cachyos/               the CachyOS gaming desktop
   paseo/                 the coding-agent pods, and the skill group only they take
   code-server/           the code-server pod: the fish binary and its editor settings

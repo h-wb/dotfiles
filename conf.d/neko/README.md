@@ -3,7 +3,7 @@ area: "[[Homelab]]"
 categories:
   - "[[Resources]]"
 reviewed: 2026-11-25
-summary: How the neko desktop pod is provisioned at every session start, what survives a pod roll, and how its Anki and Obsidian stay reachable.
+summary: How the neko desktop pod is provisioned at every session start, what survives a pod roll, and how its Anki stays reachable.
 topics:
   - "[[Notes vault]]"
 created: 2026-11-24T20:50
@@ -56,4 +56,4 @@ flowchart TD
 
 ## Obsidian
 
-`conf.d/neko-obsidian/`. Kept running the same way, so n8n can read and write the [notes vault](https://github.com/h-wb/handbook/blob/main/Systems/Notes%20vault.md) through the Local REST API plugin on `:27124` (home-ops' `neko-obsidian` Service). Never write vault files from outside Obsidian: Sync uploads only what its own watcher sees. The vault and its plugins, with the plugin's `bindingHost: 0.0.0.0` and key, come from Obsidian Sync, not from here; doctor `obsidian-rest-api` checks the result.
+`conf.d/neko-obsidian/`. A desktop app, opened from the menu (`obsidian-session` adds `--no-sandbox`: this pod blocks Chromium's sandbox). The vault comes from Obsidian Sync. Workflows write to the [notes vault](https://github.com/h-wb/handbook/blob/main/Systems/Notes%20vault.md) through home-ops' `default/obsidian-vault`, not through this Obsidian.
