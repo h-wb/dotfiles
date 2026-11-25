@@ -7,6 +7,8 @@
 "brew:mas" = "latest"                  # Mac App Store CLI
 "brew-cask:beeper" = "latest"
 "brew-cask:crossover" = "latest"       # Windows apps on macOS
+"brew-cask:iloader" = "latest"         # iOS sideloading
+"brew-cask:lm-studio" = "latest"       # local LLMs
 "brew-cask:nextcloud" = "latest"
 "brew-cask:plex" = "latest"
 "brew-cask:protonvpn" = "latest"
@@ -15,6 +17,20 @@
 "brew-cask:whatsapp" = "latest"
 "mas:1451685025" = "latest"            # WireGuard
 
+# No casks: pinned, so bump version and sha256 for each release.
+[bootstrap.packages."macos-app:hooklink"]
+version = "4.0"
+url = "https://github.com/dsi-hub/HookLink/releases/download/v{{version}}/HookLink.zip"
+sha256 = "d3202709771f6da143b351d57c944221d49f073a6007432651c54f836b5efd6c"
+artifact = "HookLink.app"
+
+[bootstrap.packages."macos-app:nx2apple"]
+version = "1.5.0"
+url = "https://github.com/LNPANDY/NX2Apple/releases/download/v{{version}}/NX2Apple-macOS-arm64.zip"
+sha256 = "c7158130e434ef2afd3d90b02da1a248cf5d004c320d37b2ca4ec277d899fed1"
+artifact = "NX2Apple.app"
+os = "macos/arm64"
+
 # Combined with every Mac's list (mise.macos.toml).
 [bootstrap.macos.login_items]
-apps = ["/Applications/Nextcloud.app", "/Applications/ProtonVPN.app", "/Applications/ScreenMemory.app"]
+apps = ["/Applications/Nextcloud.app", "/Applications/ProtonVPN.app", "/Applications/ScreenMemory.app", "/Applications/LM Studio.app"]

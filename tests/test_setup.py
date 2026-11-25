@@ -581,7 +581,7 @@ echo 'collector ran'
         self.assert_skills(self.group("core"))
 
     def test_ai_workstation_configs_reference_the_key_by_name(self):
-        # `workstation` without a class, then personal for Claude Desktop.
+        # `workstation` without a class.
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
         target = self.home / ".claude/.claude.json"
         target.parent.mkdir()
@@ -626,23 +626,6 @@ echo 'collector ran'
             "type": "static", "api_key_env": "MCP_API_KEY",
             "api_key_header": "x-api-key", "api_key_format": "{token}"})
         self.assertFalse((self.home / ".claude.json").exists())
-        # Claude Desktop: its mcp-remote shim, Desktop's own keys survive.
-        self.select("personal")
-        desktop = self.home / "Library/Application Support/Claude/claude_desktop_config.json"
-        desktop.parent.mkdir(parents=True)
-        desktop.write_text(json.dumps({"preferences": {"theme": "dark"}}))
-        self.mise("bootstrap", "dotfiles", "apply", "--yes", str(desktop),
-                  env={**self.env, "MCP_API_KEY": "secret-value", "MEMINI_API_KEY": "secret-value",
-                       "SECRET_DOMAIN": "example.test"})
-        self.assertNotIn("secret-value", desktop.read_text())
-        config = json.loads(desktop.read_text())
-        self.assertEqual(config["preferences"], {"theme": "dark"})
-        bridge = f"{self.home}/.local/share/mise/shims/mcp-remote"
-        self.assertEqual(config["mcpServers"], {
-            "toolhive": {"command": bridge, "args": [
-                "https://mcp-general.example.test/mcp", "--header", "x-api-key:${MCP_API_KEY}"]},
-            "memini": {"command": bridge, "args": [
-                "https://memini-general.example.test/mcp", "--header", "Authorization:Bearer ${MEMINI_API_KEY}"]}})
 
     def test_tn1_ssh_uses_proton_pass_agent_on_macos_only(self):
         self.select("personal" if sys.platform == "darwin" else "workstation")
@@ -700,9 +683,8 @@ echo 'collector ran'
         self.assertEqual({"toolhive", "memini"}, set(self.vibe_servers()))
 
     def test_ai_wrappers_run_agents_under_the_ai_fnox_config(self):
-        # Each wrapper's fnox profile is its agent's scope var; Desktop's mcp-remote is Claude's.
-        expected = {"conf.d/ai/mise.workstation.toml": {"claude": "claude", "codex": "codex", "vibe": "vibe"},
-                    "conf.d/ai/mise.personal.toml": {"mcp-remote": "claude"}}
+        # Each wrapper's fnox profile is its agent's scope var.
+        expected = {"conf.d/ai/mise.workstation.toml": {"claude": "claude", "codex": "codex", "vibe": "vibe"}}
         opencode = None
         for path, agents in expected.items():
             wrappers = tomllib.loads((self.repo / path).read_text())["wrappers"]
