@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start Obsidian: run by supervisord (obsidian.conf) and by the menu entry.
+# Start Obsidian from the menu entry.
 set -u
 
 LOG="${HOME}/.local/state/obsidian-session.log"
