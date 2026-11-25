@@ -39,6 +39,8 @@ starship = "latest"
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
 "~/.claude/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
 "~/.agents/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
+# Merged: Vibe keeps its untrusted list; the trusted one is ours (arrays are replaced).
+"~/.vibe/trusted_folders.toml/workshop" = { source = "vibe-trusted-folders.toml", merge = true, template = "tera" }
 
 [tasks.bootstrap]
 run = [

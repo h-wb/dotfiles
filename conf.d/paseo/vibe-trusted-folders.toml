@@ -1,0 +1,3 @@
+# The folders agents work in. Vibe reads a repo's AGENTS.md and skills only in a
+# trusted folder, and over ACP nobody is there to answer its prompt.
+trusted = ["{{ env.HOME }}/Repositories", "{{ env.HOME }}/.paseo/worktrees"]

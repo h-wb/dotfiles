@@ -358,6 +358,21 @@ echo 'collector ran'
             self.assertEqual(target.read_text(), content)
         self.assertFalse((self.home / ".kube/main.yaml").exists())
 
+    def test_paseo_vibe_trusts_the_folders_agents_work_in(self):
+        # Over ACP no one answers Vibe's trust prompt, and an untrusted folder's
+        # AGENTS.md and skills are never read.
+        target = self.home / ".vibe/trusted_folders.toml"
+        target.parent.mkdir()
+        target.write_text('trusted = ["/elsewhere"]\nuntrusted = ["/tmp/x"]\n')
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        folders = tomllib.loads(target.read_text())
+        self.assertEqual([f"{self.home}/Repositories", f"{self.home}/.paseo/worktrees"], folders["trusted"])
+        self.assertEqual(["/tmp/x"], folders["untrusted"])
+        self.select("workstation")
+        target.unlink()
+        self.mise("bootstrap", "dotfiles", "apply", "--yes")
+        self.assertFalse(target.exists())
+
     def apply_ai(self, **env):
         self.mise("bootstrap", "dotfiles", "apply", "--yes", env={**self.env, **env})
 
