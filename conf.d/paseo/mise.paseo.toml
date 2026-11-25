@@ -1,4 +1,4 @@
-# Paseo agent pods (home-ops agents/paseo).
+# The Paseo pods (README.md).
 
 [settings]
 # Untrusted repo configs fail every shim run there.
@@ -21,7 +21,6 @@ PROTON_PASS_AGENT_REASON = "{{ vars.pass_session }} fnox"
 PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 
 [tools]
-node = "24" # 26 needs libatomic.so.1, which the Paseo image lacks
 "npm:chrome-devtools-mcp" = "latest"
 starship = "latest"
 

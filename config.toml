@@ -4,9 +4,7 @@
 # ~/.config/mise is a symlink to this repo (first [dotfiles] entry), so mise
 # reads these files under their native names.
 
-# scripts/provision.sh reads this line with sed: keep its shape. 2026.11.1 is
-# the first release that expands miserc.toml's [env_sets]: anything older loads
-# a pinned class on its own and drops its layers, silently.
+# The first release that expands [env_sets]; older ones drop the layers silently.
 min_version = { hard = "2026.11.1" }
 
 [settings]
@@ -24,7 +22,7 @@ ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
 
 [tools]
-node = "lts"
+node = "24" # 26 needs libatomic.so.1, which the Paseo and code-server images lack
 uv = "latest"   # before python: a pip-installed uv in its bin would shadow this one (pipx: locks need >= 0.12.10)
 python = "3.14"
 "aqua:kubernetes/kubectl" = "latest"
@@ -70,15 +68,15 @@ df = "mise -C {{ env.HOME }}/.dotfiles"
 # Each is an invariant this repo has broken before. Fields are templated, so a
 # literal `{{` needs {% raw %}.
 [doctor.checks.wiring]
-description = "~/.config/mise is this repo and a machine class is selected"
-hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; unknown machine: env = [...] in ~/.dotfiles/miserc.local.toml"
+description = "~/.config/mise is this repo and the machine's environment is declared"
+hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; declare the environment: DOTFILES_ENV=<set> ~/.dotfiles/install.sh"
 run = '''
 [ -L "$HOME/.config/mise" ] && \
   [ "$(cd "$HOME/.config/mise" && pwd -P)" = "$(cd {{ vars.repo | quote }} && pwd -P)" ] \
 	|| { echo "~/.config/mise is not a symlink to the dotfiles checkout"; exit 1; }
 configs="$(mise config)" || exit 1
 printf '%s\n' "$configs" | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo|code-server)\.toml' \
-	|| { echo "no machine class active — miserc.toml did not recognise this machine"; exit 1; }
+	|| { echo "no environment declared: ~/.dotfiles/miserc.local.toml names none of miserc.toml's [env_sets]"; exit 1; }
 '''
 
 [doctor.checks.file-modes]
@@ -88,7 +86,8 @@ depends = ["wiring"]
 run = '''
 cd "{{ vars.repo }}" || exit 1
 index="$(git ls-files -s)" || exit 1
-bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/)' || true)"
+# vendor/: the skills submodule.
+bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/|vendor/)' || true)"
 [ -z "$bad" ] || { echo "unexpectedly executable:"; echo "$bad"; exit 1; }
 '''
 
@@ -113,7 +112,8 @@ done
 exit $rc
 '''
 
-# mise only warns on an unknown key, so a typo is silently a no-op.
+# Exempt: the macOS keys mise 2026.11.8 deprecates for an experimental
+# replacement min_version does not know, so no file passes on both.
 [doctor.checks.config-keys]
 description = "committed configs use only keys mise reads, none deprecated"
 hint = "mise config explain --file <file>"
@@ -127,7 +127,8 @@ for f in config.toml config.*.toml conf.d/*.toml conf.d/*/mise.toml conf.d/*/mis
 	if ! output="$(mise config explain --file "$f" 2>&1)"; then
 		printf '%s:\n%s\n' "$f" "$output"; rc=1; continue
 	fi
-	bad="$(printf '%s\n' "$output" | grep -E 'not a key mise reads|deprecated:')" || continue
+	bad="$(printf '%s\n' "$output" | grep -E 'not a key mise reads|deprecated:' |
+		grep -vE '^ *[0-9]+ +bootstrap\.macos\.(defaults|defaults_entries|login_items) +deprecated:')" || continue
 	printf '%s:\n%s\n' "$f" "$bad"; rc=1
 done
 exit $rc

@@ -1,7 +1,4 @@
-# The CachyOS desktop (class `cachyos`): KDE Plasma, fish, NVIDIA 2080 Ti, a
-# Dell on DP-1 and a BenQ projector on HDMI-A-1. A real systemd box, so apps
-# are pacman packages. Scope is only what was added after the installer (see
-# /var/log/pacman.log); theme, cursor and the fish prompt are CachyOS's own.
+# The CachyOS desktop (README.md): only what was added after the installer.
 
 # ── Tools ───────────────────────────────────────────────────────────────────
 [tools]
@@ -12,9 +9,6 @@
 
 [env]
 EDITOR = "micro"   # no VS Code here
-
-[shell_alias]
-ef = "exec fish"
 
 # ── System packages ─────────────────────────────────────────────────────────
 [bootstrap.packages]
@@ -57,7 +51,8 @@ action = "allow"
 
 # ── Dotfiles ────────────────────────────────────────────────────────────────
 [dotfiles]
-"~/.config/fish/config.fish" = { source = "fish/config.fish", mode = "symlink" }
+# Keeps CachyOS's own fish setup, prompt and greeting under the fish layer.
+"~/.config/fish/conf.d/cachyos.fish" = { source = "fish/cachyos.fish", mode = "symlink" }
 # Big Picture on the projector: pin the session to HDMI-A-1 and force SDR
 # Rec.709/D65 (its EDID claims HDR the 2080 Ti can't drive at 4K60, and a
 # bogus white point). Write-up: ~/gamescope-projector-setup.md on the box.

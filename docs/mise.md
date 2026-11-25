@@ -2,7 +2,7 @@
 area: "[[Homelab]]"
 categories:
   - "[[Resources]]"
-reviewed: 2026-11-24
+reviewed: 2026-11-25
 summary: How this repo is mise's config directory, how a machine picks its files, and the mise behaviour and rejected options that are easy to get wrong.
 created: 2026-11-24T20:30
 ---
@@ -15,15 +15,34 @@ mise does everything here: tools, packages, dotfiles, services, settings and tas
 
 `~/.config/mise` is a symlink to `~/.dotfiles`, so mise reads every file under its native name and every relative path resolves inside the repo. The link is the first `[dotfiles]` entry in `config.toml`. Its source is the absolute `~/.dotfiles`: a relative one would resolve through the link to itself.
 
-A first run cannot go through a link that does not exist yet, so `install.sh`, `neko-bootstrap` and `pod-bootstrap` run with `MISE_CONFIG_DIR=~/.dotfiles`; the bootstrap then creates the link and keeps it like any dotfile (`mise dot status` shows drift; a real directory in the way needs `--force-dotfiles`). The Paseo pods are the exception: home-ops clones with `mise bootstrap --from`, and `MISE_CONFIG_DIR` stays unset there ([paseo](../conf.d/paseo/README.md)).
+## One bootstrap, two steps
+
+Every machine runs the same two steps; only who runs them differs.
+
+```mermaid
+flowchart LR
+  I["install.sh (the Mac, CachyOS)"] --> C
+  H["home-ops (neko, code-server)"] --> C
+  P["home-ops (Paseo)"] --> C2
+  C["1. mise -E env bootstrap --from url?ref=pin --update<br/>--from-dir ~/.dotfiles --config-dir . --save-env --only final-hook"] --> A["2. mise run apply"]
+  C2["1. the same, without --only"]
+```
+
+1. **The checkout.** `mise bootstrap --from` clones the repo to `~/.dotfiles` or reuses the clone there, links `~/.config/mise` to it (`--config-dir .`) and saves the declared environment (`--save-env`). `--only final-hook` keeps it from applying anything else. A pin is `?ref=<commit>` with `--update`: mise checks the commit out, forward or back, and stops on a local change that would be overwritten. With neither, an existing clone stays as it is, branch and local work included. mise reuses a clone only when its origin is exactly the `--from` URL, so `install.sh` passes the clone's own.
+2. **The apply.** `mise run apply` (layer `workstation`, `scripts/apply`) is the one bootstrap with secrets: the Proton Pass preflight, then `fnox --if-missing error exec -- mise bootstrap`. A person without a session stops there. A pod passes `--unattended`: without a session it still applies what needs no secret (`fresh` on a new volume, `protect`, without dotfiles, once secrets are on disk) and reports it. Every run leaves `~/.local/state/dotfiles.status`, `RESULT MODE DATE COMMIT`; on the pods doctor `pod-start` reads it. `mise run` installs the machine's tools before the task starts, fnox and pass-cli included. On a pod that install must not write the lockfiles either, or the next start's checkout stops on them: home-ops runs both steps with `MISE_LOCKED=1`.
+
+The Paseo pods hold no secrets, so their step 1 applies everything and there is no step 2. neko's step 2 runs in its desktop session, because apt and xfconf need it.
+
+After the first run the link exists, and `mise run apply`, `diff` and `upgrade` work through it. The `[dotfiles]` entry keeps it like any dotfile (`mise dot status` shows drift; a real directory in the way needs `--force-dotfiles`). Never set `MISE_CONFIG_DIR=~/.dotfiles` on a pod ([paseo](../conf.d/paseo/README.md)).
 
 ## How a machine picks its files
 
 ```mermaid
 flowchart LR
-  M[miserc.toml] -->|path markers| C[class]
-  L[miserc.local.toml] -->|pins| C
-  C -->|env_sets| E[layers + class]
+  D["step 1: install.sh or home-ops"] -->|bootstrap --save-env| L[miserc.local.toml]
+  L -->|declares| C[class + own layers]
+  M[miserc.toml] -->|env_sets| E[layers + class]
+  C --> E
   E --> F1[config.workstation.toml]
   E --> F2["conf.d/*/mise.&lt;env&gt;.toml"]
   A[auto_env] --> F3["conf.d/*/mise.macos.toml"]
@@ -34,7 +53,12 @@ flowchart LR
   X[config.local.toml] --> R
 ```
 
-`miserc.toml` runs before the rest. Its templates see only the OS, but path tests work, so the class comes from a marker file: `/etc/neko` (neko), `/etc/pacman.d/cachyos-mirrorlist` (cachyos), `/etc/paseo` (paseo), `/usr/lib/code-server` (code-server), else macOS (personal). Every machine except paseo also gets `workstation`. `[env_sets]` expands a class into its layers, both for a detected class and for one pinned by an untracked `miserc.local.toml` (`env = ["neko"]`), which is how `install.sh`, CI and `mise -E neko` select a machine. `paseo-overlay` is detected from `/etc/paseo/config/paseo.json` and belongs to no set. An unrecognised machine gets `workstation` and no class, which doctor `wiring` reports.
+The machine's environment is declared, never detected. The caller names it and mise's own `bootstrap --save-env` writes the untracked `miserc.local.toml`, before it applies anything, so a failed run still leaves the declaration:
+
+- `install.sh` from `DOTFILES_ENV` (the Mac, CachyOS): required on the first run, kept after.
+- home-ops from each pod's `DOTFILES_ENV` (neko, code-server, `paseo,paseo-overlay`).
+
+A declaration is one set from `miserc.toml`'s `[env_sets]`, which expands it into its layers, then any layers for that machine only (`paseo-overlay`). mise saves any name, so `install.sh` checks that the first one is a set, and it unsets an inherited `MISE_ENV` so an activated shell's never wins. CI declares each matrix job the same way, and `mise -E neko` selects a machine for one command. A machine that declares nothing gets `config.toml` and the shared folders only, and doctor `wiring` fails; `home/git/config.tmpl` reads `mise_env` with a default for it.
 
 | File | Loads |
 | --- | --- |
@@ -43,22 +67,23 @@ flowchart LR
 | `conf.d/<folder>/mise.toml` | always |
 | `conf.d/<folder>/mise.<env>.toml` | that class or layer, or that platform (`macos` is any Mac) |
 | `config.local.toml` | always, last: untracked per-machine `[vars]` |
-| `miserc.toml`, `miserc.local.toml` | early init: which envs are active |
+| `miserc.toml` | early init: each class's layers (`[env_sets]`) |
+| `miserc.local.toml` | early init, untracked: the declared environment |
 
 - A `conf.d/` folder reads only `mise.toml`, `mise.local.toml`, `mise.<env>.toml` and `mise.<env>.local.toml`, one level deep. Relative sources resolve inside the folder and its tasks run there.
 - A folder's name says where it loads: a machine is named like its environment (`neko/`), a feature only one machine has is `<machine>-<feature>/` (`neko-anki/`), and a name with no machine in it loads on several (`ai/`, `proton-pass/`, the layers `pod/` and `fish/`). `test_conf_d_folder_names_say_where_they_load` holds the names to this. A feature gets its own folder when it has its own files, tasks or doctor checks.
-- Renaming a folder moves its symlink sources: the old links dangle until the next apply re-points them. On the Mac apply right after pulling (`~/.zshrc` is one of them). Never move `conf.d/neko/bin/neko-bootstrap` or `scripts/pod-bootstrap`: they are run by path.
+- Renaming a folder moves its symlink sources: the old links dangle until the next apply re-points them. On the Mac apply right after pulling (`~/.zshrc` is one of them); a pod's start does it, except in `protect` mode. Never rename the `apply` task or its `--unattended` flag: home-ops runs them.
 - `home/` holds the sources of the root configs (git, ssh, kube). A folder fragment never reaches into it.
 - Platform envs (`auto_env = true`): `macos`, `linux`, `unix`, `<os>-<arch>` are active by themselves, below explicit envs. `[tools]` and `[bootstrap.packages]` still take `os =` for an odd entry (neko's GUI apps keep it, so a stray `-E neko` on a Mac fails clean).
 - Layers never set the same key as each other, so their order cannot change the result.
 
 ## The minimum version
 
-`min_version = { hard = "2026.11.1" }` in `config.toml`: the first release that expands `[env_sets]`. An older mise loads a pinned class without its layers, silently. `scripts/provision.sh` (used by `install.sh`, `neko-bootstrap` and `pod-bootstrap`) self-updates mise below it, because `self_update.auto` skips unattended runs; it reads the version from that line with `sed`, so keep its inline-table shape. The Paseo pods pin mise by image tag. Do not raise it to a release less than a day old: self-update and mise-action both wait a day.
+`min_version = { hard = "2026.11.1" }` in `config.toml`: the first release that expands `[env_sets]`. An older mise loads a declared class without its layers, silently. Every pod runs mise from the `ghcr.io/jdx/mise` image, so its tag (Renovate) must stay at or above it. On the Mac and CachyOS mise refuses to load the config below it and says so: `mise self-update`, or `mise run upgrade`. Do not raise it to a release less than a day old: self-update and mise-action both wait a day.
 
 ## Checks
 
-- `mise doctor project` runs the `[doctor.checks.*]`: `wiring`, `config-keys`, `file-modes`, `lockfiles`, `tasks`, `credential-perms`, plus each machine's own. Fields are `description`, `run`, `hint` and `depends`; the first three are Tera templates, so a literal `{{` needs `{% raw %}`. A check whose `depends` fails is blocked, not run. Add a check whenever a regression was caught by hand.
+- `mise doctor project` runs the `[doctor.checks.*]`: `wiring`, `config-keys`, `file-modes`, `lockfiles`, `tasks`, `credential-perms`, plus each machine's own. `config-keys` exempts exactly three deprecations, `bootstrap.macos.defaults`, `defaults_entries` and `login_items`: mise 2026.11.8 deprecates them for `[bootstrap.settings.macos]`, which is experimental and unknown to the minimum version, so no file passes on both. `file-modes` skips `vendor/`, the skills submodule. Fields are `description`, `run`, `hint` and `depends`; the first three are Tera templates, so a literal `{{` needs `{% raw %}`. A check whose `depends` fails is blocked, not run. Add a check whenever a regression was caught by hand.
 - `mise config explain --file <f>` names every key and flags unknown and deprecated ones. mise only warns on an unknown key, so a typo is a silent no-op; doctor `config-keys` runs it over every committed config.
 - `mise tasks info <task>` renders a task without running it. CI does it for every task, hidden ones included.
 
@@ -109,8 +134,7 @@ Each of these was checked against mise and has bitten this repo once.
 
 | Option | Why not |
 | --- | --- |
-| `mise bootstrap --from --config-dir .` for `install.sh` | Works with this layout, but every later `bootstrap`, `apply` and `upgrade` would need `--from`, and `install.sh` needs the checkout before bootstrap runs (the version gate, `miserc.local.toml`, the choice to wrap in fnox). The `[dotfiles]` self-link stays the maintainer. The Paseo pods do use it. |
-| `bootstrap --update` | Aborts the whole run on local changes; the pods need a pull that warns and goes on. |
+| `bootstrap --update` on a branch, or any pull | Nothing here follows a branch. A person updates the Mac's or CachyOS's clone with git; on the pods `--update` only moves the checkout to the commit home-ops pins (`DOTFILES_REF`, bumped by Renovate). |
 | `--adopt` (clone into `~/.config/mise`) | Runs bootstrap without fnox and moves the checkout off `~/.dotfiles`. |
 | `mode = "track"`, `mise dot track ~/.config/mise` | A second history over files the git checkout already is, without a rendering step, so rendered secrets would enter it. |
 | An extra env as a toggle (`env = ["personal", "edge"]` for DNS) | `MISE_ENV` order is last-wins, so `["edge", "personal"]` silently picks main. The DNS choice is a saved var instead ([macOS](../conf.d/macos/README.md#cluster-dns)). |
@@ -120,6 +144,5 @@ Each of these was checked against mise and has bitten this repo once.
 | Task caching | Provisioning depends on machine state that file timestamps cannot vouch for. |
 | Dotfile groups | They group files by directory tree, not config by machine; folder names already do that. |
 | `mise bootstrap plan` | Leaves out dotfiles, tools, hooks, repos and defaults, so the full dry run stays. |
-| `bootstrap --save-env` | `install.sh` needs `miserc.local.toml` before its first `mise config`. |
 | Unprefixed `[bootstrap.packages]` keys | Each class has one package manager and its own file; the prefix costs nothing. |
 | chezmoi | Replaced by mise. Never run `chezmoi apply`. |

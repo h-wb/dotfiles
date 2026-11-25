@@ -2,7 +2,7 @@
 area: "[[Homelab]]"
 categories:
   - "[[Resources]]"
-reviewed: 2026-11-24
+reviewed: 2026-11-25
 summary: How the neko desktop pod is provisioned at every session start, what survives a pod roll, and how its Anki and Obsidian stay reachable.
 topics:
   - "[[Notes vault]]"
@@ -11,7 +11,7 @@ created: 2026-11-24T20:50
 
 # The neko desktop
 
-`ghcr.io/m1k1o/neko/xfce` in the cluster: Debian, user `neko`, passwordless sudo, supervisord as pid 1, so no systemd and no launchd. Class `neko` is layers `workstation` and `pod` plus `conf.d/neko/`; `conf.d/neko-anki/` and `conf.d/neko-obsidian/` are its two apps. The pod itself is defined in home-ops.
+`ghcr.io/m1k1o/neko/xfce` in the cluster: Debian, user `neko`, passwordless sudo, supervisord as pid 1, so no systemd and no launchd. Class `neko` is layers `workstation`, `pod` and `fish` plus `conf.d/neko/`; `conf.d/neko-anki/` and `conf.d/neko-obsidian/` are its two apps. The pod itself is defined in home-ops.
 
 ## What survives
 
@@ -26,20 +26,20 @@ Only `/home/neko` is on a volume. `/usr` and `/etc` are wiped at every pod roll;
 
 ```mermaid
 flowchart TD
-  S[XFCE session starts] --> A["~/.config/autostart/mise-bootstrap.desktop"]
-  A --> B[neko-bootstrap]
-  B --> H{"~/.neko-hold?"}
-  H -->|yes| N[notify and stop]
-  H -->|no| P[fast-forward ~/.dotfiles, wire ~/.config/mise]
-  P --> M{Proton Pass session?}
+  I["init container: 1. mise bootstrap --from …?ref=pin"] -->|pinned commit| D["~/.dotfiles"]
+  D --> S[XFCE session starts]
+  S --> A["/etc/xdg/autostart/dotfiles-bootstrap.desktop"]
+  A --> B["2. mise run apply --unattended"]
+  B --> M{Proton Pass session?}
   M -->|live| SE[secrets: bootstrap under fnox]
   M -->|none, nothing to lose| FR[fresh: bootstrap without secrets]
   M -->|none, secrets on disk| PR[protect: bootstrap without dotfiles]
 ```
 
-- `bin/neko-bootstrap` runs once per session start, with `--skip-dirty` (one dirty repo must not stop the desktop) and `--locked`. It logs to `~/.local/state/neko-bootstrap.log` and sends a notification on failure. Never move it: the autostart entry runs it by path.
-- `fresh` is what gives a new volume its shell config and autostart entry. That is why the shared templates take no `[bootstrap.secrets]`: one missing secret would abort the whole run.
-- `touch ~/.neko-hold` parks provisioning, across pod rolls too; doctor `neko-hold` reports it.
+- The two steps every machine runs ([docs/mise.md](../../docs/mise.md#one-bootstrap-two-steps)), from home-ops' `components/dotfiles`. Step 1, the checkout at the pin, runs in an init container before the desktop starts. Step 2, `mise run apply --unattended`, runs from a system XFCE autostart entry inside the session, because apt and xfconf need it (the launchd equivalent; `[bootstrap.linux.systemd.units]` is useless without systemd). The log is `~/.local/state/dotfiles.log`; doctor `pod-start` reports the last start.
+- mise comes from the `ghcr.io/jdx/mise` image, mounted at `/opt/mise` and first on `PATH`: the shims point at it.
+- `~/.dotfiles` is moved to the pinned commit at every start; a local change stops the move, and the pod runs the previous commit (`stale`). Edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones.
+- `fresh` is what gives a new volume its shell config. That is why the shared templates take no `[bootstrap.secrets]`: one missing secret would abort the whole run.
 - `xfconf-query` needs the session D-Bus: it works from the autostart run and does nothing from `kubectl exec`.
 - pass-cli keeps its key in the kernel keyring by default, which the pod's seccomp blocks. Layer `pod` sets `PROTON_PASS_KEY_PROVIDER=fs`, keeping it on the volume, and a session-start run logs in from `PASS_CLI_PAT`. Never set `seccompProfile: Unconfined`.
 - The volume is `reclaimPolicy: Delete` under a pruning Flux Kustomization in home-ops; its only backstop is the daily backup to the NAS defined there (not checked from here).

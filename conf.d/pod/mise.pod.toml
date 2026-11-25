@@ -1,12 +1,33 @@
-# Layer `pod`: a workstation in a k8s pod (neko, code-server). Only $HOME is
-# on a volume, so it is provisioned at every start and may start empty; the
-# pod's seccomp blocks the kernel keyring. Not the Paseo pods: they are not
-# workstations and hold none of this.
+# Layer `pod`: a workstation in a k8s pod (neko, code-server), not the Paseo pods.
 
 [env]
 # pass-cli keeps its key in the kernel keyring by default; `fs` keeps it on the PVC.
 PROTON_PASS_KEY_PROVIDER = "fs"
 
-# A fresh volume starts without the repo every pod works on.
+[shell_alias]
+# Not ~/.dotfiles: the next pod start moves it back to the pin.
+dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
+
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
+
+# A pod starts even when its apply fails: this is where that shows.
+[doctor.checks.pod-start]
+description = "the last pod start applied the pinned commit with secrets"
+hint = "see ~/.local/state/dotfiles.log; restarting the pod retries"
+run = '''
+f="$HOME/.local/state/dotfiles.status"
+[ -f "$f" ] || { echo "no $f: no apply has completed on this pod"; exit 1; }
+read -r result mode _ commit <"$f"
+case "$result" in
+ok) ;;
+degraded) echo "the last pod start ran in mode $mode: no Proton Pass session"; exit 1 ;;
+stale) echo "the last pod start applied $commit, not the pinned commit (the fetch failed)"; exit 1 ;;
+*) echo "the last apply failed (mode $mode)"; exit 1 ;;
+esac
+case "$mode" in
+secrets) ;;
+*) echo "the last pod start ran in mode $mode: no Proton Pass session"; exit 1 ;;
+esac
+'''

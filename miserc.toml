@@ -4,21 +4,11 @@ env_conf_d = true
 
 auto_env = true
 
-# Layers, then the class (later wins). Templates can only test paths; an empty
-# entry is ignored. CI / unknown machines: env = [...] in miserc.local.toml.
-env = [
-  "{% if '/etc/paseo' is not exists %}workstation{% endif %}",
-  "{% if '/etc/neko' is exists %}neko{% elif '/etc/pacman.d/cachyos-mirrorlist' is exists %}cachyos{% elif '/etc/paseo' is exists %}paseo{% elif '/usr/lib/code-server' is exists %}code-server{% elif os() == 'macos' %}personal{% endif %}",
-  "{% if '/etc/paseo/config/paseo.json' is exists %}paseo-overlay{% endif %}",
-]
-
-# One name per class (needs mise >= 2026.11.1, like min_version): miserc.local.toml
-# pins a class, install.sh and CI write it, and `mise -E neko` selects the whole
-# stack. paseo-overlay stays /etc-detected and belongs to no set; a machine that
-# is none of these lists its layers literally.
+# Declared by the caller in miserc.local.toml (`mise bootstrap --save-env`), never
+# detected: one set below, then any extra layers.
 [env_sets]
 personal = ["workstation", "personal"]
-neko = ["workstation", "pod", "neko"]
-cachyos = ["workstation", "cachyos"]
+neko = ["workstation", "pod", "fish", "neko"]
+cachyos = ["workstation", "fish", "cachyos"]
 paseo = ["paseo"]
 code-server = ["workstation", "pod", "fish", "code-server"]

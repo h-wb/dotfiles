@@ -2,18 +2,18 @@
 area: "[[Homelab]]"
 categories:
   - "[[Resources]]"
-reviewed: 2026-11-24
+reviewed: 2026-11-25
 summary: What the CachyOS gaming desktop gets from this repo, and the KDE, keyboard and projector fixes that are easy to undo by mistake.
 created: 2026-11-24T20:55
 ---
 
 # The CachyOS desktop
 
-A real Arch box: KDE Plasma, fish, NVIDIA, systemd, a monitor and a projector. Class `cachyos` is layer `workstation` plus `conf.d/cachyos/`. None of neko's limits apply: apps are `pacman:` packages, services are systemd units, and the firewall is ufw through `[bootstrap.linux.firewall]`. sudo needs a password there, so run an apply over `ssh -t`.
+A real Arch box: KDE Plasma, fish, NVIDIA, systemd, a monitor and a projector. Class `cachyos` is layers `workstation` and `fish` plus `conf.d/cachyos/`. None of neko's limits apply: apps are `pacman:` packages, services are systemd units, and the firewall is ufw through `[bootstrap.linux.firewall]`. sudo needs a password there, so run an apply over `ssh -t`.
 
 ## What it holds
 
-- Only what was added after the installer, read from `/var/log/pacman.log` (install dates are useless: a full `-Syu` reset them). Theme, cursor, animation speed and the fish prompt are CachyOS's `/etc/skel` defaults; do not declare them. `pacman -Qm` lib32 entries are orphans.
+- Only what was added after the installer, read from `/var/log/pacman.log` (install dates are useless: a full `-Syu` reset them). Theme, cursor, animation speed and the fish prompt are CachyOS's `/etc/skel` defaults; do not declare them. The shared `fish` layer's `config.fish` loads `fish/cachyos.fish`, which sources CachyOS's own fish config and sets `dotfiles_native_prompt`, so CachyOS keeps its greeting and prompt instead of starship. Switching to starship is the owner's call. `pacman -Qm` lib32 entries are orphans.
 - No AUR helper: the packages needed are in the cachyos repo. RetroDECK is a system flatpak; Arch's flatpak ships the flathub remote, so the `pre-packages` hook only makes sure flatpak exists.
 - The machine boots into the Steam Big Picture session; leaving it lands on the Plasma login.
 

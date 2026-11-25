@@ -1,7 +1,5 @@
-# Layer `fish`: the shell of the machines that use fish, and its starship
-# prompt. Only code-server loads it so far; neko and cachyos keep their own
-# config.fish until they move here, with their own lines in conf.d/<machine>.fish.
-# The fish binary is not here: each machine gets it its own way.
+# Layer `fish`: config.fish and starship, not the binary. A machine's own lines
+# go in conf.d/<machine>/fish/<machine>.fish.
 
 [tools]
 starship = "latest"

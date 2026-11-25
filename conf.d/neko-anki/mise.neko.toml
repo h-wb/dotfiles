@@ -65,7 +65,7 @@ run = [{ task = "anki:addon" }, { task = "anki:start" }]
 [tasks."anki:addon"]
 description = "Link the AnkiConnect and AnkiMCP add-ons and write their config"
 hide = true
-skip_if = '! "$HOME/.local/bin/mise" where http:anki-connect >/dev/null 2>&1'
+skip_if = '! mise where http:anki-connect >/dev/null 2>&1'
 run = "sh tasks/addon.sh"
 
 # Starts Anki on a rolled pod; a no-op when anki.conf is unchanged.

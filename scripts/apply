@@ -1,0 +1,60 @@
+#!/bin/sh
+# `mise run apply`; see docs/mise.md, "One bootstrap, two steps".
+set -u
+
+dry= upgrade= unattended=
+for arg; do
+	case "$arg" in
+	--dry-run) dry=1 ;;
+	--upgrade) upgrade=1 ;;
+	--unattended) unattended=1 ;;
+	*) echo "usage: apply [--dry-run] [--upgrade] [--unattended]" >&2; exit 2 ;;
+	esac
+done
+
+STATUS="${HOME}/.local/state/dotfiles.status"
+MODE=none
+# neko's session has no git before its apt step.
+COMMIT="$(git rev-parse HEAD 2>/dev/null)" || COMMIT=
+[ -n "$COMMIT" ] || { read -r COMMIT <.git/HEAD; } 2>/dev/null || COMMIT=unknown
+status() {
+	[ -z "$dry" ] || return 0
+	mkdir -p "${STATUS%/*}" && echo "$1 ${MODE} $(date -Iseconds) ${COMMIT}" >"$STATUS"
+}
+
+if [ -n "$upgrade" ] && [ -z "$dry" ]; then
+	mise self-update --yes || echo "[warn] mise self-update failed; continuing"
+fi
+
+[ -z "$unattended" ] || export DOTFILES_NO_LOGIN=1 PASS_CLI_PAT="${PASS_CLI_PAT:-${PROTON_PASS_TOKEN:-}}"
+if ./scripts/pass-preflight; then
+	MODE=secrets
+elif [ -z "$unattended" ]; then
+	status error
+	exit 1
+elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
+	[ ! -s "${HOME}/.kube/main.yaml" ] && [ ! -s "${HOME}/.kube/edge.yaml" ]; then
+	MODE=fresh
+else
+	MODE=protect
+fi
+echo "[info] mode: ${MODE}"
+
+if [ -n "$dry" ]; then set -- --dry-run; else set -- --yes; fi
+[ -z "$upgrade" ] || set -- "$@" --upgrade
+[ -z "$unattended" ] || set -- "$@" --skip-dirty --locked
+force= # Linux distros and images write their own config.fish first.
+[ "$(uname -s)" != Linux ] || force=--force-dotfiles
+case "$MODE" in
+secrets) fnox --if-missing error exec -c fnox.toml -- mise bootstrap "$@" $force ;;
+fresh) mise bootstrap "$@" $force ;;
+protect) mise bootstrap "$@" --skip dotfiles ;;
+esac || { status error; exit 1; }
+
+if [ -n "${DOTFILES_REF:-}" ] && [ "$DOTFILES_REF" != "$COMMIT" ]; then
+	echo "[warn] applied ${COMMIT}, not the pinned ${DOTFILES_REF} (the fetch failed?)"
+	status stale
+	exit 1
+fi
+[ "$MODE" = secrets ] || { status degraded; exit 1; }
+status ok
