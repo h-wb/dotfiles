@@ -898,6 +898,22 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertFalse((self.home / "consumed").exists())
         self.assertEqual(calls, (self.home / "fnox.calls").read_text())
 
+    def test_only_the_pods_list_repos(self):
+        # Every apply stops on a listed checkout with local changes: on a Mac or
+        # CachyOS that is the work in progress.
+        def repos(machine):
+            self.select(machine)
+            lines = self.mise("bootstrap", "repos", "status").stdout.splitlines()
+            return {line.split()[0].removeprefix("~/Repositories/")
+                    for line in lines if line.strip()}
+        shared = {"home-ops", "dotfiles", "sento", "pipelines", "dawarich-regression"}
+        for machine in ("personal", "cachyos"):
+            with self.subTest(machine=machine):
+                self.assertEqual(set(), repos(machine))
+        self.assertEqual(shared, repos("code-server"))
+        self.assertEqual(shared, repos("paseo"))
+        self.assertLessEqual(shared, repos("neko"))
+
     def test_repo_checkouts_receive_no_host_copies(self):
         (self.home / "Repositories/pipelines").mkdir(parents=True)
         (self.home / "Repositories/sento").mkdir(parents=True)
