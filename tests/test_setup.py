@@ -468,8 +468,6 @@ echo 'collector ran'
         self.assertEqual("", head[0], path)
         return dict(line.split(": ", 1) for line in head[1].splitlines())
 
-    # What each place takes: one group of the h-wb/skills submodule at
-    # vendor/skills, one glob [dotfiles] entry per agent folder.
     TAKES = {"conf.d/ai/mise.toml": "core",  # every machine and pod
              "conf.d/paseo/mise.paseo.toml": "workshop"}  # the pods also
 
@@ -488,7 +486,6 @@ echo 'collector ran'
                                           "mode": "symlink"}
                         for folder in self.SKILL_DIRS}
             self.assertEqual(expected, entries, config)
-            # Fails on an empty vendor/skills: `git submodule update --init`.
             names = self.group(group, ROOT)
             self.assertTrue(names, group)
             for name in names:
@@ -516,7 +513,6 @@ echo 'collector ran'
             (self.repo / "vendor/skills/groups" / group / name).symlink_to(f"../../skills/{name}")
 
     def test_only_declared_skills_reach_the_agent_folders(self):
-        # A skill reaches an agent only through a group its place takes.
         self.add_skill("ungrouped")
         core, workshop = (self.group(g) for g in self.TAKES.values())
         for layers in (["paseo"], ["workstation"]):
@@ -526,8 +522,6 @@ echo 'collector ran'
                 self.assert_skills(core, absent=["ungrouped"])
 
     def test_paseo_skills_reach_the_pods_only(self):
-        # Two groups share ~/.claude/skills and ~/.agents/skills on a pod:
-        # what every machine takes (conf.d/ai) and what the pods add (conf.d/paseo).
         core, workshop = (self.group(g) for g in self.TAKES.values())
         (self.repo / "miserc.local.toml").write_text('env = ["workstation"]\n')
         self.apply_ai()
@@ -537,7 +531,6 @@ echo 'collector ran'
         self.assert_skills(core + workshop)
 
     def test_group_changes_reach_the_folders_at_the_next_apply(self):
-        # Joining a group in the catalogue is enough; leaving one leaves no link.
         core = self.group("core")
         self.apply_ai()
         self.add_skill("newcomer", group="core")
@@ -549,10 +542,6 @@ echo 'collector ran'
         self.assert_skills(core[1:], absent=[core[0], "newcomer"])
 
     def test_per_skill_folders_are_migrated_without_force(self):
-        # The old per-skill `symlink-each` entries left real directories whose
-        # files link into this repo; a workstation applies without
-        # --force-dotfiles, so the hook clears them before the group's links.
-        # A directory holding anything else is not ours and stays.
         core = self.group("core")
         for folder in self.SKILL_DIRS:
             for name in core:
@@ -576,9 +565,6 @@ echo 'collector ran'
             self.assertTrue((self.home / folder / "empty").is_dir())
 
     def test_a_fresh_clone_gets_the_catalogue_at_main(self):
-        # `mise bootstrap --from` and `git clone` leave the submodule empty; the
-        # pre-dotfiles hook brings it to the catalogue's main, past the commit
-        # recorded here, so a merged skill needs no change in this repo.
         env = {**self.env, "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "protocol.file.allow",
                "GIT_CONFIG_VALUE_0": "always", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
                "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}

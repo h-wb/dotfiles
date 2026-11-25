@@ -38,8 +38,7 @@ starship = "latest"
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
-# The skill group the pods take beside conf.d/ai's `core`, from the same
-# submodule: the same glob keys in two files both apply.
+# The pods also take the workshop group.
 "~/.claude/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
 "~/.agents/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
 
