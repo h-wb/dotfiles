@@ -524,31 +524,34 @@ echo 'collector ran'
         self.apply_ai()
         self.assert_skills(shared + pods)
 
-    def test_a_fresh_clone_gets_the_catalogue_at_its_pin(self):
+    def test_a_fresh_clone_gets_the_catalogue_at_main(self):
         # `mise bootstrap --from` and `git clone` leave the submodule empty; the
-        # pre-dotfiles hook checks out the pinned commit before the links.
+        # pre-dotfiles hook brings it to the catalogue's main, past the commit
+        # recorded here, so a merged skill needs no change in this repo.
         env = {**self.env, "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "protocol.file.allow",
                "GIT_CONFIG_VALUE_0": "always", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
                "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
         catalogue = self.home / "skills"
         shutil.copytree(self.repo / "vendor/skills", catalogue)
-        self.git(catalogue, "init", "-q", env=env)
+        self.git(catalogue, "init", "-q", "-b", "main", env=env)
         self.git(catalogue, "add", "-A", env=env)
         self.git(catalogue, "commit", "-qm", "catalogue", env=env)
-        pin = self.git(catalogue, "rev-parse", "HEAD", env=env).decode().strip()
-        (catalogue / "skills/handbook/SKILL.md").write_text("after the pin\n")
-        self.git(catalogue, "commit", "-qam", "later", env=env)
+        recorded = self.git(catalogue, "rev-parse", "HEAD", env=env).decode().strip()
         shutil.rmtree(self.repo / "vendor/skills")
         (self.repo / ".gitmodules").unlink()
         self.git(self.repo, "init", "-q", env=env)
-        self.git(self.repo, "submodule", "--quiet", "add", str(catalogue), "vendor/skills", env=env)
-        self.git(self.repo / "vendor/skills", "checkout", "-q", pin, env=env)
+        self.git(self.repo, "submodule", "--quiet", "add", "-b", "main", str(catalogue), "vendor/skills", env=env)
         self.git(self.repo, "add", "-A", env=env)
         self.git(self.repo, "commit", "-qm", "dotfiles", env=env)
+        (catalogue / "skills/handbook/SKILL.md").write_text(
+            (catalogue / "skills/handbook/SKILL.md").read_text() + "\nmerged later\n")
+        self.git(catalogue, "commit", "-qam", "later", env=env)
+        later = self.git(catalogue, "rev-parse", "HEAD", env=env).decode().strip()
+        self.assertNotEqual(recorded, later)
         self.git(self.repo, "submodule", "--quiet", "deinit", "-f", "vendor/skills", env=env)
         self.assertEqual([], list((self.repo / "vendor/skills").iterdir()))
         self.mise("bootstrap", "dotfiles", "apply", "--yes", env=env)
-        self.assertEqual(pin, self.git(self.repo / "vendor/skills", "rev-parse", "HEAD", env=env).decode().strip())
+        self.assertEqual(later, self.git(self.repo / "vendor/skills", "rev-parse", "HEAD", env=env).decode().strip())
         self.assert_skills(self.DECLARED["conf.d/ai/mise.toml"])
 
     def test_ai_skills_leave_other_skills_in_the_folder_alone(self):

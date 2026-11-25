@@ -70,7 +70,7 @@ fnox.toml                Proton Pass references for provisioning (no values); th
 scripts/                 install helpers, the Proton Pass preflight, pod-bootstrap, land
 tests/                   regressions, run in throwaway homes
 docs/                    how this repo uses mise
-vendor/skills/           the skills catalogue, h-wb/skills, a submodule at a pinned commit
+vendor/skills/           the skills catalogue, h-wb/skills, a submodule that follows its main
 ```
 
 A folder's name says where it loads: a machine's folder is named like its environment (`neko`), a feature only that machine has is `<machine>-<feature>` (`neko-anki`), and a folder with no machine in its name loads on several (`ai`). Inside a folder, `mise.<env>.toml` says exactly when: `macos/` holds `mise.macos.toml` for any Mac and `mise.personal.toml` for the MacBook.

@@ -27,12 +27,15 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 "~/.agents/skills/handbook" = { source = "../../vendor/skills/skills/handbook", mode = "symlink-each" }
 "~/.agents/skills/tool-gateway" = { source = "../../vendor/skills/skills/tool-gateway", mode = "symlink-each" }
 
-# A clone, `mise bootstrap --from` included, leaves submodules empty, and a pull
-# does not move them: check the catalogue out at its pinned commit before the
-# links are made. Only a checkout has one (the tests copy the tree).
+# The catalogue follows h-wb/skills' main: a merged skill reaches every machine at
+# its next apply and every pod at its next start, with nothing to bump here. A
+# clone, `mise bootstrap --from` included, leaves a submodule empty, so this runs
+# before the links are made. Offline, it keeps the commit it has, or the one
+# recorded here. Only a checkout has a submodule (the tests copy the tree).
 [bootstrap.hooks.pre-dotfiles]
-description = "Check out the skills catalogue at its pinned commit"
+description = "Bring the skills catalogue to h-wb/skills main"
 run = '''
 [ -e "{{ vars.repo }}/.git" ] || exit 0
-git -C "{{ vars.repo }}" submodule update --init vendor/skills
+git -C "{{ vars.repo }}" submodule update --init --remote vendor/skills \
+  || git -C "{{ vars.repo }}" submodule update --init vendor/skills
 '''

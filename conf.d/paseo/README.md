@@ -34,7 +34,7 @@ flowchart LR
 ```
 
 - home-ops' `tools` init container runs `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir . --yes --force-dotfiles --skip-dirty --locked`, with no script. The private pod adds `--skip=repos,task`, so it clones no repos and runs no login. mise re-reads `miserc.toml` after the first clone.
-- The clone leaves the `vendor/skills` submodule empty; the `pre-dotfiles` hook in `conf.d/ai` checks it out at its pinned commit before the skills are linked, so the init container needs GitHub (it has it for the clone). The private pod skips `repos`, not `dotfiles`, so it runs the hook too.
+- The clone leaves the `vendor/skills` submodule empty; the `pre-dotfiles` hook in `conf.d/ai` brings it to h-wb/skills main before the skills are linked, so the init container needs GitHub (it has it for the clone). The private pod skips `repos`, not `dotfiles`, so it runs the hook too.
 - `~/.dotfiles` is an `emptyDir`, cloned fresh at every start and read-only in the app container, because `--update` only fast-forwards: an agent's commit there once blocked the pod. Edit dotfiles in `~/Repositories/dotfiles`, in a Paseo worktree.
 - Shims link to the mise that made them, so mise is the jdx/mise image mounted at `/opt/mise` in every container, first on `PATH`. The image tag is the mise version: keep it at or above `min_version`.
 - Never set `MISE_CONFIG_DIR=~/.dotfiles` there: through the real directory, mise rewrites the lock sidecar paths, and the checkout is read-only anyway. The link is enough.
