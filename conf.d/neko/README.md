@@ -37,9 +37,8 @@ flowchart TD
 ```
 
 - home-ops' `components/dotfiles` puts its pinned commit at `~/.dotfiles` before the desktop starts, and a system XFCE autostart entry runs `scripts/pod-bootstrap neko` inside the session (the launchd equivalent; `[bootstrap.linux.systemd.units]` is useless without systemd). It is the same script as code-server's ([code-server](../code-server/README.md#provisioning)): `--skip-dirty` (one dirty repo must not stop the desktop) and `--locked`, the log at `~/.local/state/pod-bootstrap.log`, the last start in doctor `pod-bootstrap`.
-- `~/.dotfiles` is replaced at every start: edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones.
+- `~/.dotfiles` is moved to the pinned commit at every start, local changes stashed: edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones.
 - `fresh` is what gives a new volume its shell config. That is why the shared templates take no `[bootstrap.secrets]`: one missing secret would abort the whole run.
-- The user autostart entry (`~/.config/autostart/mise-bootstrap.desktop`) and `~/.local/bin/neko-bootstrap` that launched the bootstrap before the pin are `absent` entries in `mise.neko.toml`; drop them once every neko volume has applied them.
 - `xfconf-query` needs the session D-Bus: it works from the autostart run and does nothing from `kubectl exec`.
 - pass-cli keeps its key in the kernel keyring by default, which the pod's seccomp blocks. Layer `pod` sets `PROTON_PASS_KEY_PROVIDER=fs`, keeping it on the volume, and a session-start run logs in from `PASS_CLI_PAT`. Never set `seccompProfile: Unconfined`.
 - The volume is `reclaimPolicy: Delete` under a pruning Flux Kustomization in home-ops; its only backstop is the daily backup to the NAS defined there (not checked from here).

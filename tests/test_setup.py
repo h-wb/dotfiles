@@ -565,25 +565,6 @@ echo 'collector ran'
         self.assertEqual(later, self.git(self.repo / "vendor/skills", "rev-parse", "HEAD", env=env).decode().strip())
         self.assert_skills(self.group("core"))
 
-    def test_a_tarball_checkout_clones_the_catalogue(self):
-        # neko and code-server get the pinned commit as a tarball: no .git, an empty submodule.
-        env = {**self.env, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
-               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
-        catalogue = self.home / "skills"
-        shutil.copytree(self.repo / "vendor/skills", catalogue, symlinks=True)
-        self.git(catalogue, "init", "-q", "-b", "main", env=env)
-        self.git(catalogue, "add", "-A", env=env)
-        self.git(catalogue, "commit", "-qm", "catalogue", env=env)
-        head = self.git(catalogue, "rev-parse", "HEAD", env=env).decode().strip()
-        gitmodules = self.repo / ".gitmodules"
-        gitmodules.write_text(gitmodules.read_text().replace("https://github.com/h-wb/skills.git", f"file://{catalogue}"))
-        shutil.rmtree(self.repo / "vendor/skills")
-        (self.repo / "vendor/skills").mkdir()
-        self.assertFalse((self.repo / ".git").exists())
-        self.mise("bootstrap", "dotfiles", "apply", "--yes", env=env)
-        self.assertEqual(head, self.git(self.repo / "vendor/skills", "rev-parse", "HEAD", env=env).decode().strip())
-        self.assert_skills(self.group("core"))
-
     def test_ai_skills_leave_other_skills_in_the_folder_alone(self):
         # Paseo installs and refreshes its own skills there; Claude keeps `synced`.
         theirs = [self.home / folder / "paseo-advisor/SKILL.md" for folder in self.SKILL_DIRS]
@@ -1008,8 +989,7 @@ exec "$@"
                 # The declared environment, never an activated shell's, and mise saves it.
                 self.assertNotIn("MISE_ENV=inherited", calls)
                 self.assertIn(f"config MISE_ENV={machine}\n", calls)
-                self.assertIn(f"--no-config bootstrap --save-env --yes --only final-hook MISE_ENV={machine}\n", calls)
-                self.assertIn(f"bootstrap --yes --force-dotfiles MISE_ENV={machine}\n", calls)
+                self.assertIn(f"bootstrap --yes --force-dotfiles --save-env MISE_ENV={machine}\n", calls)
                 self.assertEqual((self.home / "fnox.calls").exists(),
                                  "workstation" in LAYERS[machine])
                 self.assertNotIn("@latest", calls)
@@ -1026,14 +1006,14 @@ exec "$@"
         calls = self.home / "mise.calls"
         self.run_cmd("sh", str(self.repo / "install.sh"),
                      env={**self.env, "DOTFILES_ENV": "paseo,paseo-overlay"})
-        self.assertIn("--only final-hook MISE_ENV=paseo,paseo-overlay\n", calls.read_text())
+        self.assertIn("bootstrap --yes --force-dotfiles --save-env MISE_ENV=paseo,paseo-overlay\n", calls.read_text())
         # Declared once (the file is mise's to write: the fake does not): a later
         # run uses what was saved, not an activated shell's MISE_ENV. An existing
         # checkout is not pulled.
         (self.repo / "miserc.local.toml").write_text('env = ["paseo", "paseo-overlay"]\n')
         calls.unlink()
         self.run_cmd("sh", str(self.repo / "install.sh"), env={**self.env, "MISE_ENV": "inherited"})
-        self.assertIn("bootstrap --yes --force-dotfiles\n", calls.read_text())
+        self.assertIn("bootstrap --yes --force-dotfiles --save-env\n", calls.read_text())
         self.assertNotIn("MISE_ENV=", calls.read_text())
         self.assertFalse((self.home / "git.calls").exists())
         for bad in ("bogus", "paseo,", ",paseo-overlay"):
@@ -1043,36 +1023,6 @@ exec "$@"
                                       env={**self.env, "DOTFILES_ENV": bad})
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(calls.exists())
-
-    def test_installer_saves_environment_before_failed_preflight(self):
-        (self.repo / ".git").mkdir()
-        local = self.repo / "miserc.local.toml"
-        local.unlink()
-        (self.repo / "config.local.toml").write_text(
-            '[bootstrap.hooks.final]\nrun = "touch $HOME/final-hook-ran"\n')
-        self.fake("mise", '''
-case "$1" in
-exec) echo "fixture preflight failed" >&2; exit 71 ;;
-bootstrap) echo "unexpected provisioning" >&2; exit 72 ;;
-esac
-exec "$MISE_TEST_REAL" "$@"
-''')
-        env = {**self.env, "MISE_TEST_REAL": str(MISE), "MISE_ENV": "inherited"}
-        install = ("sh", str(self.repo / "install.sh"))
-        selected = {**env, "DOTFILES_ENV": "personal,fish"}
-        result = self.run_cmd(*install, ok=False, env=selected)
-        self.assertIn("fixture preflight failed", result.stderr)
-        self.assertEqual(tomllib.loads(local.read_text()), {"env": ["personal", "fish"]})
-        self.assertFalse((self.home / "final-hook-ran").exists())
-        result = self.run_cmd(*install, ok=False, env=env)
-        self.assertIn("fixture preflight failed", result.stderr)
-
-        local.write_text('# keep this\nauto_env = true\nenv = ["paseo"]\n')
-        result = self.run_cmd(*install, ok=False, env=selected)
-        self.assertIn("fixture preflight failed", result.stderr)
-        self.assertEqual(tomllib.loads(local.read_text()),
-                         {"auto_env": True, "env": ["personal", "fish"]})
-        self.assertIn("# keep this", local.read_text())
 
     def test_installer_rejects_unknown_class_before_side_effects(self):
         self.fake_mise()
@@ -1174,43 +1124,6 @@ exit 22
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(status, ["error", "protect"])
 
-    def test_neko_protect_repairs_dangling_links_without_rendering_secrets(self):
-        self.fake("timeout", 'shift; exec "$@"')
-        self.fake("mise", '''
-case "$1" in
-exec) exit 1 ;;
-bootstrap) echo "$*" >> "$HOME/mise.calls"; exit 0 ;;
-esac
-exec "$MISE_TEST_REAL" "$@"
-''')
-        credentials = {".ssh/config": "Host keep\n", ".kube/main.yaml": "keep main\n",
-                       ".kube/edge.yaml": "keep edge\n", ".config/git/config": "keep git config\n"}
-        for name, contents in credentials.items():
-            path = self.home / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(contents)
-        fish = self.home / ".config/fish/config.fish"
-        fish.parent.mkdir(parents=True)
-        fish.symlink_to(self.repo / "conf.d/neko/fish/config.fish")
-        starship = self.home / ".config/starship.toml"
-        starship.symlink_to(self.repo / "conf.d/neko/starship.toml")
-        autostart = self.home / ".config/autostart/mise-bootstrap.desktop"
-        autostart.parent.mkdir()
-        autostart.write_text("[Desktop Entry]\n")
-        launcher = self.bin / "neko-bootstrap"
-        launcher.symlink_to(self.repo / "conf.d/neko/bin/neko-bootstrap")
-
-        result, status, calls = self.pod_bootstrap(ok=False, args=("neko",), MISE_TEST_REAL=str(MISE))
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(status, ["degraded", "protect"])
-        self.assertIn("--skip dotfiles", calls)
-        self.assertEqual(fish.resolve(strict=True), self.repo / "conf.d/fish/config.fish")
-        self.assertEqual(starship.resolve(strict=True), self.repo / "conf.d/fish/starship.toml")
-        self.assertFalse(autostart.exists())
-        self.assertFalse(launcher.is_symlink())
-        for name, contents in credentials.items():
-            self.assertEqual((self.home / name).read_text(), contents)
-
     def test_pod_bootstrap_never_fetches(self):
         # The commit is home-ops' pin, fetched by its Component: whatever the
         # checkout tracks upstream never runs here.
@@ -1285,8 +1198,11 @@ exec "$MISE_TEST_REAL" "$@"
     def test_pod_bootstrap_reports_the_commit_and_a_stale_one(self):
         self.fake_mise()
         self.fake("timeout", 'shift; exec "$@"')
-        pinned = "a" * 40
-        (self.repo / ".pinned-commit").write_text(pinned + "\n")
+        git = lambda *a: self.run_cmd("git", "-C", str(self.repo), *a).stdout.strip()
+        git("init", "-q")
+        git("add", ".")
+        git("-c", "user.name=t", "-c", "user.email=t@example.test", "commit", "-qm", "pin")
+        pinned = git("rev-parse", "HEAD")
         result, status, _ = self.pod_bootstrap(ok=False, DOTFILES_REF=pinned)
         self.assertEqual(status, ["degraded", "fresh"])
         self.assertTrue(result.stdout.rstrip().split("; log:")[0].endswith(pinned), result.stdout)
@@ -1323,12 +1239,6 @@ exec "$MISE_TEST_REAL" "$@"
                     with self.subTest(status=line):
                         (state / "pod-bootstrap.status").write_text(line + "\n")
                         self.assertEqual(self.doctor()["pod-bootstrap"], want)
-                # What the bootstraps before the pin left is flagged, not removed.
-                for left in ("home-ops", ".dotfiles.pre-pin"):
-                    (self.home / left).mkdir()
-                    self.assertEqual(self.doctor()["pod-bootstrap"], "fail")
-                    self.assertTrue((self.home / left).is_dir())
-                    (self.home / left).rmdir()
 
     def test_code_server_terminal_and_shell(self):
         self.select("code-server")
@@ -1355,18 +1265,6 @@ exec "$MISE_TEST_REAL" "$@"
         machine_file = self.home / ".config/fish/conf.d/cachyos.fish"
         self.assertIn("cachyos-config.fish", machine_file.read_text())
         self.assertIn("dotfiles_native_prompt", machine_file.read_text())
-
-    def test_neko_drops_what_the_old_bootstrap_left(self):
-        autostart = self.home / ".config/autostart/mise-bootstrap.desktop"
-        autostart.parent.mkdir(parents=True)
-        autostart.write_text("[Desktop Entry]\nExec=%s/.local/bin/neko-bootstrap\n" % self.home)
-        (self.bin / "neko-bootstrap").symlink_to(self.repo / "conf.d/neko/bin/neko-bootstrap")
-        self.select("neko")
-        self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
-        self.assertFalse(autostart.exists())
-        self.assertFalse((self.bin / "neko-bootstrap").is_symlink())
-        self.assertTrue((self.bin / "git-credential-fnox").exists())
-        self.assertFalse((self.repo / "conf.d/neko/bin/neko-bootstrap").exists())
 
     def test_fish_config_loads(self):
         # The fish layer's config.fish, in both branches: scripts get mise's shims,

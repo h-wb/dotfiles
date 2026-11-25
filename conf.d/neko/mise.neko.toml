@@ -57,10 +57,6 @@ TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
 "~/.local/share/applications/zen.desktop"  = { source = "xfce/applications/zen.desktop.tmpl", mode = "template" }
 # Held a token; replaced by bin/git-credential-fnox.
 "~/.git-credentials" = { mode = "absent" }
-# The bootstrap before the pinned commit: its autostart entry would still run
-# its launcher, which no checkout has any more.
-"~/.config/autostart/mise-bootstrap.desktop" = { mode = "absent" }
-"~/.local/bin/neko-bootstrap"                = { mode = "absent" }
 
 # ── Repos ───────────────────────────────────────────────────────────────────
 # neko only: on a Mac these checkouts hold real work. pod-bootstrap passes

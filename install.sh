@@ -2,8 +2,9 @@
 # Provision ~/.dotfiles on a machine a person installs by hand (the Mac,
 # CachyOS); pods run scripts/pod-bootstrap instead. DOTFILES_ENV names the
 # environment, a set from miserc.toml's [env_sets] plus any extra layers
-# (`personal`, `cachyos`). mise saves it in miserc.local.toml before preflight.
-# Later runs need it only to change it. Update an existing checkout with git.
+# (`personal`, `cachyos`). `mise bootstrap --save-env` keeps it in
+# miserc.local.toml, so later runs need it only to change it. Update an
+# existing checkout with git.
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/${GITHUB_USERNAME:-h-wb}/dotfiles.git}"
@@ -29,11 +30,6 @@ export MISE_CONFIG_DIR="${DOTFILES_DIR}"
 unset MISE_ENV
 [ -z "${DOTFILES_ENV:-}" ] || use_env "$DOTFILES_ENV" || exit 1
 ensure_mise || exit 1
-
-if [ -n "${DOTFILES_ENV:-}" ]; then
-	# Save without loading config or running any provisioning before login.
-	"$MISE" --no-config bootstrap --save-env --yes --only final-hook
-fi
 configs="$("$MISE" config)"
 case "$configs" in
 *config.workstation.toml*)
@@ -41,6 +37,6 @@ case "$configs" in
 	"$MISE" exec github:jdx/fnox github:protonpass/pass-cli -- sh -c '
 		./scripts/pass-preflight || exit 1
 		exec fnox --if-missing error exec -c fnox.toml -- "$@"
-	' sh "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
-*) "$MISE" bootstrap --yes --force-dotfiles || exit 1 ;;
+	' sh "$MISE" bootstrap --yes --force-dotfiles --save-env || exit 1 ;;
+*) "$MISE" bootstrap --yes --force-dotfiles --save-env || exit 1 ;;
 esac

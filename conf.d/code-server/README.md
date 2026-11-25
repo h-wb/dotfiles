@@ -13,14 +13,14 @@ The owner's own environment in the cluster: `ghcr.io/coder/code-server`, Debian,
 
 ## Provisioning
 
-home-ops' `dotfiles` Component ([README](https://github.com/h-wb/home-ops/blob/main/kubernetes/components/dotfiles/README.md)), in the init container, downloads the pinned commit's tarball and swaps it in at `~/.dotfiles` (whatever was there goes; `.pinned-commit` names the commit), then runs `scripts/pod-bootstrap code-server` by path. It is never a link the bootstrap manages, so a rolled pod comes back provisioned. Do not move the script without changing home-ops with it.
+home-ops' `dotfiles` Component ([README](https://github.com/h-wb/home-ops/blob/main/kubernetes/components/dotfiles/README.md)), in the init container, moves the `~/.dotfiles` git clone to the pinned commit (cloning it on a fresh volume, stashing any local change), then runs `scripts/pod-bootstrap code-server` by path. It is never a link the bootstrap manages, so a rolled pod comes back provisioned. Do not move the script without changing home-ops with it.
 
 `scripts/pod-bootstrap ENVIRONMENT` is the one implementation for the workstation pods, neko's too:
 
 - The environment from its one argument, saved by `mise bootstrap --save-env`; mise from `scripts/provision.sh`.
 - Three modes: `secrets` (a live Proton Pass session), `fresh` (no session, nothing to lose), `protect` (no session and secrets on disk: dotfiles skipped). fnox and pass-cli come from `mise exec`, on demand, so a fresh volume's token works in its first run.
-- One log, `~/.local/state/pod-bootstrap.log`, and a status file, `RESULT MODE DATE COMMIT`: `ok`, `degraded` without secrets, `error`, or `stale` when home-ops' download failed and an older commit ran. Doctor `pod-bootstrap` (layer `pod`) reads it and flags what older bootstraps left behind (`~/.dotfiles.broken-*`, `~/.dotfiles.pre-pin`, `~/home-ops`, `~/.neko-hold`). Only the status line reaches stdout, since pod logs are readable by the agents' cluster tools.
-- It never fetches or pulls. `~/.dotfiles` is replaced at every start, so edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones (the `dotfiles` alias opens it).
+- One log, `~/.local/state/pod-bootstrap.log`, and a status file, `RESULT MODE DATE COMMIT`: `ok`, `degraded` without secrets, `error`, or `stale` when home-ops' fetch failed and the previous commit ran. Doctor `pod-bootstrap` (layer `pod`) reads it. Only the status line reaches stdout, since pod logs are readable by the agents' cluster tools.
+- It never fetches or pulls. `~/.dotfiles` is checked out again at every start, so edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones (the `dotfiles` alias opens it).
 
 The pinned commit runs with the owner's token in the pod: review the exact revision before merging a Renovate pin update, and keep `master` protected and its CI green before enabling auto-merge. Rollback is in the Component's README.
 

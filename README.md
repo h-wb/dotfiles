@@ -83,9 +83,9 @@ A folder's name says where it loads: a machine's folder is named like its enviro
 sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/master/install.sh)"
 ```
 
-Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos` the first time; mise saves it in `miserc.local.toml` before the Proton Pass preflight, so later runs need it only to change it. On a Mac, sign in to iCloud and the App Store first. The installer clones to `~/.dotfiles` (an existing checkout is used as it is: update it with git), installs mise or updates it to `min_version`, and runs `mise bootstrap` under fnox after the preflight.
+Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos` the first time; `mise bootstrap --save-env` keeps it in `miserc.local.toml`, so later runs need it only to change it. On a Mac, sign in to iCloud and the App Store first. The installer clones to `~/.dotfiles` (an existing checkout is used as it is: update it with git), installs mise or updates it to `min_version`, and runs `mise bootstrap` under fnox after the preflight.
 
-The pods do not use it. home-ops fetches one pinned commit of this repo at every pod start (`DOTFILES_REF`, bumped by reviewed Renovate pull requests) and declares the pod's environment; their pages say how. A pod's `~/.dotfiles` is replaced at every start, so edit this repo in `~/Repositories/dotfiles` there.
+The pods do not use it. home-ops fetches one pinned commit of this repo at every pod start (`DOTFILES_REF`, bumped by reviewed Renovate pull requests) and declares the pod's environment; their pages say how. A pod's `~/.dotfiles` is checked out again at every start, so edit this repo in `~/Repositories/dotfiles` there.
 
 ## Everyday use
 

@@ -87,8 +87,6 @@ hint = "git update-index --chmod=-x <file> — a template takes its source's mod
 depends = ["wiring"]
 run = '''
 cd "{{ vars.repo }}" || exit 1
-# A pod's ~/.dotfiles is the pinned commit's tarball: the repo's own clone checks it.
-[ -e .git ] || { echo "not a git checkout: nothing to check"; exit 0; }
 index="$(git ls-files -s)" || exit 1
 # vendor/ is the skills submodule: h-wb/skills' files, not this repo's.
 bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/|vendor/)' || true)"
