@@ -8,9 +8,14 @@ PROTON_PASS_KEY_PROVIDER = "fs"
 # Not ~/.dotfiles: the next pod start moves it back to the pin.
 dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
 
+# Pods only: every apply stops on a listed checkout with local changes, and on a
+# Mac or CachyOS these hold real work. Paseo lists them again with its refs.
 [bootstrap.repos]
-"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
-"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
+"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dotfiles"            = { url = "https://github.com/h-wb/dotfiles.git" }
+"~/Repositories/sento"               = { url = "https://github.com/h-wb/sento.git" }
+"~/Repositories/pipelines"           = { url = "https://github.com/h-wb/pipelines.git" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
 
 # A pod starts even when its apply fails: this is where that shows.
 [doctor.checks.pod-start]

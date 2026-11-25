@@ -37,7 +37,7 @@ What several classes share is a layer, not a copy in each:
 | Layer | Holds |
 | --- | --- |
 | `workstation` (`config.workstation.toml`) | what assumes a person and a Proton Pass session: credentialed CLIs (aws, bws, metabase), the `apply`, `diff`, `upgrade` and `land` tasks, both kubeconfigs |
-| `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, the repos a fresh volume needs, doctor `pod-start`. The Paseo pods do not load it |
+| `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, the shared work repos, doctor `pod-start`. The Paseo pods do not load it, and list the same repos with their refs. Only pods list repos: every apply stops on a listed checkout with local changes |
 | `fish` (`conf.d/fish/`) | one `config.fish`, the starship prompt and `ef`; not the fish binary. A machine's own lines go in `conf.d/<machine>/fish/<machine>.fish`, linked into `~/.config/fish/conf.d/` |
 
 Nothing is detected: the caller declares the environment, and `mise bootstrap --save-env` writes it to the untracked `miserc.local.toml` (`env = ["neko"]`). `[env_sets]` in `miserc.toml` adds the class's layers. With nothing declared, only `config.toml` and the shared folders load, and doctor `wiring` fails. How that works: [docs/mise.md](docs/mise.md#how-a-machine-picks-its-files).
