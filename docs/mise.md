@@ -71,7 +71,7 @@ A declaration is one set from `miserc.toml`'s `[env_sets]`, which expands it int
 | `miserc.local.toml` | early init, untracked: the declared environment |
 
 - A `conf.d/` folder reads only `mise.toml`, `mise.local.toml`, `mise.<env>.toml` and `mise.<env>.local.toml`, one level deep. Relative sources resolve inside the folder and its tasks run there.
-- A folder's name says where it loads: a machine is named like its environment (`neko/`), a feature only one machine has is `<machine>-<feature>/` (`neko-anki/`), and a name with no machine in it loads on several (`ai/`, `proton-pass/`, the layers `pod/`, `nonroot/` and `fish/`). `test_conf_d_folder_names_say_where_they_load` holds the names to this. A feature gets its own folder when it has its own files, tasks or doctor checks.
+- A folder's name says where it loads: a machine is named like its environment (`neko/`), a feature only one machine has is `<machine>-<feature>/` (`neko-anki/`), and a name with no machine in it loads on several (`ai/`, `proton-pass/`, the layers `pod/` and `fish/`). `test_conf_d_folder_names_say_where_they_load` holds the names to this. A feature gets its own folder when it has its own files, tasks or doctor checks.
 - Renaming a folder moves its symlink sources: the old links dangle until the next apply re-points them. On the Mac apply right after pulling (`~/.zshrc` is one of them); a pod's start does it, except in `protect` mode. Never rename the `apply` task or its `--unattended` flag: home-ops runs them.
 - `home/` holds the sources of the root configs (git, ssh, kube). A folder fragment never reaches into it.
 - Platform envs (`auto_env = true`): `macos`, `linux`, `unix`, `<os>-<arch>` are active by themselves, below explicit envs. `[tools]` and `[bootstrap.packages]` still take `os =` for an odd entry (neko's GUI apps keep it, so a stray `-E neko` on a Mac fails clean).
@@ -89,9 +89,9 @@ A declaration is one set from `miserc.toml`'s `[env_sets]`, which expands it int
 
 ## Lockfiles
 
-mise writes one lockfile per config file, all in the repo: `mise.lock` (`config.toml` and env-less folder fragments), then one per env (`mise.macos.lock`, `mise.workstation.lock`, `mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`, `mise.nonroot.lock`, `mise.fish.lock`, `mise.code-server.lock`). Format version 3.
+mise writes one lockfile per config file, all in the repo: `mise.lock` (`config.toml` and env-less folder fragments), then one per env (`mise.macos.lock`, `mise.workstation.lock`, `mise.personal.lock`, `mise.neko.lock`, `mise.cachyos.lock`, `mise.paseo.lock`, `mise.fish.lock`, `mise.code-server.lock`). Format version 3.
 
-- Each env lockfile lists only the platforms that env runs on: `macos` and `personal` macos-arm64, `cachyos` and `paseo` linux-x64, `neko`, `nonroot`, `fish` and `code-server` linux-x64 and arm64, `workstation` macos-arm64 and both Linux; `mise.lock` keeps them all. A plain `mise lock --global` keeps each file's set. `--platform` applies to every loaded lockfile, so it adds entries where they do not belong (locking an AppImage-only tool for arm64 once picked a different artifact): check `git diff mise*.lock` after any lock.
+- Each env lockfile lists only the platforms that env runs on: `macos` and `personal` macos-arm64, `cachyos` and `paseo` linux-x64, `neko`, `fish` and `code-server` linux-x64 and arm64, `workstation` macos-arm64 and both Linux; `mise.lock` keeps them all. A plain `mise lock --global` keeps each file's set. `--platform` applies to every loaded lockfile, so it adds entries where they do not belong (locking an AppImage-only tool for arm64 once picked a different artifact): check `git diff mise*.lock` after any lock.
 - Dependency sidecars live in `locks/`. Commit the paths `mise lock --global --sidecars` prints, with the lockfiles.
 - Doctor `lockfiles` is `mise install --locked --dry-run` for the active platform. A locked PyPI graph needs its Python installed even for that, so CI installs Python and uv first.
 - `http:` tools are pinned by hand: bump the version and every URL, then lock.

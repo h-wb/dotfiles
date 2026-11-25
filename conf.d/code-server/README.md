@@ -9,7 +9,7 @@ created: 2026-11-24T21:05
 
 # The code-server pod
 
-The owner's own environment in the cluster: `ghcr.io/coder/code-server`, Debian, user `coder`, in a browser behind the cluster's login. The owner works there as themselves (`gh auth login`, `mise run land <pr>`). Class `code-server` is layers `workstation`, `pod`, `nonroot` and `fish` plus `conf.d/code-server/`, which holds only what is about this image: the fish binary and the editor's terminal profile.
+The owner's own environment in the cluster: `ghcr.io/coder/code-server`, Debian, user `coder`, in a browser behind the cluster's login. The owner works there as themselves (`gh auth login`, `mise run land <pr>`). Class `code-server` is layers `workstation`, `pod` and `fish` plus `conf.d/code-server/`, which holds only what is about this image: the fish binary and the editor's terminal profile.
 
 ## Provisioning
 

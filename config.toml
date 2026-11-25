@@ -22,7 +22,7 @@ ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
 
 [tools]
-node = "lts"
+node = "24" # 26 needs libatomic.so.1, which the Paseo and code-server images lack
 uv = "latest"   # before python: a pip-installed uv in its bin would shadow this one (pipx: locks need >= 0.12.10)
 python = "3.14"
 "aqua:kubernetes/kubectl" = "latest"

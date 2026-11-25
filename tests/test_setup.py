@@ -97,7 +97,7 @@ esac
                 configs = self.mise("config").stdout
                 for other in LAYERS:
                     self.assertEqual(f".{other}.toml" in configs, other == machine)
-                for layer in ("workstation", "pod", "nonroot", "fish"):
+                for layer in ("workstation", "pod", "fish"):
                     self.assertEqual(f".{layer}.toml" in configs, layer in layers, layer)
                 self.assertEqual("conf.d/macos-miroir-collector/mise.personal.toml" in configs,
                                  machine == "personal")

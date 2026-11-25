@@ -29,8 +29,8 @@ How this fits with the other repos is in the [handbook](https://github.com/h-wb/
 | `personal` | the MacBook | `DOTFILES_ENV=personal install.sh`, once | `workstation` | [macos](conf.d/macos/README.md) |
 | `neko` | an XFCE desktop in a pod ([neko](https://github.com/m1k1o/neko)) | home-ops (`components/dotfiles`) | `workstation`, `pod`, `fish` | [neko](conf.d/neko/README.md) |
 | `cachyos` | a CachyOS KDE gaming desktop | `DOTFILES_ENV=cachyos install.sh`, once | `workstation`, `fish` | [cachyos](conf.d/cachyos/README.md) |
-| `paseo` | the headless coding-agent pods | home-ops, `mise -E paseo,paseo-overlay bootstrap` | `nonroot` | [paseo](conf.d/paseo/README.md) |
-| `code-server` | the owner's browser editor in a pod | home-ops (`components/dotfiles`) | `workstation`, `pod`, `nonroot`, `fish` | [code-server](conf.d/code-server/README.md) |
+| `paseo` | the headless coding-agent pods | home-ops, `mise -E paseo,paseo-overlay bootstrap` | none | [paseo](conf.d/paseo/README.md) |
+| `code-server` | the owner's browser editor in a pod | home-ops (`components/dotfiles`) | `workstation`, `pod`, `fish` | [code-server](conf.d/code-server/README.md) |
 
 What several classes share is a layer, not a copy in each:
 
@@ -38,7 +38,6 @@ What several classes share is a layer, not a copy in each:
 | --- | --- |
 | `workstation` (`config.workstation.toml`) | what assumes a person and a Proton Pass session: credentialed CLIs (aws, bws, metabase), the `apply`, `diff`, `upgrade` and `land` tasks, both kubeconfigs |
 | `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, the repos a fresh volume needs, doctor `pod-start`. The Paseo pods do not load it |
-| `nonroot` (`conf.d/nonroot/`) | a pod on someone else's image without root: node 24, as 26 needs `libatomic.so.1`, which neither image has |
 | `fish` (`conf.d/fish/`) | one `config.fish`, the starship prompt and `ef`; not the fish binary. A machine's own lines go in `conf.d/<machine>/fish/<machine>.fish`, linked into `~/.config/fish/conf.d/` |
 
 Nothing is detected: the caller declares the environment, and `mise bootstrap --save-env` writes it to the untracked `miserc.local.toml` (`env = ["neko"]`). `[env_sets]` in `miserc.toml` adds the class's layers. With nothing declared, only `config.toml` and the shared folders load, and doctor `wiring` fails. How that works: [docs/mise.md](docs/mise.md#how-a-machine-picks-its-files).
@@ -55,7 +54,6 @@ conf.d/                  one folder per machine, and the features
   ai/                    every machine: the agents' tool and memory servers, the skill group every machine takes
   proton-pass/           every machine: the named-session login task other repos extend
   pod/                   layer: a workstation in a pod (neko, code-server)
-  nonroot/               layer: a pod without root on someone else's image (paseo, code-server)
   fish/                  layer: config.fish and the starship prompt (neko, cachyos, code-server)
   macos/                 the Macs: apps, zsh, ssh agent, WireGuard; the MacBook's own packages
   macos-defaults/        `defaults write`, declared

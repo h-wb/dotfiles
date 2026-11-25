@@ -10,5 +10,5 @@ auto_env = true
 personal = ["workstation", "personal"]
 neko = ["workstation", "pod", "fish", "neko"]
 cachyos = ["workstation", "fish", "cachyos"]
-paseo = ["nonroot", "paseo"]
-code-server = ["workstation", "pod", "nonroot", "fish", "code-server"]
+paseo = ["paseo"]
+code-server = ["workstation", "pod", "fish", "code-server"]
