@@ -20,7 +20,7 @@ created: 2022-02-20T21:04
 
 ## Overview
 
-Dotfiles and full machine setup for five machine classes, managed entirely by [mise](https://mise.jdx.dev): packages (Homebrew formulae and casks, Mac App Store, pacman, apt, flatpak), macOS defaults and login items, LaunchAgents, systemd units, the firewall, tools and dotfiles. It also defines what every coding agent gets: its tool and memory servers, rendered per scope, and the skills it declares from [h-wb/skills](https://github.com/h-wb/skills). Secrets are injected by [fnox](https://github.com/jdx/fnox) from Proton Pass; none is committed.
+Dotfiles and full machine setup for five machine classes, managed entirely by [mise](https://mise.jdx.dev): packages (Homebrew formulae and casks, Mac App Store, pacman, apt, flatpak), macOS defaults and login items, LaunchAgents, systemd units, the firewall, tools and dotfiles. It also defines what every coding agent gets: its tool and memory servers, rendered per scope, and the skill groups it takes from [h-wb/skills](https://github.com/h-wb/skills). Secrets are injected by [fnox](https://github.com/jdx/fnox) from Proton Pass; none is committed.
 
 How this fits with the other repos is in the [handbook](https://github.com/h-wb/handbook): [dotfiles](https://github.com/h-wb/handbook/blob/main/Repos/dotfiles.md), and [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md) for agents.
 
@@ -51,7 +51,7 @@ config.toml              every machine: tools, env, vars, shell aliases, doctor 
 config.workstation.toml  layer workstation
 miserc.toml              picks this machine's class and layers
 conf.d/                  one folder per machine, and the features
-  ai/                    every machine: the agents' tool and memory servers, the skills every machine declares
+  ai/                    every machine: the agents' tool and memory servers, the skill group every machine takes
   proton-pass/           every machine: the named-session login task other repos extend
   pod/                   layer: a workstation in a pod (neko, code-server)
   fish/                  layer: config.fish and the starship prompt (code-server)
@@ -63,7 +63,7 @@ conf.d/                  one folder per machine, and the features
   neko-anki/             Anki with AnkiConnect and AnkiMCP, kept running there
   neko-obsidian/         Obsidian with the Local REST API, kept running there
   cachyos/               the CachyOS gaming desktop
-  paseo/                 the coding-agent pods, and the skills only they declare
+  paseo/                 the coding-agent pods, and the skill group only they take
   code-server/           the code-server pod: the fish binary and its editor settings
 home/                    sources for the root configs (git, ssh, kube)
 fnox.toml                Proton Pass references for provisioning (no values); the agents' own are in conf.d/ai/

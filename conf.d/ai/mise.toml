@@ -15,27 +15,54 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 "~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 "~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
 "~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }
-# The skills every machine declares, from the h-wb/skills submodule (README.md):
-# one entry per skill and folder. Claude Code reads ~/.claude/skills; Codex,
-# OpenCode and Vibe ~/.agents/skills. symlink-each links the skill's files and
-# leaves what others keep there alone (the pods' own from conf.d/paseo, Paseo's,
-# Claude's `synced`).
-"~/.claude/skills/board" = { source = "../../vendor/skills/skills/board", mode = "symlink-each" }
-"~/.claude/skills/handbook" = { source = "../../vendor/skills/skills/handbook", mode = "symlink-each" }
-"~/.claude/skills/tool-gateway" = { source = "../../vendor/skills/skills/tool-gateway", mode = "symlink-each" }
-"~/.agents/skills/board" = { source = "../../vendor/skills/skills/board", mode = "symlink-each" }
-"~/.agents/skills/handbook" = { source = "../../vendor/skills/skills/handbook", mode = "symlink-each" }
-"~/.agents/skills/tool-gateway" = { source = "../../vendor/skills/skills/tool-gateway", mode = "symlink-each" }
+# The skill groups every machine takes, from the h-wb/skills submodule
+# (README.md): one glob per agent folder links each skill of the group as one
+# symlink, so a skill added to the group arrives at the next apply. Claude Code
+# reads ~/.claude/skills; Codex, OpenCode and Vibe ~/.agents/skills. Other
+# skills there (the pods' group from conf.d/paseo, Paseo's, Claude's `synced`)
+# stay. `symlink`, not `symlink-each`: a group's entries are links themselves.
+"~/.claude/skills/*" = { source = "../../vendor/skills/groups/core/*", mode = "symlink" }
+"~/.agents/skills/*" = { source = "../../vendor/skills/groups/core/*", mode = "symlink" }
 
 # The catalogue follows h-wb/skills' main: a merged skill reaches every machine at
 # its next apply and every pod at its next start, with nothing to bump here. A
 # clone, `mise bootstrap --from` included, leaves a submodule empty, so this runs
 # before the links are made. Offline, it keeps the commit it has, or the one
 # recorded here. Only a checkout has a submodule (the tests copy the tree).
+#
+# Then, in the two agent folders only, it clears what would leave a stale skill:
+# - a real directory whose every file links into this repo, left by the old
+#   per-skill `symlink-each` entries: it blocks a group's link without
+#   --force-dotfiles, and workstations apply without it;
+# - a dangling link: a skill that left its group or the catalogue.
+# Anything else there (Paseo's skills, Claude's `synced`) is not ours and stays.
 [bootstrap.hooks.pre-dotfiles]
-description = "Bring the skills catalogue to h-wb/skills main"
+description = "Bring the skills catalogue to h-wb/skills main; clear stale skill links"
 run = '''
-[ -e "{{ vars.repo }}/.git" ] || exit 0
-git -C "{{ vars.repo }}" submodule update --init --remote vendor/skills \
-  || git -C "{{ vars.repo }}" submodule update --init vendor/skills
+repo="{{ vars.repo }}"
+if [ -e "$repo/.git" ]; then
+  git -C "$repo" submodule update --init --remote vendor/skills \
+    || git -C "$repo" submodule update --init vendor/skills
+fi
+real=$(cd "$repo" && pwd -P)
+ours() {
+  [ -L "$1" ] || return 1
+  case $(readlink "$1") in "$repo"/*|"$real"/*) return 0 ;; esac
+  return 1
+}
+for folder in "$HOME/.claude/skills" "$HOME/.agents/skills"; do
+  [ -d "$folder" ] || continue
+  for entry in "$folder"/* "$folder"/.[!.]*; do
+    if [ -L "$entry" ]; then
+      [ -e "$entry" ] || rm -f "$entry"
+    elif [ -d "$entry" ]; then
+      # Every file ours, and at least one: an empty directory is left alone.
+      if find "$entry" ! -type d | {
+        found=no
+        while IFS= read -r file; do ours "$file" || exit 1; found=yes; done
+        [ "$found" = yes ]
+      }; then rm -rf "$entry"; fi
+    fi
+  done
+done
 '''

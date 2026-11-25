@@ -38,11 +38,10 @@ starship = "latest"
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
-# The skills the pods also declare, beside conf.d/ai's, from the same submodule.
-"~/.claude/skills/orchestrate" = { source = "../../vendor/skills/skills/orchestrate", mode = "symlink-each" }
-"~/.claude/skills/paseo-workspace-hygiene" = { source = "../../vendor/skills/skills/paseo-workspace-hygiene", mode = "symlink-each" }
-"~/.agents/skills/orchestrate" = { source = "../../vendor/skills/skills/orchestrate", mode = "symlink-each" }
-"~/.agents/skills/paseo-workspace-hygiene" = { source = "../../vendor/skills/skills/paseo-workspace-hygiene", mode = "symlink-each" }
+# The skill group the pods take beside conf.d/ai's `core`, from the same
+# submodule: the same glob keys in two files both apply.
+"~/.claude/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
+"~/.agents/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
 
 [tasks.bootstrap]
 run = [

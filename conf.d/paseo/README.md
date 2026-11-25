@@ -16,7 +16,7 @@ The [workshops](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md):
 ## What this class gives them
 
 - The agents' tool and memory servers, from `conf.d/ai/mise.paseo.toml` like on every machine: the scope's gateway, its memini and the Chromium sidecar's `chrome-devtools` ([ai](../ai/README.md)).
-- The skills only a pod can use: `mise.paseo.toml` declares `orchestrate` and `paseo-workspace-hygiene` from [h-wb/skills](https://github.com/h-wb/skills), beside the three every machine declares, in the same two folders ([ai](../ai/README.md#skills)). The private pod takes them too.
+- The skills only a pod can use: `mise.paseo.toml` takes the `workshop` group of [h-wb/skills](https://github.com/h-wb/skills) (`orchestrate`, `paseo-workspace-hygiene` today), beside the `core` group every machine takes, in the same two folders ([ai](../ai/README.md#skills)). The private pod takes it too.
 - CLIs (node 24, as 26 needs a library the image lacks), the repos agents work on in `~/Repositories`, `bashrc` and the starship prompt. `trusted_config_paths` covers `~/Repositories` and `~/.paseo/worktrees`, since an untrusted repo config fails every shim run.
 - `[bootstrap.repos]` with a `ref` are put back on their base branch at every start when clean, as agents work in Paseo worktrees. A `ref` makes the init container fetch, so only public repos have one.
 - Git identity: the general pod commits as the bot, the private pod as the owner.
@@ -34,7 +34,7 @@ flowchart LR
 ```
 
 - home-ops' `tools` init container runs `mise bootstrap --from <dotfiles.git> --from-dir ~/.dotfiles --config-dir . --yes --force-dotfiles --skip-dirty --locked`, with no script. The private pod adds `--skip=repos,task`, so it clones no repos and runs no login. mise re-reads `miserc.toml` after the first clone.
-- The clone leaves the `vendor/skills` submodule empty; the `pre-dotfiles` hook in `conf.d/ai` brings it to h-wb/skills main before the skills are linked, so the init container needs GitHub (it has it for the clone). The private pod skips `repos`, not `dotfiles`, so it runs the hook too.
+- The clone leaves the `vendor/skills` submodule empty; the `pre-dotfiles` hook in `conf.d/ai` brings it to h-wb/skills main and clears stale skill links before the groups are linked, so the init container needs GitHub (it has it for the clone). The private pod skips `repos`, not `dotfiles`, so it runs the hook too.
 - `~/.dotfiles` is an `emptyDir`, cloned fresh at every start and read-only in the app container, because `--update` only fast-forwards: an agent's commit there once blocked the pod. Edit dotfiles in `~/Repositories/dotfiles`, in a Paseo worktree.
 - Shims link to the mise that made them, so mise is the jdx/mise image mounted at `/opt/mise` in every container, first on `PATH`. The image tag is the mise version: keep it at or above `min_version`.
 - Never set `MISE_CONFIG_DIR=~/.dotfiles` there: through the real directory, mise rewrites the lock sidecar paths, and the checkout is read-only anyway. The link is enough.

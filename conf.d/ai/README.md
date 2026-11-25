@@ -3,7 +3,7 @@ area: "[[Homelab]]"
 categories:
   - "[[Resources]]"
 reviewed: 2026-11-25
-summary: How the agents' tool and memory servers and keys are defined once here and rendered per scope on every machine, and which skills every machine declares.
+summary: How the agents' tool and memory servers and keys are defined once here and rendered per scope on every machine, and which skill groups every machine takes.
 topics:
   - "[[Workshop]]"
   - "[[Tool gateway]]"
@@ -14,12 +14,12 @@ created: 2026-11-08T15:03
 
 # ai
 
-The tool and memory servers every agent connects to and its keys, defined once for every machine, and the skills every machine declares from [h-wb/skills](https://github.com/h-wb/skills). Which scope may reach what, and why, is the handbook's: [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md), [Tool gateway](https://github.com/h-wb/handbook/blob/main/Systems/Tool%20gateway.md), [Agent memory](https://github.com/h-wb/handbook/blob/main/Systems/Agent%20memory.md). This page is how this folder renders it.
+The tool and memory servers every agent connects to and its keys, defined once for every machine, and the skill groups every machine takes from [h-wb/skills](https://github.com/h-wb/skills). Which scope may reach what, and why, is the handbook's: [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md), [Tool gateway](https://github.com/h-wb/handbook/blob/main/Systems/Tool%20gateway.md), [Agent memory](https://github.com/h-wb/handbook/blob/main/Systems/Agent%20memory.md). This page is how this folder renders it.
 
 `mise.toml` is an env-less folder fragment, so it loads everywhere; a class file adds an agent's config where its path or key source differs.
 
 ```text
-mise.toml              all machines: the scopes, Claude Code, Codex and Vibe (merged), the skills every machine declares
+mise.toml              all machines: the scopes, Claude Code, Codex and Vibe (merged), the skill group every machine takes
 mise.workstation.toml  workstations: public URLs, the agent wrappers, OpenCode's model gateway profile
 mise.personal.toml     MacBook: Claude Desktop's config and the mcp-remote wrapper
 mise.paseo.toml        Paseo pods: in-cluster URLs, OpenCode's config
@@ -84,26 +84,28 @@ This stops the shared server; the wrapper resolves the key at each launch and th
 
 ## Skills
 
-The skills are written once, in [h-wb/skills](https://github.com/h-wb/skills) (its README says how each harness takes them). This repo holds it as the submodule `vendor/skills`, which follows h-wb/skills' `main`, and each place declares the names it takes: one `[dotfiles]` entry per skill and agent folder, `~/.claude/skills/<name>` (Claude Code) and `~/.agents/skills/<name>` (Codex, OpenCode, Vibe), `symlink-each` from `../../vendor/skills/skills/<name>`. Only declared skills are linked; whatever else lives in those folders stays (Paseo installs its own skills there, and Claude keeps `synced`).
+The skills are written once, in [h-wb/skills](https://github.com/h-wb/skills) (its README says how each harness takes them), and come in groups defined there: `groups/<group>/<name>`, a link to the skill. This repo holds the catalogue as the submodule `vendor/skills`, which follows h-wb/skills' `main`, and each place declares the groups it takes: one glob `[dotfiles]` entry per group and agent folder, `~/.claude/skills/*` (Claude Code) and `~/.agents/skills/*` (Codex, OpenCode, Vibe), `symlink` from `../../vendor/skills/groups/<group>/*`. Each skill of the group becomes one link; the same glob key in two files applies both. Only the skills of taken groups are linked; whatever else lives in those folders stays (Paseo installs its own skills there, and Claude keeps `synced`).
 
-| Place | Declares | In |
-| --- | --- | --- |
-| every machine and pod | `handbook`, `board`, `tool-gateway` | `mise.toml` here |
-| the Paseo pods also | `orchestrate`, `paseo-workspace-hygiene` | [paseo](../paseo/README.md) |
+| Place | Takes | Skills today | In |
+| --- | --- | --- | --- |
+| every machine and pod | `core` | `handbook`, `board`, `tool-gateway` | `mise.toml` here |
+| the Paseo pods also | `workshop` | `orchestrate`, `paseo-workspace-hygiene` | [paseo](../paseo/README.md) |
 
 ```mermaid
 flowchart LR
   S["h-wb/skills main"] -->|"submodule"| V["vendor/skills"]
   V -->|"pre-dotfiles hook: git submodule update --init --remote"| C["checked out at main"]
-  D["[dotfiles] entry per declared name"] --> L["~/.claude/skills/&lt;name&gt;, ~/.agents/skills/&lt;name&gt;"]
-  C --> L
+  C -->|"then the hook clears stale links"| K["agent folders without leftovers"]
+  D["[dotfiles] glob per taken group"] --> L["~/.claude/skills/&lt;name&gt;, ~/.agents/skills/&lt;name&gt;"]
+  K --> L
 ```
 
-- A clone leaves a submodule empty and a pull does not move it, `mise bootstrap --from` on the pods included. So a `pre-dotfiles` hook in `mise.toml` runs `git submodule update --init --remote vendor/skills` before the links are made, on every bootstrap and `mise run apply`: the checkout is h-wb/skills' `main` as it is then. Offline it keeps the commit it has, or the one recorded here. The commit recorded in this repo is only that fallback; nothing needs to move it. `.gitmodules` sets `ignore = all` on it, so a checkout ahead of that commit does not show as a change in `git status`.
-- To take a skill, add its two entries in the place's file and run `mise run apply` (the pods take it at their next start). To drop one, remove its entries and delete its two links (`rm -r ~/.claude/skills/<name> ~/.agents/skills/<name>`): mise leaves a link no entry declares any more, `--prune-dotfiles` included.
-- To change a skill or add one to the catalogue, merge a pull request in h-wb/skills: workstations take it at their next `mise run apply`, pods at their next start. Nothing changes here. A new skill reaches an agent only when a place declares it.
-- A procedure for one repo lives in that repo (`.agents/skills/`); the assistant takes its own list from h-wb/skills in home-ops, and its routines live there beside it.
-- `test_skills_are_declared_from_the_catalogue` checks the declared lists and the front matter, `test_only_declared_skills_reach_the_agent_folders` that nothing else is linked, `test_a_fresh_clone_gets_the_catalogue_at_main` the hook.
+- A clone leaves a submodule empty and a pull does not move it, `mise bootstrap --from` on the pods included. So a `pre-dotfiles` hook in `mise.toml` runs `git submodule update --init --remote vendor/skills` before the links are made, on every bootstrap and `mise run apply`: the checkout is h-wb/skills' `main` as it is then. Offline it keeps the commit it has, or the one recorded here. The commit recorded in this repo is only that fallback. `.gitmodules` sets `ignore = all` on it, so a checkout ahead of that commit does not show as a change in `git status`.
+- The same hook then clears, in `~/.claude/skills` and `~/.agents/skills` only: a real directory whose every file links into this repo (what the old per-skill `symlink-each` entries left; it would block a group's link, since workstations apply without `--force-dotfiles`), and a dangling link (a skill that left its group: mise leaves a link no entry makes any more, `--prune-dotfiles` included). A directory holding anything else is not ours and stays.
+- To add a skill to a group, or take it out, merge a pull request in h-wb/skills: workstations follow at their next `mise run apply`, pods at their next start. Nothing changes here. To take another group, add its two glob entries in the place's file.
+- Groups need `mode = "symlink"`: their entries are links, and `symlink-each` over them fails with "Not a directory".
+- A procedure for one repo lives in that repo (`.agents/skills/`); the assistant takes its own groups from h-wb/skills in home-ops, and its routines live there beside it.
+- `test_skills_are_declared_from_the_catalogue` checks the declared groups and the front matter, `test_only_declared_skills_reach_the_agent_folders` that nothing else is linked, `test_group_changes_reach_the_folders_at_the_next_apply` that a skill joining a group arrives and one leaving leaves no link, `test_per_skill_folders_are_migrated_without_force` the cleanup, `test_ai_skills_leave_other_skills_in_the_folder_alone` what stays, `test_a_fresh_clone_gets_the_catalogue_at_main` the update.
 
 ## What home-ops supplies
 
