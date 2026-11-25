@@ -15,8 +15,12 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 "~/.claude/.claude.json/mcp" = { source = "config/claude.json", merge = true, template = "tera" }
 "~/.codex/config.toml/mcp" = { source = "config/codex.toml", merge = true, template = "tera" }
 "~/.vibe/config.toml/mcp" = { source = "config/vibe.toml", merge = true, template = "tera" }
-# The shared skills (README.md): Claude Code reads the first folder; Codex, OpenCode
-# and Vibe the second. symlink-each links our files and leaves what others keep
-# there alone (the pods' own from conf.d/paseo, Paseo's, Claude's `synced`).
-"~/.claude/skills" = { source = "skills", mode = "symlink-each" }
-"~/.agents/skills" = { source = "skills", mode = "symlink-each" }
+"~/.claude/skills/*" = { source = "../../vendor/skills/groups/core/*", mode = "symlink" }
+"~/.agents/skills/*" = { source = "../../vendor/skills/groups/core/*", mode = "symlink" }
+
+[bootstrap.hooks.pre-dotfiles]
+description = "Bring the skills to h-wb/skills main and drop broken skill links"
+run = '''
+[ -e "{{ vars.repo }}/.git" ] && { git -C "{{ vars.repo }}" submodule update --init --remote vendor/skills || git -C "{{ vars.repo }}" submodule update --init vendor/skills; }
+find -L ~/.claude/skills ~/.agents/skills -mindepth 1 -maxdepth 1 -type l -exec rm -f {} + 2>/dev/null || true
+'''

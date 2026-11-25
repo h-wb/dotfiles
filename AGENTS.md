@@ -17,6 +17,7 @@ Private data only reaches models trusted with it; a general agent never reads it
 - `config.toml`: what every machine wants, the Paseo pods included. `config.workstation.toml`: machines a person works at.
 - `conf.d/<folder>/`: one per machine, one per feature. The name says where it loads (`neko/`, `neko-anki/`, `ai/`); `test_conf_d_folder_names_say_where_they_load` enforces it.
 - `home/` the root configs' sources, `scripts/` the installer helpers and `pod-bootstrap`, `tests/test_setup.py` the regressions, `locks/` the lock sidecars.
+- `vendor/skills`: the [h-wb/skills](https://github.com/h-wb/skills) catalogue, a submodule that follows its `main`. A skill and its groups are written there; here a place only declares the groups it takes ([conf.d/ai](conf.d/ai/README.md#skills)). Clone with `--recurse-submodules`, or let the next bootstrap check it out.
 
 ## Test
 
@@ -38,6 +39,7 @@ CI (`.github/workflows/test.yml`) runs the tests on macOS and Linux with the min
 - Commit `mise*.lock` with the `locks/` sidecars; never lock with `--platform`; read `git diff mise*.lock` after a lock ([lockfiles](docs/mise.md#lockfiles)).
 - Keep the shape of `min_version = { hard = "..." }`: `scripts/provision.sh` reads it with `sed`.
 - Never move `conf.d/neko/bin/neko-bootstrap` or `scripts/pod-bootstrap`: they are run by path.
+- Never edit `vendor/skills` here: change the skill or its group in h-wb/skills. Machines and pods take its `main` at their next apply or start; nothing is committed here.
 - A regression caught by hand gets a doctor check or a test.
 
 ## Branch and pull request

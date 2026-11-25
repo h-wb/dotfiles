@@ -38,12 +38,8 @@ starship = "latest"
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }
 "~/.config/starship.toml" = { source = "starship.toml", mode = "symlink" }
-# Skills that only make sense where Paseo runs, beside the shared ones conf.d/ai
-# links into the same two folders (one entry per skill: that target is taken).
-"~/.claude/skills/orchestrate" = { source = "skills/orchestrate", mode = "symlink-each" }
-"~/.claude/skills/paseo-workspace-hygiene" = { source = "skills/paseo-workspace-hygiene", mode = "symlink-each" }
-"~/.agents/skills/orchestrate" = { source = "skills/orchestrate", mode = "symlink-each" }
-"~/.agents/skills/paseo-workspace-hygiene" = { source = "skills/paseo-workspace-hygiene", mode = "symlink-each" }
+"~/.claude/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
+"~/.agents/skills/*" = { source = "../../vendor/skills/groups/workshop/*", mode = "symlink" }
 
 [tasks.bootstrap]
 run = [
