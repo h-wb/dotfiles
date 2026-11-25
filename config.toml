@@ -6,7 +6,7 @@
 
 # scripts/provision.sh reads this line with sed: keep its shape. 2026.11.1 is
 # the first release that expands miserc.toml's [env_sets]: anything older loads
-# a pinned class on its own and drops its layers, silently.
+# a declared set on its own and drops its layers, silently.
 min_version = { hard = "2026.11.1" }
 
 [settings]
@@ -70,15 +70,15 @@ df = "mise -C {{ env.HOME }}/.dotfiles"
 # Each is an invariant this repo has broken before. Fields are templated, so a
 # literal `{{` needs {% raw %}.
 [doctor.checks.wiring]
-description = "~/.config/mise is this repo and a machine class is selected"
-hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; unknown machine: env = [...] in ~/.dotfiles/miserc.local.toml"
+description = "~/.config/mise is this repo and the machine's environment is declared"
+hint = "MISE_CONFIG_DIR=~/.dotfiles mise bootstrap --only dotfiles; declare the environment: DOTFILES_ENV=<set> ~/.dotfiles/install.sh"
 run = '''
 [ -L "$HOME/.config/mise" ] && \
   [ "$(cd "$HOME/.config/mise" && pwd -P)" = "$(cd {{ vars.repo | quote }} && pwd -P)" ] \
 	|| { echo "~/.config/mise is not a symlink to the dotfiles checkout"; exit 1; }
 configs="$(mise config)" || exit 1
 printf '%s\n' "$configs" | grep -qE '(config|mise)\.(personal|neko|cachyos|paseo|code-server)\.toml' \
-	|| { echo "no machine class active — miserc.toml did not recognise this machine"; exit 1; }
+	|| { echo "no environment declared: ~/.dotfiles/miserc.local.toml names none of miserc.toml's [env_sets]"; exit 1; }
 '''
 
 [doctor.checks.file-modes]
@@ -87,8 +87,11 @@ hint = "git update-index --chmod=-x <file> — a template takes its source's mod
 depends = ["wiring"]
 run = '''
 cd "{{ vars.repo }}" || exit 1
+# A pod's ~/.dotfiles is the pinned commit's tarball: the repo's own clone checks it.
+[ -e .git ] || { echo "not a git checkout: nothing to check"; exit 0; }
 index="$(git ls-files -s)" || exit 1
-bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/)' || true)"
+# vendor/ is the skills submodule: h-wb/skills' files, not this repo's.
+bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/|vendor/)' || true)"
 [ -z "$bad" ] || { echo "unexpectedly executable:"; echo "$bad"; exit 1; }
 '''
 
@@ -113,7 +116,9 @@ done
 exit $rc
 '''
 
-# mise only warns on an unknown key, so a typo is silently a no-op.
+# mise only warns on an unknown key, so a typo is silently a no-op. Exempt: the
+# macOS keys newer mise deprecates for [bootstrap.settings.macos], which is
+# experimental and unknown to min_version (no file passes on both).
 [doctor.checks.config-keys]
 description = "committed configs use only keys mise reads, none deprecated"
 hint = "mise config explain --file <file>"
@@ -127,7 +132,8 @@ for f in config.toml config.*.toml conf.d/*.toml conf.d/*/mise.toml conf.d/*/mis
 	if ! output="$(mise config explain --file "$f" 2>&1)"; then
 		printf '%s:\n%s\n' "$f" "$output"; rc=1; continue
 	fi
-	bad="$(printf '%s\n' "$output" | grep -E 'not a key mise reads|deprecated:')" || continue
+	bad="$(printf '%s\n' "$output" | grep -E 'not a key mise reads|deprecated:' |
+		grep -vE '^ *[0-9]+ +bootstrap\.macos\.(defaults|defaults_entries|login_items) +deprecated:')" || continue
 	printf '%s:\n%s\n' "$f" "$bad"; rc=1
 done
 exit $rc

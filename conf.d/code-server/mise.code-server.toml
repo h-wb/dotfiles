@@ -1,30 +1,17 @@
-# The owner's code-server pod (class `code-server` = workstation + pod + fish):
+# The owner's code-server pod (set `code-server` = workstation + pod +
+# nonroot + fish):
 # ghcr.io/coder/code-server, user `coder`. Only what is about this image is
-# here; home-ops' dotfiles Component runs scripts/pod-bootstrap at every start.
+# here; the pod layer has the bootstrap and its doctor check.
 
 # The image has no fish, and the pod cannot keep a system package: fish's own
 # static build, into the home volume.
 [tools]
 "github:fish-shell/fish-shell" = "4.9.3"
-node = "24" # 26 needs libatomic.so.1, which this image lacks (as on the Paseo pods)
 
 [dotfiles]
 # The image's login shell is bash, and /etc does not survive a pod roll: the
 # editor's terminal starts fish here instead. By its install path, not the shim:
 # a shim exits 1 in any folder whose mise config errors, leaving no terminal to
-# fix it from. Machine scope, not
-# User: the settings UI writes User/settings.json, which stays the owner's.
+# fix it from. Machine scope, not User: the settings UI writes
+# User/settings.json, which stays the owner's.
 "~/.local/share/code-server/Machine/settings.json" = { source = "settings.json.tmpl", mode = "template" }
-
-# Here until neko also runs pod-bootstrap; then it moves to the pod layer.
-# The pod always starts, so a failed run only shows here.
-[doctor.checks.pod-bootstrap]
-description = "the last pod start provisioned this pod with secrets"
-hint = "see ~/.local/state/pod-bootstrap.log; rerun with ~/.dotfiles/scripts/pod-bootstrap"
-run = '''
-f="$HOME/.local/state/pod-bootstrap.status"
-[ -f "$f" ] || { echo "no $f: pod-bootstrap has not completed on this pod"; exit 1; }
-read -r result mode _ <"$f"
-[ "$result" = ok ] || { echo "the last pod-bootstrap failed (mode $mode)"; exit 1; }
-[ "$mode" = secrets ] || { echo "the last pod start ran in mode $mode: no Proton Pass session (PROTON_PASS_TOKEN)"; exit 1; }
-'''

@@ -1,45 +1,36 @@
 #!/bin/sh
-# Provision a workstation pod (layer `pod`) whose only persistent state is
-# $HOME. home-ops' dotfiles Component runs this by path at every start, so
-# nothing the bootstrap applies can remove it and a rolled pod comes back
-# provisioned. Picks a mode, then runs `mise bootstrap` (at most twice):
+# Provision a pod (layer `pod`) whose only persistent state is $HOME:
+#   pod-bootstrap ENVIRONMENT        (a set from miserc.toml, then any layers)
+# home-ops' dotfiles Component puts the cluster's pinned commit at ~/.dotfiles,
+# fresh, at every pod start, then runs this by path; this script never fetches.
+# It runs `mise bootstrap` as ENVIRONMENT (--save-env keeps the declaration in
+# miserc.local.toml for the pod's shells) in one of three modes:
 #   secrets  live Proton Pass session (the pod's token logs in without a TTY)
 #   fresh    no session and no secret-derived content to lose
 #   protect  no session and secrets on disk: skip dotfiles, or they render empty
 #
-# Options (defaults are code-server's):
-#   --pull         fast-forward ~/.dotfiles first and re-run from the new
-#                  commit. Off: the run has the owner's token, so a commit only
-#                  arrives when he pulls it (`git -C ~/.dotfiles pull`, then
-#                  `mise run apply`).
-#   --hold FILE    do nothing while FILE exists (parks a pod mid-surgery)
-#   --log NAME     log to ~/.local/state/NAME.log, status in NAME.status
-#                  (default pod-bootstrap)
-#   --timeout SEC  limit for each `mise bootstrap` run (default 1500)
+# What it owns on the volume: ~/.dotfiles (replaced by the Component at every
+# start: edits there do not survive; develop in ~/Repositories/dotfiles; a git
+# clone from before the pin is kept once at ~/.dotfiles.pre-pin), the
+# files the environment's [dotfiles] and [bootstrap] entries name, and
+# ~/.local/state/pod-bootstrap.{log,status}. [bootstrap.repos] are cloned when
+# missing and never touched after. Anything else is left alone; the doctor's
+# `pod-bootstrap` check flags what earlier bootstraps left behind.
+#
 # Only the status line goes to stdout: a pod's own log is readable by the
 # agents' cluster tools, and a failing tool may print what it was rendering.
-# Exit 0 only on success.
+# The status file is `RESULT MODE DATE COMMIT`; RESULT is ok, degraded (no
+# secrets), error, or stale (the commit differs from DOTFILES_REF).
+# Exit 0 only on ok.
 set -u
-
-PULL= HOLD= NAME=pod-bootstrap TIMEOUT=1500
-parse() {
-	while [ $# -gt 0 ]; do
-		case "$1" in
-		--pull) PULL=1 ;;
-		--hold) HOLD="$2"; shift ;;
-		--log) NAME="$2"; shift ;;
-		--timeout) TIMEOUT="$2"; shift ;;
-		*) echo "pod-bootstrap: unknown option $1" >&2; exit 2 ;;
-		esac
-		shift
-	done
-}
-parse "$@"
 
 DOTFILES="${HOME}/.dotfiles"
 STATE="${HOME}/.local/state"
-LOG="${STATE}/${NAME}.log"
-STATUS="${STATE}/${NAME}.status"
+LOG="${STATE}/pod-bootstrap.log"
+STATUS="${STATE}/pod-bootstrap.status"
+TIMEOUT=1500
+
+[ $# -eq 1 ] || { echo "usage: pod-bootstrap ENVIRONMENT" >&2; exit 2; }
 
 # Outer run: everything to the log on the PVC, the status line to stdout.
 if [ -z "${POD_BOOTSTRAP_INNER:-}" ]; then
@@ -52,72 +43,69 @@ if [ -z "${POD_BOOTSTRAP_INNER:-}" ]; then
 fi
 
 MODE=none
-status() { echo "$1 ${MODE} $(date -Is)" >"$STATUS"; }
+COMMIT="$(cat "${DOTFILES}/.pinned-commit" 2>/dev/null || echo unpinned)"
+status() { echo "$1 ${MODE} $(date -Is) ${COMMIT}" >"$STATUS"; }
 fail() { echo "[error] $*"; status error; exit 1; }
 
-echo "=== $(date -Is) pod start ==="
+echo "=== $(date -Is) pod start: $1 at ${COMMIT} ==="
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${PATH}"
 
-[ -d "${DOTFILES}/.git" ] || fail "no ${DOTFILES} checkout"
+[ -f "${DOTFILES}/miserc.toml" ] || fail "no ${DOTFILES} checkout"
 cd "$DOTFILES" || fail "cannot enter ${DOTFILES}"
 . "${DOTFILES}/scripts/provision.sh"
 
-# A file in $HOME, so a pod parked mid-surgery comes back parked.
-if [ -n "$HOLD" ] && [ -e "$HOLD" ]; then
-	echo "[hold] ${HOLD} present — skipping. Remove it and run this again to resume."
-	MODE=hold
-	status ok
-	exit 0
-fi
+use_env "$1" || fail "environment '$1' not usable"
+ENV_SET="${1%%,*}"
 ensure_mise || fail "mise is not usable"
-[ -z "$PULL" ] || pull_dotfiles sh "$0" "$@"
 
 # The checkout directly: on a fresh PVC the ~/.config/mise link doesn't exist yet.
 export MISE_CONFIG_DIR="$DOTFILES"
-# The class's [env] (PROTON_PASS_KEY_PROVIDER above all) before pass-preflight.
-eval "$("$MISE" env --shell bash 2>/dev/null)" || true
 
-# The pod's one token (PROTON_PASS_TOKEN, what repos' `pass:login` reads) is
-# also what logs the default session in.
-PAT="${PASS_CLI_PAT:-${PROTON_PASS_TOKEN:-}}"
-
-pick_mode() {
-	FNOX="$("$MISE" which fnox 2>/dev/null || true)"
-	if [ -n "$FNOX" ] && [ -x "$FNOX" ] &&
-		PASS_CLI_PAT="$PAT" DOTFILES_NO_LOGIN=1 "${DOTFILES}/scripts/pass-preflight"; then
-		MODE=secrets
-	elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
-		[ ! -s "${HOME}/.kube/main.yaml" ] && [ ! -s "${HOME}/.kube/edge.yaml" ]; then
-		MODE=fresh
-	else
-		MODE=protect
-	fi
-}
-
-# --skip-dirty: one repo with uncommitted work would fail the whole run.
-# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/.
-run_bootstrap() {
-	echo "[info] mode: ${MODE}"
-	case "$MODE" in
-	secrets) set -- "$FNOX" --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
-	fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked ;;
-	protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty --locked ;;
-	esac
-	timeout "$TIMEOUT" "$@"
-}
-
-pick_mode
-run_bootstrap || fail "bootstrap failed in mode ${MODE}"
-# The first run installs fnox: with a token that works, apply the secrets now
-# rather than at the next pod start.
-if [ "$MODE" = fresh ] && [ -n "$PAT" ]; then
-	pick_mode
-	[ "$MODE" != secrets ] || run_bootstrap || fail "bootstrap failed in mode ${MODE}"
+# `mise exec`, as install.sh: fnox and pass-cli installed on demand (a fresh
+# volume has neither), under the environment's [env] (PROTON_PASS_KEY_PROVIDER
+# above all). The pod's one token (PROTON_PASS_TOKEN, what repos' `pass:login`
+# reads) is also what logs the default session in.
+set -- "$MISE" exec github:jdx/fnox github:protonpass/pass-cli --
+if PASS_CLI_PAT="${PASS_CLI_PAT:-${PROTON_PASS_TOKEN:-}}" DOTFILES_NO_LOGIN=1 "$@" ./scripts/pass-preflight; then
+	MODE=secrets
+elif ! grep -q "^Host " "${HOME}/.ssh/config" 2>/dev/null &&
+	[ ! -s "${HOME}/.kube/main.yaml" ] && [ ! -s "${HOME}/.kube/edge.yaml" ]; then
+	MODE=fresh
+else
+	MODE=protect
 fi
+
+# A pinned checkout replaces Neko's old shell targets before the secrets check.
+# Repair only those links and retire the old launcher; never render credentials here.
+if [ "$MODE" = protect ] && [ "$ENV_SET" = neko ]; then
+	timeout "$TIMEOUT" "$MISE" dotfiles apply --yes --force \
+		"$HOME/.config/fish/config.fish" "$HOME/.config/starship.toml" \
+		"$HOME/.config/autostart/mise-bootstrap.desktop" "$HOME/.local/bin/neko-bootstrap" ||
+		fail "could not repair the neko shell links"
+fi
+
+# --save-env: written before anything is applied, so a failed run still
+# leaves the pod's shells on its own environment.
+# --skip-dirty: one repo with uncommitted work would fail the whole run.
+# --force-dotfiles: an app may write its own copy first (fish's config.fish).
+# --locked: never rewrite mise.lock / its sidecars — they are committed at locks/.
+echo "[info] mode: ${MODE}"
+case "$MODE" in
+secrets) set -- "$@" fnox --if-missing error exec -c fnox.toml -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked --save-env ;;
+fresh) set -- "$MISE" bootstrap --yes --force-dotfiles --skip-dirty --locked --save-env ;;
+protect) set -- "$MISE" bootstrap --yes --skip dotfiles --skip-dirty --locked --save-env ;;
+esac
+timeout "$TIMEOUT" "$@" || fail "bootstrap failed in mode ${MODE}"
 
 case "$MODE" in
 secrets) echo "[ok] bootstrap applied with secrets" ;;
-fresh) echo "[ok] bootstrap applied without secrets (no PROTON_PASS_TOKEN, or it was rejected)" ;;
-protect) echo "[warn] no Proton Pass session — dotfiles SKIPPED to protect existing copies" ;;
+fresh) echo "[warn] bootstrap applied without a Proton Pass session" ;;
+protect) echo "[warn] no Proton Pass session — secret-backed dotfiles were left alone" ;;
 esac
+if [ -n "${DOTFILES_REF:-}" ] && [ "$DOTFILES_REF" != "$COMMIT" ]; then
+	echo "[warn] applied ${COMMIT}, not the pinned ${DOTFILES_REF} (the fetch failed?)"
+	status stale
+	exit 1
+fi
+[ "$MODE" = secrets ] || { status degraded; exit 1; }
 status ok

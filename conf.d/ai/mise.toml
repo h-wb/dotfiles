@@ -21,6 +21,12 @@ CLAUDE_CONFIG_DIR = "{{ env.HOME }}/.claude"
 [bootstrap.hooks.pre-dotfiles]
 description = "Bring the skills to h-wb/skills main and drop broken skill links"
 run = '''
-[ -e "{{ vars.repo }}/.git" ] && { git -C "{{ vars.repo }}" submodule update --init --remote vendor/skills || git -C "{{ vars.repo }}" submodule update --init vendor/skills; }
+if [ -e "{{ vars.repo }}/.git" ]; then
+  git -C "{{ vars.repo }}" submodule update --init --remote vendor/skills || git -C "{{ vars.repo }}" submodule update --init vendor/skills
+elif [ -z "$(ls -A "{{ vars.repo }}/vendor/skills" 2>/dev/null)" ]; then
+  # A tarball (the pods' pinned commit) has no submodule: clone the catalogue's main. Offline, no skills.
+  m="{{ vars.repo }}/.gitmodules"
+  git clone -q --depth 1 -b "$(git config -f "$m" submodule.vendor/skills.branch)" "$(git config -f "$m" submodule.vendor/skills.url)" "{{ vars.repo }}/vendor/skills" || true
+fi
 find -L ~/.claude/skills ~/.agents/skills -mindepth 1 -maxdepth 1 -type l -exec rm -f {} + 2>/dev/null || true
 '''

@@ -38,7 +38,8 @@ x xfce4-session /startup/gpg-agent/enabled   bool false
 
 # ── Never blank, never lock ────────────────────────────────────────────────
 # Nobody sits at this screen; a blanked display just streams black.
-# (neko-bootstrap's `xset s off -dpms` covers the X server side.)
+# This covers the XFCE daemons; xset the X server itself.
+command -v xset >/dev/null 2>&1 && xset s off -dpms || echo "[warn] could not disable X blanking"
 x xfce4-power-manager /xfce4-power-manager/dpms-enabled              bool false
 x xfce4-power-manager /xfce4-power-manager/blank-on-ac               int  0
 x xfce4-power-manager /xfce4-power-manager/dpms-on-ac-sleep          int  0

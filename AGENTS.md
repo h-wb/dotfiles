@@ -8,12 +8,12 @@ Private data only reaches models trusted with it; a general agent never reads it
 
 ## Where you work
 
-- On a Paseo pod, edit in `~/Repositories/dotfiles`, in a Paseo worktree. `~/.dotfiles` is the pod's live config: read-only, cloned fresh at every start.
+- On a pod (Paseo, neko, code-server), edit in `~/Repositories/dotfiles`, in a Paseo worktree. `~/.dotfiles` is the pod's live config: home-ops' pinned commit, replaced at every start, so an edit there is gone at the next one.
 - Bare `mise bootstrap` applies to the machine you are on. Test in a sandbox `HOME` instead: [docs/mise.md](docs/mise.md#test-a-change-without-touching-the-machine).
 
 ## Layout
 
-- The repo is mise's config directory: `~/.config/mise` links to `~/.dotfiles`. `miserc.toml` picks the machine class and `[env_sets]` its layers ([docs/mise.md](docs/mise.md#how-a-machine-picks-its-files)).
+- The repo is mise's config directory: `~/.config/mise` links to `~/.dotfiles`. The machine's environment is declared by its caller, never detected: `mise bootstrap --save-env` writes it to the untracked `miserc.local.toml`, and `[env_sets]` in `miserc.toml` adds the layers ([docs/mise.md](docs/mise.md#how-a-machine-picks-its-files)).
 - `config.toml`: what every machine wants, the Paseo pods included. `config.workstation.toml`: machines a person works at.
 - `conf.d/<folder>/`: one per machine, one per feature. The name says where it loads (`neko/`, `neko-anki/`, `ai/`); `test_conf_d_folder_names_say_where_they_load` enforces it.
 - `home/` the root configs' sources, `scripts/` the installer helpers and `pod-bootstrap`, `tests/test_setup.py` the regressions, `locks/` the lock sidecars.
@@ -27,7 +27,7 @@ mise tasks validate --errors-only
 mise doctor project                 # on a machine with the repo applied
 ```
 
-CI (`.github/workflows/test.yml`) runs the tests on macOS and Linux with the minimum and the latest mise, then loads and renders the `personal`, `neko`, `cachyos` and `paseo` classes. It fails on `master` today (HOMEL-121), so compare a failure with `master` before blaming your change. Run the tests before each commit. `test_fish_config_loads` needs fish on the machine.
+CI (`.github/workflows/test.yml`) runs the tests on macOS and Linux with the minimum and the latest mise, then loads and renders each of the five classes. It fails on `master` today (HOMEL-121), so compare a failure with `master` before blaming your change. Run the tests before each commit. `test_fish_config_loads` needs fish on the machine.
 
 ## Rules that are easy to break
 
@@ -38,7 +38,8 @@ CI (`.github/workflows/test.yml`) runs the tests on macOS and Linux with the min
 - Only real scripts are committed executable (`install.sh`, `scripts/*`, `conf.d/*/bin/*`): a template takes its source's mode. Doctor `file-modes` checks it.
 - Commit `mise*.lock` with the `locks/` sidecars; never lock with `--platform`; read `git diff mise*.lock` after a lock ([lockfiles](docs/mise.md#lockfiles)).
 - Keep the shape of `min_version = { hard = "..." }`: `scripts/provision.sh` reads it with `sed`.
-- Never move `conf.d/neko/bin/neko-bootstrap` or `scripts/pod-bootstrap`: they are run by path.
+- Never move `scripts/pod-bootstrap`: home-ops runs it by path.
+- Nothing pulls: a person updates a workstation's clone with git, and every pod gets the commit home-ops pins. Don't add a pull, a detection rule or a hold file.
 - Never edit `vendor/skills` here: change the skill or its group in h-wb/skills. Machines and pods take its `main` at their next apply or start; nothing is committed here.
 - A regression caught by hand gets a doctor check or a test.
 
