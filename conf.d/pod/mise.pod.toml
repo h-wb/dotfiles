@@ -2,7 +2,7 @@
 # on a volume, so it is provisioned at every start and may start empty; the
 # pod's seccomp blocks the kernel keyring. home-ops' dotfiles Component checks
 # out the cluster's pinned commit in ~/.dotfiles at every start and runs
-# scripts/pod-bootstrap. Not the Paseo pods: they are not workstations and hold
+# `mise run apply --unattended`. Not the Paseo pods: they are not workstations and hold
 # none of this.
 
 [env]
@@ -19,18 +19,18 @@ dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
 "~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
 
 # The pod always starts, so a failed run only shows here.
-[doctor.checks.pod-bootstrap]
+[doctor.checks.pod-start]
 description = "the last pod start applied the pinned commit with secrets"
-hint = "see ~/.local/state/pod-bootstrap.log; restarting the pod retries"
+hint = "see ~/.local/state/dotfiles.log; restarting the pod retries"
 run = '''
-f="$HOME/.local/state/pod-bootstrap.status"
-[ -f "$f" ] || { echo "no $f: pod-bootstrap has not completed on this pod"; exit 1; }
+f="$HOME/.local/state/dotfiles.status"
+[ -f "$f" ] || { echo "no $f: no apply has completed on this pod"; exit 1; }
 read -r result mode _ commit <"$f"
 case "$result" in
 ok) ;;
 degraded) echo "the last pod start ran in mode $mode: no Proton Pass session"; exit 1 ;;
 stale) echo "the last pod start applied $commit, not the pinned commit (the fetch failed)"; exit 1 ;;
-*) echo "the last pod-bootstrap failed (mode $mode)"; exit 1 ;;
+*) echo "the last apply failed (mode $mode)"; exit 1 ;;
 esac
 case "$mode" in
 secrets) ;;

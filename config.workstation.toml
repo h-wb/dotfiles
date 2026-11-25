@@ -26,22 +26,20 @@ dfa = "mise run apply"
 "~/.kube" = { permissions = "0700" }
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
-# Never bootstrap without a live Proton Pass session: fnox's default
-# `--if-missing warn` would render the secret-gated files EMPTY over the good
-# copies. The preflight is inline (not `depends`) so `pass-cli login` gets the
-# terminal. --force-dotfiles: Linux distros write their own config.fish first.
+# The one bootstrap with secrets, on every workstation; pods run it with
+# --unattended at every start (home-ops). scripts/apply says what happens
+# without a Proton Pass session. Inline preflight there, not `depends`, so
+# `pass-cli login` gets the terminal.
 [tasks.apply]
 description = "Provision this machine (packages, dotfiles, tools, settings) with secrets"
 usage = '''
 flag "--dry-run" help="Only show what would change"
 flag "--upgrade" help="Update mise, then upgrade packages and tools as well"
+flag "--unattended" help="A pod start: no prompt; without a session, apply what needs no secret"
 '''
 dir = "{{ vars.repo }}"
-run = """
-{% if usage.upgrade and not usage.dry_run %}mise self-update --yes || echo "[warn] mise self-update failed; continuing"{% endif %}
-./scripts/pass-preflight || exit 1
-fnox --if-missing error exec -c fnox.toml -- mise bootstrap {% if usage.dry_run %}--dry-run{% else %}--yes{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if os() == "linux" %} --force-dotfiles{% endif %}
-"""
+tools = { "github:jdx/fnox" = "latest", "github:protonpass/pass-cli" = "latest" }
+run = "sh scripts/apply{% if usage.dry_run %} --dry-run{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if usage.unattended %} --unattended{% endif %}"
 
 [tasks.diff]
 description = "Preview what apply would change"

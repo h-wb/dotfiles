@@ -1,9 +1,9 @@
 # The neko/xfce container (set `neko` = workstation + pod + fish): ghcr.io/m1k1o/neko/xfce
 # in k8s, Debian trixie, user `neko`, passwordless sudo, supervisord as pid 1
 # (no systemd). Only /home/neko is on a PVC; /usr and /etc are wiped every pod
-# roll, so apt stays tiny. home-ops fetches the pinned commit before the
-# desktop starts and runs scripts/pod-bootstrap from an XFCE autostart entry,
-# inside the session, where neko:xfce can reach xfconfd.
+# roll, so apt stays tiny. home-ops checks out the pinned commit before the
+# desktop starts and runs `mise run apply --unattended` from an XFCE autostart
+# entry, inside the session, where neko:xfce can reach xfconfd.
 
 # ── Tools, including the GUI apps ───────────────────────────────────────────
 # Not brew, apt or flatpak: they install outside the PVC, or (flatpak) need a
@@ -59,7 +59,7 @@ TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
 "~/.git-credentials" = { mode = "absent" }
 
 # ── Repos ───────────────────────────────────────────────────────────────────
-# neko only: on a Mac these checkouts hold real work. pod-bootstrap passes
+# neko only: on a Mac these checkouts hold real work. apply --unattended passes
 # --skip-dirty, or one dirty repo would stop the desktop provisioning.
 [bootstrap.repos]
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }

@@ -27,17 +27,17 @@ How this fits with the other repos is in the [handbook](https://github.com/h-wb/
 | Class | Machine | Declared by | Layers | Page |
 | --- | --- | --- | --- | --- |
 | `personal` | the MacBook | `DOTFILES_ENV=personal install.sh`, once | `workstation` | [macos](conf.d/macos/README.md) |
-| `neko` | an XFCE desktop in a pod ([neko](https://github.com/m1k1o/neko)) | home-ops, `scripts/pod-bootstrap neko` | `workstation`, `pod`, `fish` | [neko](conf.d/neko/README.md) |
+| `neko` | an XFCE desktop in a pod ([neko](https://github.com/m1k1o/neko)) | home-ops (`components/dotfiles`) | `workstation`, `pod`, `fish` | [neko](conf.d/neko/README.md) |
 | `cachyos` | a CachyOS KDE gaming desktop | `DOTFILES_ENV=cachyos install.sh`, once | `workstation`, `fish` | [cachyos](conf.d/cachyos/README.md) |
 | `paseo` | the headless coding-agent pods | home-ops, `mise -E paseo,paseo-overlay bootstrap` | `nonroot` | [paseo](conf.d/paseo/README.md) |
-| `code-server` | the owner's browser editor in a pod | home-ops, `scripts/pod-bootstrap code-server` | `workstation`, `pod`, `nonroot`, `fish` | [code-server](conf.d/code-server/README.md) |
+| `code-server` | the owner's browser editor in a pod | home-ops (`components/dotfiles`) | `workstation`, `pod`, `nonroot`, `fish` | [code-server](conf.d/code-server/README.md) |
 
 What several classes share is a layer, not a copy in each:
 
 | Layer | Holds |
 | --- | --- |
 | `workstation` (`config.workstation.toml`) | what assumes a person and a Proton Pass session: credentialed CLIs (aws, bws, metabase), the `apply`, `diff`, `upgrade` and `land` tasks, both kubeconfigs |
-| `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, the repos a fresh volume needs, doctor `pod-bootstrap`. The Paseo pods do not load it |
+| `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, the repos a fresh volume needs, doctor `pod-start`. The Paseo pods do not load it |
 | `nonroot` (`conf.d/nonroot/`) | a pod on someone else's image without root: node 24, as 26 needs `libatomic.so.1`, which neither image has |
 | `fish` (`conf.d/fish/`) | one `config.fish`, the starship prompt and `ef`; not the fish binary. A machine's own lines go in `conf.d/<machine>/fish/<machine>.fish`, linked into `~/.config/fish/conf.d/` |
 
@@ -69,7 +69,7 @@ conf.d/                  one folder per machine, and the features
   code-server/           the code-server pod: the fish binary and its editor settings
 home/                    sources for the root configs (git, ssh, kube)
 fnox.toml                Proton Pass references for provisioning (no values); the agents' own are in conf.d/ai/
-scripts/                 install helpers, the Proton Pass preflight, pod-bootstrap, land
+scripts/                 the apply task's body, the Proton Pass preflight, land
 tests/                   regressions, run in throwaway homes
 docs/                    how this repo uses mise
 vendor/skills/           the skills catalogue, h-wb/skills, a submodule that follows its main
@@ -83,9 +83,9 @@ A folder's name says where it loads: a machine's folder is named like its enviro
 sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/master/install.sh)"
 ```
 
-Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos` the first time; `mise bootstrap --save-env` keeps it in `miserc.local.toml`, so later runs need it only to change it. On a Mac, sign in to iCloud and the App Store first. The installer clones to `~/.dotfiles` (an existing checkout is used as it is: update it with git), installs mise or updates it to `min_version`, and runs `mise bootstrap` under fnox after the preflight.
+Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos` the first time; `mise bootstrap --save-env` keeps it in `miserc.local.toml`, so later runs need it only to change it. On a Mac, sign in to iCloud and the App Store first. The installer installs mise where it is missing, then runs the two steps every machine runs ([docs/mise.md](docs/mise.md#one-bootstrap-two-steps)): `mise bootstrap --from` clones to `~/.dotfiles` (an existing checkout is used as it is: update it with git) and saves the environment, then `mise run apply` provisions with secrets.
 
-The pods do not use it. home-ops fetches one pinned commit of this repo at every pod start (`DOTFILES_REF`, bumped by reviewed Renovate pull requests) and declares the pod's environment; their pages say how. A pod's `~/.dotfiles` is checked out again at every start, so edit this repo in `~/Repositories/dotfiles` there.
+The pods run the same two steps from home-ops at every start, at one pinned commit of this repo (`DOTFILES_REF`, bumped by reviewed Renovate pull requests) and with the pod's declared environment; their pages say how. A pod's `~/.dotfiles` is checked out again at every start, so edit this repo in `~/Repositories/dotfiles` there.
 
 ## Everyday use
 

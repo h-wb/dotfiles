@@ -6,7 +6,8 @@
 # `pass-cli login` unless DOTFILES_NO_LOGIN is set or stdin is not a TTY.
 set -u
 
-MISE="${MISE:-$HOME/.local/bin/mise}"
+# The pods run mise from an image (/opt/mise), workstations from ~/.local/bin.
+MISE="${MISE:-$(command -v mise 2>/dev/null || echo "$HOME/.local/bin/mise")}"
 
 # pass-cli is a [tools] entry, so it may not be installed yet on a fresh machine.
 pass_cli() {
