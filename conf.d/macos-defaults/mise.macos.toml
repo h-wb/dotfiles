@@ -54,13 +54,6 @@ TrackpadThreeFingerDrag = false
 Clicking = true
 TrackpadThreeFingerDrag = false
 
-[bootstrap.macos.defaults."com.hegenberg.BetterTouchTool"]
-BTTDisabledLegacyUI = 1
-BTTForcedHidden = 0                          # show menubar icon
-BTTThreeFingerDragCompatibilityMode = 1
-BTTRemoteEnabled = 0
-BTTTouchBarVisible = 0
-
 [bootstrap.macos.defaults."com.apple.desktopservices"]
 DSDontWriteNetworkStores = true             # no .DS_Store on network/USB
 DSDontWriteUSBStores = true
@@ -87,7 +80,7 @@ raycastGlobalHotkey = "Command-49"           # Cmd-Space
 
 # ── What the scalar table cannot express ────────────────────────────────────
 # `path` sets one key inside a shared dict (components are literal, dots are not
-# separators); `host = "current"` is -currentHost. No killall: Raycast/Switch/BTT
+# separators); `host = "current"` is -currentHost. No killall: Raycast/Switch
 # would be quit and left dead, so changes land on next launch.
 
 # Empty the Dock.

@@ -55,7 +55,7 @@ conf.d/                  one folder per machine, and the features
   proton-pass/           every machine: the named-session login task other repos extend
   pod/                   layer: a workstation in a pod (neko, code-server)
   fish/                  layer: config.fish and the starship prompt (code-server)
-  macos/                 the Macs: apps, zsh, ssh agent, WireGuard, BetterTouchTool; the MacBook's own packages
+  macos/                 the Macs: apps, zsh, ssh agent, WireGuard; the MacBook's own packages
   macos-defaults/        `defaults write`, declared
   macos-k8s-dns/         which cluster resolves the internal zone (MacBook)
   macos-miroir-collector/ the device collector, hourly, with Proton Pass tokens (MacBook)
