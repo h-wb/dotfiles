@@ -87,6 +87,7 @@ This stops the shared server; the wrapper resolves the key at each launch and th
 
 `skills/<name>/SKILL.md` holds habits that are true on every machine, in the Agent Skills format (`name` and `description` in the front matter; the description is what an agent reads to decide whether to load the rest). `mise.toml` links each one into `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex, OpenCode, Vibe) with `symlink-each`, so whatever else lives there stays: Paseo installs its own skills there, and Claude keeps `synced`.
 
+- Three today: `tool-gateway` (reach a tool), `handbook` (find the page that answers, keep pages true) and `board` (read and update the build board). The two last are maps, not copies: they say where to look and hold no rule the handbook states, so they stay short and stay true. The handbook's [Workshop](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md#how-the-rules-reach-everything) says why.
 - Only general habits belong here: nothing private, no domain, no secrets.
 - A procedure for one repo lives in that repo (`.agents/skills/`); the assistant's routines live in home-ops beside the assistant.
 - A skill that only makes sense where Paseo runs lives in `conf.d/paseo/skills/`, linked into the same two folders on the pods only ([paseo](../paseo/README.md)).
