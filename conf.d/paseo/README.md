@@ -17,7 +17,7 @@ The [workshops](https://github.com/h-wb/handbook/blob/main/Systems/Workshop.md):
 
 - The agents' tool and memory servers, from `conf.d/ai/mise.paseo.toml` like on every machine: the scope's gateway, its memini and the Chromium sidecar's `chrome-devtools` ([ai](../ai/README.md)).
 - The skills only a pod can use: `mise.paseo.toml` takes the `workshop` group of [h-wb/skills](https://github.com/h-wb/skills) (`orchestrate`, `paseo-workspace-hygiene` today), beside the `core` group every machine takes, in the same two folders ([ai](../ai/README.md#skills)). The private pod takes it too.
-- CLIs (node 24 from `config.toml`, as 26 needs a library the image lacks), the repos agents work on in `~/Repositories`, `bashrc` and the starship prompt. `trusted_config_paths` covers `~/Repositories` and `~/.paseo/worktrees`, since an untrusted repo config fails every shim run.
+- CLIs (node 24 from `config.toml`, as 26 needs a library the image lacks), the repos agents work on in `~/Repositories`, `bashrc` and the starship prompt. `trusted_config_paths` covers `~/Repositories` and `~/.paseo/worktrees`, since an untrusted repo config fails every shim run. Vibe trusts the same two folders (`~/.vibe/trusted_folders.toml`): it reads a repo's `AGENTS.md` and skills only in a trusted folder, and over ACP nobody answers its prompt.
 - `[bootstrap.repos]` with a `ref` are put back on their base branch at every start when clean, as agents work in Paseo worktrees. A `ref` makes the init container fetch, so only public repos have one.
 - Git identity: the general pod commits as the bot, the private pod as the owner.
 - Proton Pass: one session per scope, `paseo-<scope>`, logged in by `paseo:pass-login`, which extends the shared template ([proton-pass](../proton-pass/README.md)).
