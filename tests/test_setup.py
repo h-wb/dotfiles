@@ -1198,6 +1198,19 @@ printf '%s\\n' 'cp "$HOME/fake-mise" "$HOME/.local/bin/mise"' > "$2"
         self.assertIn("cachyos-config.fish", machine_file.read_text())
         self.assertIn("dotfiles_native_prompt", machine_file.read_text())
 
+    def test_pods_put_the_image_mise_on_fishs_path(self):
+        # code-server's terminals start from a login bash, whose /etc/profile drops /opt/mise.
+        link = self.home / ".config/fish/conf.d/pod.fish"
+        for machine, linked in (("neko", True), ("code-server", True), ("cachyos", False)):
+            with self.subTest(machine=machine):
+                link.unlink(missing_ok=True)
+                self.select(machine)
+                self.mise("bootstrap", "dotfiles", "apply", "--yes", "--force")
+                self.assertEqual(linked, link.is_symlink())
+                if linked:
+                    self.assertEqual(self.repo / "conf.d/pod/fish/pod.fish", link.resolve())
+                    self.assertIn("fish_add_path -g /opt/mise/usr/local/bin\n", link.read_text())
+
     def test_fish_config_loads(self):
         # The fish layer's config.fish, in both branches: scripts get mise's shims,
         # an interactive shell activates mise (starship only once installed).

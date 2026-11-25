@@ -18,7 +18,7 @@ home-ops' `dotfiles` Component ([README](https://github.com/h-wb/home-ops/blob/m
 1. The checkout: `mise -E code-server bootstrap --from …?ref=<pin> --update --save-env --only final-hook` moves the `~/.dotfiles` clone to the pinned commit (cloning it on a fresh volume) and saves the environment. A local change stops the move; the pod then runs the previous commit and reports it `stale`.
 2. `mise run apply --unattended`. With a live Proton Pass session it applies everything under fnox. Without one it applies what needs no secret: `fresh` on a new volume, or `protect`, without dotfiles, once secrets are on disk.
 
-- mise comes from the `ghcr.io/jdx/mise` image, mounted at `/opt/mise` and first on `PATH` in both containers, because the shims point at it. Its tag must stay at or above `min_version`.
+- mise comes from the `ghcr.io/jdx/mise` image, mounted at `/opt/mise` and first on `PATH` in both containers, because the shims point at it. Its tag must stay at or above `min_version`. The editor builds its terminals from a login `bash`, whose `/etc/profile` drops `/opt/mise` from `PATH`, so layer `pod` links `fish/pod.fish` into fish's `conf.d/` to put it back.
 - The log is `~/.local/state/dotfiles.log`, and the status `~/.local/state/dotfiles.status`, `RESULT MODE DATE COMMIT`: `ok`, `degraded` without secrets, `error`, or `stale`. Doctor `pod-start` (layer `pod`) reads it. Only the status line reaches the init container's log, since pod logs are readable by the agents' cluster tools.
 - Edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones (the `dotfiles` alias opens it).
 

@@ -4,6 +4,9 @@
 # pass-cli keeps its key in the kernel keyring by default; `fs` keeps it on the PVC.
 PROTON_PASS_KEY_PROVIDER = "fs"
 
+[dotfiles]
+"~/.config/fish/conf.d/pod.fish" = { source = "fish/pod.fish", mode = "symlink" }
+
 [shell_alias]
 # Not ~/.dotfiles: the next pod start moves it back to the pin.
 dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
