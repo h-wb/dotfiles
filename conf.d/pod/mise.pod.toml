@@ -1,24 +1,18 @@
-# Layer `pod`: a workstation in a k8s pod (neko, code-server). Only $HOME is
-# on a volume, so it is provisioned at every start and may start empty; the
-# pod's seccomp blocks the kernel keyring. home-ops' dotfiles Component checks
-# out the cluster's pinned commit in ~/.dotfiles at every start and runs
-# `mise run apply --unattended`. Not the Paseo pods: they are not workstations and hold
-# none of this.
+# Layer `pod`: a workstation in a k8s pod (neko, code-server), not the Paseo pods.
 
 [env]
 # pass-cli keeps its key in the kernel keyring by default; `fs` keeps it on the PVC.
 PROTON_PASS_KEY_PROVIDER = "fs"
 
 [shell_alias]
-# ~/.dotfiles is replaced at every pod start: edit, commit and push here.
+# Not ~/.dotfiles: the next pod start moves it back to the pin.
 dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
 
-# A fresh volume starts without the repos every pod works on.
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
 
-# The pod always starts, so a failed run only shows here.
+# A pod starts even when its apply fails: this is where that shows.
 [doctor.checks.pod-start]
 description = "the last pod start applied the pinned commit with secrets"
 hint = "see ~/.local/state/dotfiles.log; restarting the pod retries"

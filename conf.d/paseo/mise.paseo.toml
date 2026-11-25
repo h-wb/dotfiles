@@ -1,4 +1,4 @@
-# Paseo agent pods (home-ops kubernetes/apps/main/llm/paseo).
+# The Paseo pods (README.md).
 
 [settings]
 # Untrusted repo configs fail every shim run there.

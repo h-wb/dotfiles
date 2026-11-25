@@ -1,6 +1,4 @@
-# Layer `nonroot`: a pod that runs someone else's image without root (the
-# Paseo pods, code-server), so a library the image lacks can never be added.
-# Pin here, once, what such an image can run.
+# Layer `nonroot`: pods on someone else's image, without root to add a library.
 
 [tools]
 node = "24" # 26 needs libatomic.so.1, which neither image has

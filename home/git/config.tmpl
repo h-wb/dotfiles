@@ -42,8 +42,7 @@
 	wd = diff --patience --word-diff
 [init]
 	defaultBranch = main
-{#- By the declared environment (miserc.local.toml), never by path or OS. None
-    declared: mise_env is undefined. #}
+{#- By the declared environment, never by OS; undefined when none is. #}
 {%- set envs = mise_env | default(value=[]) %}
 {% if 'neko' in envs %}
 # neko: token from Proton Pass on demand (conf.d/neko/bin/git-credential-fnox).

@@ -1,22 +1,5 @@
 #!/bin/sh
-# `mise run apply`: the bootstrap with secrets, the same on every workstation
-# (the Mac, CachyOS, neko, code-server). The checkout, the ~/.config/mise link
-# and the declared environment come before, from `mise bootstrap --from`
-# (install.sh, or home-ops on the pods). Run from the checkout.
-#   --dry-run     only show what would change (templates are not rendered)
-#   --upgrade     update mise, then upgrade packages and tools as well
-#   --unattended  a pod start: never prompt, never stop on a dirty repo, and
-#                 without a Proton Pass session apply what needs no secret
-# A dead session must never render the secret-gated files empty over the good
-# copies (fnox's default is a warning), so without one:
-#   a person      stops at the preflight
-#   fresh         unattended, nothing secret on disk yet (a new volume):
-#                 everything, its secret-gated files empty, so a new home
-#                 still gets its shell
-#   protect       unattended, secrets on disk: everything but dotfiles
-# The last result is ~/.local/state/dotfiles.status, `RESULT MODE DATE COMMIT`:
-# ok, degraded (no secrets), error, or stale (not the commit in DOTFILES_REF).
-# Exit 0 only on ok.
+# `mise run apply`; see docs/mise.md, "One bootstrap, two steps".
 set -u
 
 dry= upgrade= unattended=
@@ -31,7 +14,7 @@ done
 
 STATUS="${HOME}/.local/state/dotfiles.status"
 MODE=none
-# neko's session has no git before its apt step; a pinned checkout is detached.
+# neko's session has no git before its apt step.
 COMMIT="$(git rev-parse HEAD 2>/dev/null)" || COMMIT=
 [ -n "$COMMIT" ] || { read -r COMMIT <.git/HEAD; } 2>/dev/null || COMMIT=unknown
 status() {
@@ -43,8 +26,6 @@ if [ -n "$upgrade" ] && [ -z "$dry" ]; then
 	mise self-update --yes || echo "[warn] mise self-update failed; continuing"
 fi
 
-# The pod's one token (PROTON_PASS_TOKEN, what repos' `pass:login` reads) also
-# logs the default session in.
 [ -z "$unattended" ] || export DOTFILES_NO_LOGIN=1 PASS_CLI_PAT="${PASS_CLI_PAT:-${PROTON_PASS_TOKEN:-}}"
 if ./scripts/pass-preflight; then
 	MODE=secrets
@@ -59,13 +40,10 @@ else
 fi
 echo "[info] mode: ${MODE}"
 
-# --force-dotfiles: Linux distros and images write their own config.fish first.
-# --skip-dirty: one repo with uncommitted work must not stop a pod.
-# --locked: a pod never rewrites mise.lock or its sidecars.
 if [ -n "$dry" ]; then set -- --dry-run; else set -- --yes; fi
 [ -z "$upgrade" ] || set -- "$@" --upgrade
 [ -z "$unattended" ] || set -- "$@" --skip-dirty --locked
-force=
+force= # Linux distros and images write their own config.fish first.
 [ "$(uname -s)" != Linux ] || force=--force-dotfiles
 case "$MODE" in
 secrets) fnox --if-missing error exec -c fnox.toml -- mise bootstrap "$@" $force ;;

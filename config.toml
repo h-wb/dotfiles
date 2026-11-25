@@ -4,9 +4,7 @@
 # ~/.config/mise is a symlink to this repo (first [dotfiles] entry), so mise
 # reads these files under their native names.
 
-# 2026.11.1 is the first release that expands miserc.toml's [env_sets]:
-# anything older loads a declared set on its own and drops its layers,
-# silently. Pods pin mise by image tag; a person updates with `mise self-update`.
+# The first release that expands [env_sets]; older ones drop the layers silently.
 min_version = { hard = "2026.11.1" }
 
 [settings]
@@ -88,7 +86,7 @@ depends = ["wiring"]
 run = '''
 cd "{{ vars.repo }}" || exit 1
 index="$(git ls-files -s)" || exit 1
-# vendor/ is the skills submodule: h-wb/skills' files, not this repo's.
+# vendor/: the skills submodule.
 bad="$(printf '%s\n' "$index" | awk '$1 != "100644"' | grep -vE '	(install\.sh|scripts/|conf\.d/[^/]+/bin/|vendor/)' || true)"
 [ -z "$bad" ] || { echo "unexpectedly executable:"; echo "$bad"; exit 1; }
 '''
@@ -114,9 +112,8 @@ done
 exit $rc
 '''
 
-# mise only warns on an unknown key, so a typo is silently a no-op. Exempt: the
-# macOS keys newer mise deprecates for [bootstrap.settings.macos], which is
-# experimental and unknown to min_version (no file passes on both).
+# Exempt: the macOS keys mise 2026.11.8 deprecates for an experimental
+# replacement min_version does not know, so no file passes on both.
 [doctor.checks.config-keys]
 description = "committed configs use only keys mise reads, none deprecated"
 hint = "mise config explain --file <file>"

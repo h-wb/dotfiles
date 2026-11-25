@@ -26,10 +26,7 @@ dfa = "mise run apply"
 "~/.kube" = { permissions = "0700" }
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
-# The one bootstrap with secrets, on every workstation; pods run it with
-# --unattended at every start (home-ops). scripts/apply says what happens
-# without a Proton Pass session. Inline preflight there, not `depends`, so
-# `pass-cli login` gets the terminal.
+# home-ops runs `apply --unattended`: keep the name and flags.
 [tasks.apply]
 description = "Provision this machine (packages, dotfiles, tools, settings) with secrets"
 usage = '''
@@ -38,8 +35,7 @@ flag "--upgrade" help="Update mise, then upgrade packages and tools as well"
 flag "--unattended" help="A pod start: no prompt; without a session, apply what needs no secret"
 '''
 dir = "{{ vars.repo }}"
-# No `tools =`: `mise run` installs the machine's tools first, fnox and pass-cli
-# included, and a task's own tools would be locked again in this file's lock.
+# No `tools =`: they would be locked again here, dirtying a pod's checkout.
 run = "sh scripts/apply{% if usage.dry_run %} --dry-run{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if usage.unattended %} --unattended{% endif %}"
 
 [tasks.diff]

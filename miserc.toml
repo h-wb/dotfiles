@@ -4,13 +4,8 @@ env_conf_d = true
 
 auto_env = true
 
-# The machine's environment is declared, never detected: its caller names it
-# (install.sh from DOTFILES_ENV, home-ops for the pods) with
-# `mise -E <env> bootstrap --from … --save-env`, which writes
-# miserc.local.toml. It names one set below and may add layers after it
-# (`env = ["paseo", "paseo-overlay"]`).
-# Nothing declared: only config.toml and the shared folders load, and the
-# doctor's `wiring` check fails. Needs mise >= 2026.11.1, like min_version.
+# Declared by the caller in miserc.local.toml (`mise bootstrap --save-env`), never
+# detected: one set below, then any extra layers.
 [env_sets]
 personal = ["workstation", "personal"]
 neko = ["workstation", "pod", "fish", "neko"]
