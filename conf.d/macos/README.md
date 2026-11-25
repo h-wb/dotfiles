@@ -19,7 +19,6 @@ created: 2026-11-24T20:45
 | `conf.d/macos-defaults/` | any Mac | `defaults write`, declared |
 | `conf.d/macos-k8s-dns/` | the MacBook | which cluster resolves the internal zone |
 | `conf.d/macos-miroir-collector/` | the MacBook | the [device collector](https://github.com/h-wb/handbook/blob/main/Systems/Device%20collector.md), hourly |
-| `conf.d/ai/mise.personal.toml` | the MacBook | Claude Desktop's tool servers ([ai](../ai/README.md)) |
 
 ## Packages
 

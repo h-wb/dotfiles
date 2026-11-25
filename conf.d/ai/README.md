@@ -21,7 +21,6 @@ The tool and memory servers every agent connects to and its keys, defined once f
 ```text
 mise.toml              all machines: the scopes, Claude Code, Codex and Vibe (merged), the skill group every machine takes
 mise.workstation.toml  workstations: public URLs, the agent wrappers, OpenCode's model gateway profile
-mise.personal.toml     MacBook: Claude Desktop's config and the mcp-remote wrapper
 mise.paseo.toml        Paseo pods: in-cluster URLs, OpenCode's config
 fnox.toml              the agents' only secrets, one profile per scope plus OpenCode's
 config/                the agents' config templates
@@ -33,7 +32,7 @@ Each agent's scope decides both its servers and its keys: a `*_scope` var in `mi
 
 | Scope | Agents | Rendered servers |
 | --- | --- | --- |
-| `general` | Claude Code, Claude Desktop, Codex | `toolhive` on the general gateway, `memini` on memini-general |
+| `general` | Claude Code, Codex | `toolhive` on the general gateway, `memini` on memini-general |
 | `private` | Vibe | `toolhive` on the private gateway, `memini` on memini-private |
 
 ```mermaid
@@ -63,14 +62,14 @@ Never committed. Workstations build the public URLs from `SECRET_DOMAIN`, which 
 
 No rendered file holds a key. Off the cluster, every agent reads its gateway key from `MCP_API_KEY` and memini's from `MEMINI_API_KEY`, whatever its scope.
 
-- Workstations: mise `[wrappers]` for `claude`, `codex`, `vibe`, `opencode` and (MacBook) `mcp-remote` run them under `fnox -c conf.d/ai/fnox.toml -P <profile> exec`, so changing a scope moves servers and keys together. The wrappers intercept at PATH level, so a launch from a shell, a script, an IDE or launchd is covered alike ([docs/mise.md](../../docs/mise.md#behaviour-worth-knowing)).
+- Workstations: mise `[wrappers]` for `claude`, `codex`, `vibe` and `opencode` run them under `fnox -c conf.d/ai/fnox.toml -P <profile> exec`, so changing a scope moves servers and keys together. The wrappers intercept at PATH level, so a launch from a shell, a script, an IDE or launchd is covered alike ([docs/mise.md](../../docs/mise.md#behaviour-worth-knowing)).
 - The explicit `-c` turns off fnox's directory search, so neither the repo's `fnox.toml` nor a project's reaches an agent. A global `~/.config/fnox/config.toml` would still load, so none is kept.
 - Every profile defines every variable, so one the parent shell exports is always replaced; a variable a profile must not pass is `env = false`.
 - For the scoped agents a missing or dead Proton Pass item fails only that server (`--if-missing warn`). OpenCode's profile uses `--if-missing error`, as without its key it has no model.
 - Pods: no gateway key. They call the gateways' in-cluster services (`mcp_auth = "network"`), and home-ops admits only that scope's pod. `MEMINI_API_KEY` comes from the pod env. The addresses default to today's services and the pod env can set them (`TOOLHIVE_URL`, `MEMINI_BASE_URL`, `CHROME_CDP_URL`), so renaming a service needs no change here.
 - Not covered: a client that runs its own bundled copy of an agent instead of the one on PATH.
 
-Ruled out for passing keys: `[shell_alias]` (interactive shells only, not IDEs or launchd), Claude's `headersHelper` (Claude only), `fnox proxy` (starts the program itself, so not Desktop; intercepts all agent traffic; refuses the gateway's private address without `allow_private`), `fnox activate` (the keys in every shell's env).
+Ruled out for passing keys: `[shell_alias]` (interactive shells only, not IDEs or launchd), Claude's `headersHelper` (Claude only), `fnox proxy` (starts the program itself; intercepts all agent traffic; refuses the gateway's private address without `allow_private`), `fnox activate` (the keys in every shell's env).
 
 ## OpenCode on a workstation
 
