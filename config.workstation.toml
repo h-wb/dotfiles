@@ -38,7 +38,8 @@ flag "--upgrade" help="Update mise, then upgrade packages and tools as well"
 flag "--unattended" help="A pod start: no prompt; without a session, apply what needs no secret"
 '''
 dir = "{{ vars.repo }}"
-tools = { "github:jdx/fnox" = "latest", "github:protonpass/pass-cli" = "latest" }
+# No `tools =`: `mise run` installs the machine's tools first, fnox and pass-cli
+# included, and a task's own tools would be locked again in this file's lock.
 run = "sh scripts/apply{% if usage.dry_run %} --dry-run{% endif %}{% if usage.upgrade %} --upgrade{% endif %}{% if usage.unattended %} --unattended{% endif %}"
 
 [tasks.diff]
