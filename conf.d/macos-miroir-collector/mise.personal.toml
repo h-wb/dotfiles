@@ -20,8 +20,8 @@ content = '''
       "receive_url": {{ ('https://miroir.' ~ secret(name="miroir_collector_zone") ~ '/api/connections/screen_macbook/receive') | json_encode }},
       "token_env": "MIROIR_TOKEN_SCREEN_MACBOOK",
       "options": {
-        "data_dir": "~/Nextcloud/Hugo/Images/ScreenMemory/ScreenMemoryData",
-        "since": "2026-10-20",
+        "data_dir": "~/ScreenMemory/ScreenMemoryData",
+        "since": "2025-10-01",
         "media": true
       }
     },

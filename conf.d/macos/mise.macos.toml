@@ -56,7 +56,8 @@ apps = ["/Applications/Raycast.app", "/Applications/Switch.app"]
 "~/.zshrc"      = { source = "zsh/zshrc", mode = "symlink" }
 "~/.zshenv"     = { source = "zsh/zshenv", mode = "symlink" }
 "~/.p10k.zsh"   = { source = "zsh/p10k.zsh", mode = "symlink" }
-"~/.config/zsh" = { source = "zsh/config", mode = "symlink" }   # exports.zsh + completions/
+"~/.config/zsh" = { source = "zsh/config", mode = "symlink" }
+"~/.config/ghostty/config.ghostty" = { source = "ghostty/config.ghostty", mode = "symlink" }
 # Renders empty without vars.wg0_home_conf (fnox).
 "~/.config/wireguard/wg0.home.conf" = { source = "wireguard/wg0.home.conf.tmpl", mode = "template", permissions = "0600" }
 
