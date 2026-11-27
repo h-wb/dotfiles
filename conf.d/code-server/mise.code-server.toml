@@ -8,3 +8,4 @@
 # Fish by its install path, not the shim: a shim exits 1 in a folder whose mise
 # config errors, leaving no terminal. Machine scope: User is the settings UI's.
 "~/.local/share/code-server/Machine/settings.json" = { source = "settings.json.tmpl", mode = "template" }
+"~/.config/fish/conf.d/code-server.fish" = { source = "fish/code-server.fish", mode = "symlink" }

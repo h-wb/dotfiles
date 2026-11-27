@@ -1183,6 +1183,7 @@ printf '%s\\n' 'cp "$HOME/fake-mise" "$HOME/.local/bin/mise"' > "$2"
                          (self.repo / "conf.d/fish/config.fish").resolve())
         self.assertEqual((self.home / ".config/starship.toml").resolve(),
                          (self.repo / "conf.d/fish/starship.toml").resolve())
+        self.assertIn("/opt/mise/usr/local/bin", (self.home / ".config/fish/conf.d/code-server.fish").read_text())
         self.assertFalse((self.home / ".zshrc").exists())
 
     def test_neko_and_cachyos_use_the_fish_layer(self):
