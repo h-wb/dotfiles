@@ -55,7 +55,7 @@ dscacheutil -flushcache; sudo killall -HUP mDNSResponder   # after a switch, or 
 
 ## The collector
 
-mise installs `miroir-collector` from a pipelines release tag (`collector-vX.Y.Z`) and renders its JSON config at bootstrap, with the server's address built from `SECRET_DOMAIN` as a bootstrap secret. The LaunchAgent runs `mise run --quiet miroir:collect` every hour; that task runs the collector under the folder's own `fnox.toml`, which injects each source's delivery token at run time. A token missing from Proton Pass fails the whole run, so add it before the source. The Mac's default Proton Pass session must be live: the agent never prompts. The program itself: [collector/README.md](https://github.com/h-wb/pipelines/blob/main/collector/README.md).
+mise installs `miroir-collector` from a Miroir release tag (`collector-vX.Y.Z`) and renders its JSON config at bootstrap, with the server's address built from `SECRET_DOMAIN` as a bootstrap secret. The LaunchAgent runs `mise run --quiet miroir:collect` every hour; that task runs the collector under the folder's own `fnox.toml`, which injects each source's delivery token at run time. A token missing from Proton Pass fails the whole run, so add it before the source. The Mac's default Proton Pass session must be live: the agent never prompts. The program itself: [collector/README.md](https://github.com/h-wb/miroir/blob/main/collector/README.md).
 
 ## Permissions to grant by hand
 

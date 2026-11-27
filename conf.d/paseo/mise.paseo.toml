@@ -32,7 +32,7 @@ starship = "latest"
 "~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" } # private: no ref, init has no GitHub credential
 "~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git", ref = "master" }
 "~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git", ref = "main" }
-"~/Repositories/pipelines" = { url = "https://github.com/h-wb/pipelines.git", ref = "main" }
+"~/Repositories/miroir" = { url = "https://github.com/h-wb/miroir.git", ref = "main" }
 
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }

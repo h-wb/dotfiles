@@ -299,7 +299,7 @@ esac
         config = tomllib.loads(text)
         self.assertNotIn("miroir.example.test", text)
         self.assertEqual(config["bootstrap"]["secrets"], {"miroir_collector_zone": "SECRET_DOMAIN"})
-        tool = "pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector"
+        tool = "pipx:git+https://github.com/h-wb/miroir#subdirectory=collector"
         lock = tomllib.loads((self.repo / "mise.personal.lock").read_text())
         self.assertEqual(lock["tools"][tool][0]["version"], config["tools"][tool])
         schema = self.mise("config", "explain", "--file", str(fragment)).stdout
@@ -899,10 +899,10 @@ run = 'test -n "$FIXTURE_SECRET" && touch "$HOME/consumed"'
         self.assertEqual(calls, (self.home / "fnox.calls").read_text())
 
     def test_repo_checkouts_receive_no_host_copies(self):
-        (self.home / "Repositories/pipelines").mkdir(parents=True)
+        (self.home / "Repositories/miroir").mkdir(parents=True)
         (self.home / "Repositories/sento").mkdir(parents=True)
         self.mise("bootstrap", "dotfiles", "apply", "--yes")
-        for path in ("Repositories/pipelines/mise.local.toml",
+        for path in ("Repositories/miroir/mise.local.toml",
                      "Repositories/sento/mise.local.toml",
                      "Repositories/sento/fnox.toml"):
             self.assertFalse((self.home / path).exists(), path)
