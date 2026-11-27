@@ -37,7 +37,6 @@ What several classes share is a layer, not a copy in each:
 | Layer | Holds |
 | --- | --- |
 | `workstation` (`config.workstation.toml`) | what assumes a person and a Proton Pass session: credentialed CLIs (aws, bws, metabase), the `apply`, `diff`, `upgrade` and `land` tasks, both kubeconfigs |
-| `repos` (`conf.d/repos/`) | the owner's repos in `~/Repositories`, on every machine: a missing one is cloned, a checkout already there is left alone |
 | `pod` (`conf.d/pod/`) | a workstation in a pod: pass-cli's key on the volume, doctor `pod-start`. The Paseo pods do not load it |
 | `fish` (`conf.d/fish/`) | one `config.fish`, the starship prompt and `ef`; not the fish binary. A machine's own lines go in `conf.d/<machine>/fish/<machine>.fish`, linked into `~/.config/fish/conf.d/` |
 

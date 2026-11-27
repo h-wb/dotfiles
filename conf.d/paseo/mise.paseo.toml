@@ -27,7 +27,7 @@ starship = "latest"
 # Back on the base branch at every start (clean checkouts only): agents work in
 # Paseo worktrees, and fresh-worktrees fast-forwards the checked-out base. A ref
 # makes the init container fetch, so only public repos can have one: these are
-# layer `repos`'s public entries with a ref (dawarich-regression is private).
+# config.toml's public repos with a ref (dawarich-regression is private).
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git", ref = "main" }
 "~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git", ref = "master" }
