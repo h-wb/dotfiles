@@ -25,6 +25,6 @@ url = "https://github.com/ReagentX/imessage-exporter/releases/download/5.0.1/ime
 url_api = "https://api.github.com/repos/ReagentX/imessage-exporter/releases/assets/687387581"
 
 [[tools."pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector"]]
-version = "collector-v0.3.0"
+version = "collector-v0.4.0"
 backend = "pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector"
-specifiers = ["collector-v0.3.0"]
+specifiers = ["collector-v0.4.0"]
