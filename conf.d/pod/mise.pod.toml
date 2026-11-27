@@ -5,7 +5,7 @@
 PROTON_PASS_KEY_PROVIDER = "fs"
 
 [shell_alias]
-# Not ~/.dotfiles: the next pod start moves it back to the pin.
+# Not ~/.dotfiles: the next pod start moves it back to DOTFILES_REF.
 dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
 
 [bootstrap.repos]
@@ -14,7 +14,7 @@ dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
 
 # A pod starts even when its apply fails: this is where that shows.
 [doctor.checks.pod-start]
-description = "the last pod start applied the pinned commit with secrets"
+description = "the last pod start applied DOTFILES_REF with secrets"
 hint = "see ~/.local/state/dotfiles.log; restarting the pod retries"
 run = '''
 f="$HOME/.local/state/dotfiles.status"

@@ -15,14 +15,16 @@ The owner's own environment in the cluster: `ghcr.io/coder/code-server`, Debian,
 
 home-ops' `dotfiles` Component ([README](https://github.com/h-wb/home-ops/blob/main/kubernetes/components/dotfiles/README.md)) runs the two steps every machine runs ([docs/mise.md](../../docs/mise.md#one-bootstrap-two-steps)) in the init container, at every start:
 
-1. The checkout: `mise -E code-server bootstrap --from …?ref=<pin> --update --save-env --only final-hook` moves the `~/.dotfiles` clone to the pinned commit (cloning it on a fresh volume) and saves the environment. A local change stops the move; the pod then runs the previous commit and reports it `stale`.
+1. The checkout: `mise -E code-server bootstrap --from …?ref=$DOTFILES_REF --update --save-env --only final-hook` moves the `~/.dotfiles` clone to home-ops' `DOTFILES_REF`, `master` (cloning it on a fresh volume) and saves the environment. A local change stops the move; the pod then runs the previous commit and reports it `stale`.
 2. `mise run apply --unattended`. With a live Proton Pass session it applies everything under fnox. Without one it applies what needs no secret: `fresh` on a new volume, or `protect`, without dotfiles, once secrets are on disk.
 
 - mise comes from the `ghcr.io/jdx/mise` image, mounted at `/opt/mise` and first on `PATH` in both containers, because the shims point at it. The editor starts its terminals with a reset `PATH`, so `fish/code-server.fish` adds it back. Its tag must stay at or above `min_version`.
 - The log is `~/.local/state/dotfiles.log`, and the status `~/.local/state/dotfiles.status`, `RESULT MODE DATE COMMIT`: `ok`, `degraded` without secrets, `error`, or `stale`. Doctor `pod-start` (layer `pod`) reads it. Only the status line reaches the init container's log, since pod logs are readable by the agents' cluster tools.
 - Edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones (the `dotfiles` alias opens it).
 
-The pinned commit runs with the owner's token in the pod: review the exact revision before merging a Renovate pin update, and keep `master` protected and its CI green before enabling auto-merge. Rollback is in the Component's README.
+`master` runs with the owner's token in the pod from its next start, so it takes a pull request and the owner's approval (ruleset `default-branch`). Rollback is in the Component's README.
+
+To take a newer `master` without a restart: `git -C ~/.dotfiles pull --ff-only`, then `mise run apply` in `~/.dotfiles`. Pods do not restart when `master` moves.
 
 ## What it relies on
 

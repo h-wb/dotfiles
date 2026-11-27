@@ -83,7 +83,7 @@ sh -c "$(curl -fsLs https://raw.githubusercontent.com/h-wb/dotfiles/refs/heads/m
 
 Run it with `DOTFILES_ENV=personal` (the MacBook) or `DOTFILES_ENV=cachyos` the first time; `mise bootstrap --save-env` keeps it in `miserc.local.toml`, so later runs need it only to change it. On a Mac, sign in to iCloud and the App Store first. The installer installs mise where it is missing, then runs the two steps every machine runs ([docs/mise.md](docs/mise.md#one-bootstrap-two-steps)): `mise bootstrap --from` clones to `~/.dotfiles` (an existing checkout is used as it is: update it with git) and saves the environment, then `mise run apply` provisions with secrets.
 
-The pods run the same two steps from home-ops at every start, at one pinned commit of this repo (`DOTFILES_REF`, bumped by reviewed Renovate pull requests) and with the pod's declared environment; their pages say how. A pod's `~/.dotfiles` is checked out again at every start, so edit this repo in `~/Repositories/dotfiles` there.
+The pods run the same two steps from home-ops at every start, at the ref home-ops sets (`DOTFILES_REF`: `master`, so a merge here reaches each pod at its next start) and with the pod's declared environment; their pages say how. A pod's `~/.dotfiles` is checked out again at every start, so edit this repo in `~/Repositories/dotfiles` there.
 
 ## Everyday use
 
