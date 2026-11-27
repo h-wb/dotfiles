@@ -26,7 +26,7 @@ Only `/home/neko` is on a volume. `/usr` and `/etc` are wiped at every pod roll;
 
 ```mermaid
 flowchart TD
-  I["init container: 1. mise bootstrap --from …?ref=pin"] -->|pinned commit| D["~/.dotfiles"]
+  I["init container: 1. mise bootstrap --from …?ref=DOTFILES_REF"] -->|master| D["~/.dotfiles"]
   D --> S[XFCE session starts]
   S --> A["/etc/xdg/autostart/dotfiles-bootstrap.desktop"]
   A --> B["2. mise run apply --unattended"]
@@ -36,9 +36,9 @@ flowchart TD
   M -->|none, secrets on disk| PR[protect: bootstrap without dotfiles]
 ```
 
-- The two steps every machine runs ([docs/mise.md](../../docs/mise.md#one-bootstrap-two-steps)), from home-ops' `components/dotfiles`. Step 1, the checkout at the pin, runs in an init container before the desktop starts. Step 2, `mise run apply --unattended`, runs from a system XFCE autostart entry inside the session, because apt and xfconf need it (the launchd equivalent; `[bootstrap.linux.systemd.units]` is useless without systemd). The log is `~/.local/state/dotfiles.log`; doctor `pod-start` reports the last start.
+- The two steps every machine runs ([docs/mise.md](../../docs/mise.md#one-bootstrap-two-steps)), from home-ops' `components/dotfiles`. Step 1, the checkout of `DOTFILES_REF`, runs in an init container before the desktop starts. Step 2, `mise run apply --unattended`, runs from a system XFCE autostart entry inside the session, because apt and xfconf need it (the launchd equivalent; `[bootstrap.linux.systemd.units]` is useless without systemd). The log is `~/.local/state/dotfiles.log`; doctor `pod-start` reports the last start.
 - mise comes from the `ghcr.io/jdx/mise` image, mounted at `/opt/mise` and first on `PATH`: the shims point at it.
-- `~/.dotfiles` is moved to the pinned commit at every start; a local change stops the move, and the pod runs the previous commit (`stale`). Edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones.
+- `~/.dotfiles` is moved to `DOTFILES_REF` at every start; a local change stops the move, and the pod runs the previous commit (`stale`). Edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones.
 - `fresh` is what gives a new volume its shell config. That is why the shared templates take no `[bootstrap.secrets]`: one missing secret would abort the whole run.
 - `xfconf-query` needs the session D-Bus: it works from the autostart run and does nothing from `kubectl exec`.
 - pass-cli keeps its key in the kernel keyring by default, which the pod's seccomp blocks. Layer `pod` sets `PROTON_PASS_KEY_PROVIDER=fs`, keeping it on the volume, and a session-start run logs in from `PASS_CLI_PAT`. Never set `seccompProfile: Unconfined`.

@@ -8,7 +8,7 @@ Private data only reaches models trusted with it; a general agent never reads it
 
 ## Where you work
 
-- On a pod (Paseo, neko, code-server), edit in `~/Repositories/dotfiles`, in a Paseo worktree. `~/.dotfiles` is the pod's live config: home-ops' pinned commit, checked out again at every start, so an edit there does not last.
+- On a pod (Paseo, neko, code-server), edit in `~/Repositories/dotfiles`, in a Paseo worktree. `~/.dotfiles` is the pod's live config: home-ops' `DOTFILES_REF` (`master`), checked out again at every start, so an edit there does not last.
 - Bare `mise bootstrap` applies to the machine you are on. Test in a sandbox `HOME` instead: [docs/mise.md](docs/mise.md#test-a-change-without-touching-the-machine).
 
 ## Layout

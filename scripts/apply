@@ -51,8 +51,13 @@ fresh) mise bootstrap "$@" $force ;;
 protect) mise bootstrap "$@" --skip dotfiles ;;
 esac || { status error; exit 1; }
 
-if [ -n "${DOTFILES_REF:-}" ] && [ "$DOTFILES_REF" != "$COMMIT" ]; then
-	echo "[warn] applied ${COMMIT}, not the pinned ${DOTFILES_REF} (the fetch failed?)"
+# A branch (home-ops' `master`) has no commit to compare; only a pinned commit does.
+ref=${DOTFILES_REF:-}
+case "$ref" in
+*[!0-9a-f]*) ref='' ;;
+esac
+if [ "${#ref}" -eq 40 ] && [ "$ref" != "$COMMIT" ]; then
+	echo "[warn] applied ${COMMIT}, not the pinned ${ref} (the fetch failed?)"
 	status stale
 	exit 1
 fi

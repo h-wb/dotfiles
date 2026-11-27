@@ -1126,6 +1126,9 @@ printf '%s\\n' 'cp "$HOME/fake-mise" "$HOME/.local/bin/mise"' > "$2"
         # home-ops asked for another commit: its fetch failed, this one ran.
         _, status, _ = self.apply("--unattended", DOTFILES_REF="b" * 40)
         self.assertEqual(status, ["stale", "fresh"])
+        # home-ops follows a branch: there is no commit to compare.
+        _, status, _ = self.apply("--unattended", DOTFILES_REF="master")
+        self.assertEqual(status, ["degraded", "fresh"])
         # neko's session has no git before its apt step: the commit comes from .git/HEAD.
         git("checkout", "-q", "--detach")
         self.fake("git", "exit 127")

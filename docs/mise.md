@@ -134,7 +134,7 @@ Each of these was checked against mise and has bitten this repo once.
 
 | Option | Why not |
 | --- | --- |
-| `bootstrap --update` on a branch, or any pull | Nothing here follows a branch. A person updates the Mac's or CachyOS's clone with git; on the pods `--update` only moves the checkout to the commit home-ops pins (`DOTFILES_REF`, bumped by Renovate). |
+| `bootstrap --update` on a branch, or any pull | Nothing here follows a branch. A person updates the Mac's or CachyOS's clone with git; on the pods `--update` moves the checkout to home-ops' `DOTFILES_REF`, `master`. |
 | `--adopt` (clone into `~/.config/mise`) | Runs bootstrap without fnox and moves the checkout off `~/.dotfiles`. |
 | `mode = "track"`, `mise dot track ~/.config/mise` | A second history over files the git checkout already is, without a rendering step, so rendered secrets would enter it. |
 | An extra env as a toggle (`env = ["personal", "edge"]` for DNS) | `MISE_ENV` order is last-wins, so `["edge", "personal"]` silently picks main. The DNS choice is a saved var instead ([macOS](../conf.d/macos/README.md#cluster-dns)). |
