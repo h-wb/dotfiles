@@ -1184,8 +1184,6 @@ printf '%s\\n' 'cp "$HOME/fake-mise" "$HOME/.local/bin/mise"' > "$2"
                 clones = {line.rsplit("/", 1)[1]: line for line in out.splitlines()
                           if line.startswith("git clone")}
                 self.assertEqual(shared, set(clones))
-                # Paseo's agents start on the base branch: its class adds a ref to
-                # the public repos; a person's checkouts are left on theirs.
                 for name in shared - {"dawarich-regression"}:
                     self.assertEqual("--branch" in clones[name], machine == "paseo", name)
 

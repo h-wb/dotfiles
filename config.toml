@@ -21,8 +21,6 @@ git_email        = "{{ get_env(name='GIT_EMAIL', default='') }}"
 ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
 
-# Cloned when missing; a checkout already there is left as it is. The Paseo
-# class adds `ref` to the public ones.
 [bootstrap.repos]
 "~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
 "~/Repositories/dotfiles"            = { url = "https://github.com/h-wb/dotfiles.git" }
