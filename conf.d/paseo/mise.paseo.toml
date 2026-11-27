@@ -24,15 +24,13 @@ PROTON_PASS_KEY_PROVIDER = "fs" # seccomp blocks the kernel keyring
 "npm:chrome-devtools-mcp" = "latest"
 starship = "latest"
 
-# Back on the base branch at every start (clean checkouts only): agents work in
-# Paseo worktrees, and fresh-worktrees fast-forwards the checked-out base. A ref
-# makes the init container fetch, so only public repos can have one.
 [bootstrap.repos]
 "~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git", ref = "main" }
-"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" } # private: no ref, init has no GitHub credential
 "~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git", ref = "master" }
-"~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git", ref = "main" }
+"~/Repositories/handbook" = { url = "https://github.com/h-wb/handbook.git", ref = "main" }
 "~/Repositories/miroir" = { url = "https://github.com/h-wb/miroir.git", ref = "main" }
+"~/Repositories/sento" = { url = "https://github.com/h-wb/sento.git", ref = "main" }
+"~/Repositories/skills" = { url = "https://github.com/h-wb/skills.git", ref = "main" }
 
 [dotfiles]
 "~/.bashrc" = { source = "bashrc", mode = "symlink" }

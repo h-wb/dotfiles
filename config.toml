@@ -21,6 +21,15 @@ git_email        = "{{ get_env(name='GIT_EMAIL', default='') }}"
 ssh_truenas_host = "{{ get_env(name='SSH_TRUENAS_HOST', default='') }}"
 ssh_truenas_user = "{{ get_env(name='SSH_TRUENAS_USER', default='') }}"
 
+[bootstrap.repos]
+"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dotfiles"            = { url = "https://github.com/h-wb/dotfiles.git" }
+"~/Repositories/handbook"            = { url = "https://github.com/h-wb/handbook.git" }
+"~/Repositories/miroir"              = { url = "https://github.com/h-wb/miroir.git" }
+"~/Repositories/sento"               = { url = "https://github.com/h-wb/sento.git" }
+"~/Repositories/skills"              = { url = "https://github.com/h-wb/skills.git" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
+
 [tools]
 node = "24" # 26 needs libatomic.so.1, which the Paseo and code-server images lack
 uv = "latest"   # before python: a pip-installed uv in its bin would shadow this one (pipx: locks need >= 0.12.10)

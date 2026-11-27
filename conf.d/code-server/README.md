@@ -20,7 +20,7 @@ home-ops' `dotfiles` Component ([README](https://github.com/h-wb/home-ops/blob/m
 
 - mise comes from the `ghcr.io/jdx/mise` image, mounted at `/opt/mise` and first on `PATH` in both containers, because the shims point at it. The editor starts its terminals with a reset `PATH`, so `fish/code-server.fish` adds it back. Its tag must stay at or above `min_version`.
 - The log is `~/.local/state/dotfiles.log`, and the status `~/.local/state/dotfiles.status`, `RESULT MODE DATE COMMIT`: `ok`, `degraded` without secrets, `error`, or `stale`. Doctor `pod-start` (layer `pod`) reads it. Only the status line reaches the init container's log, since pod logs are readable by the agents' cluster tools.
-- Edit this repo in `~/Repositories/dotfiles`, which layer `pod` clones (the `dotfiles` alias opens it).
+- Edit this repo in `~/Repositories/dotfiles`, which every machine clones (`config.toml`) (the `dotfiles` alias opens it).
 
 `master` runs with the owner's token in the pod from its next start, so it takes a pull request and the owner's approval (ruleset `default-branch`). Rollback is in the Component's README.
 
