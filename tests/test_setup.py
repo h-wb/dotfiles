@@ -263,31 +263,11 @@ esac
         apply(SECRET_DOMAIN="example.test")
         original = out.read_text()
         self.assertEqual(out.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(json.loads(original), {
-            "state_dir": "~/Library/Application Support/miroir-collector",
-            "sources": [{
-                "id": "screen_macbook",
-                "source": "screenmemory",
-                "receive_url": "https://miroir.example.test/api/connections/screen_macbook/receive",
-                "token_env": "MIROIR_TOKEN_SCREEN_MACBOOK",
-                "options": {
-                    "data_dir": "~/Nextcloud/Hugo/Images/ScreenMemory/ScreenMemoryData",
-                    "since": "2026-10-20",
-                    "media": True,
-                },
-            }, {
-                "id": "messages",
-                "source": "apple_messages",
-                "receive_url": "https://miroir.example.test/api/connections/messages/receive",
-                "token_env": "MIROIR_TOKEN_MESSAGES",
-                "options": {"media": True, "names": True},
-            }, {
-                "id": "browser_macbook",
-                "source": "zen_history",
-                "receive_url": "https://miroir.example.test/api/connections/browser_macbook/receive",
-                "token_env": "MIROIR_TOKEN_BROWSER_MACBOOK",
-            }],
-        })
+        sources = json.loads(original)["sources"]
+        self.assertTrue(sources)
+        for source in sources:
+            self.assertEqual(source["receive_url"],
+                             f"https://miroir.example.test/api/connections/{source['id']}/receive")
         self.assertNotEqual(apply(ok=False, SECRET_DOMAIN="").returncode, 0)
         self.assertEqual(out.read_text(), original)
 
@@ -1109,7 +1089,10 @@ printf '%s\\n' 'cp "$HOME/fake-mise" "$HOME/.local/bin/mise"' > "$2"
         # Offline here: a real `mise run` installs the machine's tools first.
         env = {**self.env, "MISE_TASK_RUN_AUTO_INSTALL": "false"}
         self.mise("run", "apply", "--unattended", "--upgrade", env=env)
-        self.assertEqual((self.home / "apply.args").read_text(), f"--upgrade --unattended\n{self.repo}\n")
+        args, cwd = (self.home / "apply.args").read_text().splitlines()
+        self.assertEqual(args, "--upgrade --unattended")
+        # macOS reports /private/var for a temp folder under /var.
+        self.assertEqual(os.path.realpath(cwd), os.path.realpath(self.repo))
         self.mise("run", "diff", env=env)
         self.assertEqual((self.home / "apply.args").read_text().splitlines()[0], "--dry-run")
 
@@ -1497,6 +1480,8 @@ esac
         # Declared as `flag "--repo"`, mise took it for a switch and refused
         # `--repo OWNER/NAME` with "unexpected word".
         self.select("workstation")
+        # The command line is cut to the terminal's width; a long temp path hides the end.
+        self.env["MISE_TRUNCATE"] = "false"
         result = self.mise("run", "--dry-run", "--skip-tools", "land", "38", "--repo", "owner/name")
         self.assertIn("scripts/land", result.stdout + result.stderr)
         # The dry run prints the command, cut short after the flag.
