@@ -1,2 +1,1 @@
-# Hosts without Ghostty's terminfo (the NAS) break backspace and redraws.
 shell-integration-features = ssh-env,ssh-terminfo
