@@ -57,12 +57,9 @@ TZ = "America/New_York"              # also what neko:tz links /etc/localtime to
 # ── Repos ───────────────────────────────────────────────────────────────────
 # neko only: on a Mac these checkouts hold real work.
 [bootstrap.repos]
-"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
 "~/Repositories/codex"               = { url = "https://github.com/h-wb/codex.git" }
 "~/Repositories/sync-anilist"        = { url = "https://github.com/h-wb/codex-plugins.git" }
-"~/Repositories/sento"               = { url = "https://github.com/h-wb/sento.git" }
 "~/Repositories/main-go-brrr"        = { url = "https://github.com/h-wb/main-go-brrr.git" }
-"~/Repositories/dlt"                 = { url = "https://github.com/h-wb/miroir.git" }
 # Read-only references: partial clones keep the PVC small (first clone only).
 "~/Repositories/dawarich"            = { url = "https://github.com/Freika/dawarich.git", filter = "blob:none" }
 "~/Repositories/onedr0p"             = { url = "https://github.com/onedr0p/home-ops.git", filter = "blob:none" }

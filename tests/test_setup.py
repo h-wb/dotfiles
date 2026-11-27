@@ -1175,6 +1175,20 @@ printf '%s\\n' 'cp "$HOME/fake-mise" "$HOME/.local/bin/mise"' > "$2"
                         (state / "dotfiles.status").write_text(line + "\n")
                         self.assertEqual(self.doctor()["pod-start"], want)
 
+    def test_every_machine_gets_the_shared_repos(self):
+        shared = {"home-ops", "dotfiles", "handbook", "miroir", "sento", "skills", "dawarich-regression"}
+        for machine in LAYERS:
+            with self.subTest(machine=machine):
+                self.select(machine)
+                out = self.mise("bootstrap", "--dry-run", "--only", "repos").stdout
+                clones = {line.rsplit("/", 1)[1]: line for line in out.splitlines()
+                          if line.startswith("git clone")}
+                self.assertLessEqual(shared, set(clones))
+                # Paseo's agents start on the base branch: its class adds a ref to
+                # the public repos; a person's checkouts are left on theirs.
+                for name in shared - {"dawarich-regression"}:
+                    self.assertEqual("--branch" in clones[name], machine == "paseo", name)
+
     def test_code_server_terminal_and_shell(self):
         self.select("code-server")
         self.mise("bootstrap", "dotfiles", "apply", "--yes")

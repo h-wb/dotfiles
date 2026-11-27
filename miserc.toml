@@ -7,8 +7,8 @@ auto_env = true
 # Declared by the caller in miserc.local.toml (`mise bootstrap --save-env`), never
 # detected: one set below, then any extra layers.
 [env_sets]
-personal = ["workstation", "personal"]
-neko = ["workstation", "pod", "fish", "neko"]
-cachyos = ["workstation", "fish", "cachyos"]
-paseo = ["paseo"]
-code-server = ["workstation", "pod", "fish", "code-server"]
+personal = ["repos", "workstation", "personal"]
+neko = ["repos", "workstation", "pod", "fish", "neko"]
+cachyos = ["repos", "workstation", "fish", "cachyos"]
+paseo = ["repos", "paseo"]
+code-server = ["repos", "workstation", "pod", "fish", "code-server"]

@@ -75,7 +75,7 @@ A declaration is one set from `miserc.toml`'s `[env_sets]`, which expands it int
 - Renaming a folder moves its symlink sources: the old links dangle until the next apply re-points them. On the Mac apply right after pulling (`~/.zshrc` is one of them); a pod's start does it, except in `protect` mode. Never rename the `apply` task or its `--unattended` flag: home-ops runs them.
 - `home/` holds the sources of the root configs (git, ssh, kube). A folder fragment never reaches into it.
 - Platform envs (`auto_env = true`): `macos`, `linux`, `unix`, `<os>-<arch>` are active by themselves, below explicit envs. `[tools]` and `[bootstrap.packages]` still take `os =` for an odd entry (neko's GUI apps keep it, so a stray `-E neko` on a Mac fails clean).
-- Layers never set the same key as each other, so their order cannot change the result.
+- Layers never set the same key as each other, so their order cannot change the result. The one class that sets a layer's key is `paseo`: it adds `ref` to layer `repos`'s public repos, and a class loads after its layers.
 
 ## The minimum version
 

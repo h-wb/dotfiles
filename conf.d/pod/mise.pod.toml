@@ -8,10 +8,6 @@ PROTON_PASS_KEY_PROVIDER = "fs"
 # Not ~/.dotfiles: the next pod start moves it back to DOTFILES_REF.
 dotfiles = "code {{ env.HOME }}/Repositories/dotfiles"
 
-[bootstrap.repos]
-"~/Repositories/home-ops" = { url = "https://github.com/h-wb/home-ops.git" }
-"~/Repositories/dotfiles" = { url = "https://github.com/h-wb/dotfiles.git" }
-
 # A pod starts even when its apply fails: this is where that shows.
 [doctor.checks.pod-start]
 description = "the last pod start applied DOTFILES_REF with secrets"

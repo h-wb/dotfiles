@@ -1,0 +1,10 @@
+# Layer `repos`: the owner's repos, on every machine. A missing one is cloned; a
+# checkout already there is left as it is. The Paseo class adds `ref` (paseo/).
+[bootstrap.repos]
+"~/Repositories/home-ops"            = { url = "https://github.com/h-wb/home-ops.git" }
+"~/Repositories/dotfiles"            = { url = "https://github.com/h-wb/dotfiles.git" }
+"~/Repositories/handbook"            = { url = "https://github.com/h-wb/handbook.git" }
+"~/Repositories/miroir"              = { url = "https://github.com/h-wb/miroir.git" }
+"~/Repositories/sento"               = { url = "https://github.com/h-wb/sento.git" }
+"~/Repositories/skills"              = { url = "https://github.com/h-wb/skills.git" }
+"~/Repositories/dawarich-regression" = { url = "https://github.com/h-wb/dawarich-regression.git" }
