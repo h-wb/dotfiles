@@ -121,7 +121,7 @@ python3 tests/test_setup.py -v  # Python 3.11+; isolated homes, nothing here is 
 mise doctor project
 ```
 
-CI runs the same tests on macOS and Linux with the minimum and the latest mise, then loads and renders each of the five classes. A green `test` run on `master` is required before merging a home-ops pin update. It fails on `master` today (HOMEL-121). Commit dependency sidecars (`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
+CI runs the same tests on macOS and Linux with the minimum and the latest mise, then loads and renders each of the five classes. Its jobs are required checks on `master` (ruleset `required-checks`), and every pod takes `master` at its next start. Commit dependency sidecars (`locks/`) along with `mise*.lock`; `mise lock --global --sidecars` lists them.
 
 ## Pages
 
