@@ -61,7 +61,7 @@ The layout below is kept in Proton Pass itself (not checked from here).
 | `Personal` | the owner | personal logins |
 | `Homelab` | the owner | homelab service web logins |
 | `Machines` | the owner's machines' dotfiles and CLIs | kubeconfigs, SSH, WireGuard, the GitHub workstation token, agent gateway keys, Anki |
-| `Automation General` | the general Paseo pod, plus the workstation tokens of the repos it works on | everything agents read: home-ops bootstrap and Talos, pipelines, and the other repos the general pod works on |
+| `Automation General` | the general Paseo pod, plus the workstation tokens of the repos it works on | everything agents read: pipelines and the other repos the general pod works on. Not home-ops' bootstrap or Talos secrets, which are in `Machines` |
 | `Aliases` | the alias service | email aliases |
 
 - If an agent may read an item, it lives in `Automation General`. If a machine needs it, `Machines`. Everything else is the owner's. An item two readers need goes in the narrower reader's vault, and the broader token gets a grant on it too. No folders.
