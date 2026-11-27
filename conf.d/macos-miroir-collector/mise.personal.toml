@@ -1,5 +1,5 @@
 [tools]
-"pipx:git+https://github.com/h-wb/pipelines#subdirectory=collector" = "collector-v0.4.0"
+"pipx:git+https://github.com/h-wb/miroir#subdirectory=collector" = "collector-v0.4.0"
 
 [bootstrap.secrets]
 miroir_collector_zone = "SECRET_DOMAIN"
